@@ -38,9 +38,10 @@ export class KapsoClient {
     return { client: this.client, phoneNumberId: this.cfg.phoneNumberId };
   }
 
-  async sendText(to: string, body: string): Promise<void> {
+  async sendText(to: string, body: string): Promise<string> {
     const { client, phoneNumberId } = this.assertConfigured();
-    await client.messages.sendText({ phoneNumberId, to, body });
+    const response = await client.messages.sendText({ phoneNumberId, to, body });
+    return response.messages[0].id;
   }
 
   async sendTemplate(
@@ -59,4 +60,3 @@ export class KapsoClient {
     await client.messages.sendTemplate({ phoneNumberId, to, template });
   }
 }
-

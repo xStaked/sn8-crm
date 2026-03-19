@@ -9,7 +9,7 @@ export type { NormalizedMessage };
  * without coupling business logic to a specific provider SDK.
  */
 export abstract class ChannelAdapter {
-  abstract sendText(to: string, body: string): Promise<void>;
+  abstract sendText(to: string, body: string): Promise<string>;
 
   abstract sendTemplate(
     to: string,
@@ -19,4 +19,3 @@ export abstract class ChannelAdapter {
 
   abstract normalizeInbound(rawPayload: unknown): NormalizedMessage;
 }
-

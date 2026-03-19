@@ -16,8 +16,8 @@ export class KapsoAdapter extends ChannelAdapter {
     super();
   }
 
-  async sendText(to: string, body: string): Promise<void> {
-    await this.kapso.sendText(to, body);
+  async sendText(to: string, body: string): Promise<string> {
+    return this.kapso.sendText(to, body);
   }
 
   async sendTemplate(
