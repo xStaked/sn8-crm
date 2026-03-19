@@ -5,6 +5,7 @@ import type { Request } from 'express';
 import express from 'express';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
+import { configureSwagger } from './swagger';
 
 type RawBodyRequest = Request & { rawBody?: Buffer };
 
@@ -27,6 +28,8 @@ async function bootstrap() {
     origin: process.env.FRONTEND_URL ?? 'http://localhost:3000',
     credentials: true,
   });
+  configureSwagger(app);
+
   await app.listen(process.env.PORT ?? 3001);
 }
 bootstrap();

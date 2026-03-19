@@ -83,6 +83,7 @@ describe('Auth (e2e)', () => {
   it('AuthController.login sets httpOnly access_token cookie with expected flags', async () => {
     const res = { cookie: jest.fn() } as any;
     const result = await controller.login(
+      { email: seededEmail, password: seededPassword },
       { user: { userId: 'user_1', email: seededEmail } },
       res,
     );

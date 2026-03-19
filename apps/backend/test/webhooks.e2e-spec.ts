@@ -148,6 +148,23 @@ describe('Webhooks (e2e)', () => {
     expect(queue.add).toHaveBeenCalledTimes(2);
   });
 
+  it('accepts the documented X-Idempotency-Key header', async () => {
+    const payload = { type: 'whatsapp.message.received' };
+    const signature = sign(payload);
+
+    await request(app.getHttpServer())
+      .post('/webhooks/kapso')
+      .set('X-Webhook-Signature', signature)
+      .set('X-Idempotency-Key', 'kapso-delivery-123')
+      .send(payload)
+      .expect(200);
+
+    expect(queue.add).toHaveBeenLastCalledWith('process-message', {
+      messageId: 'kapso-delivery-123',
+      payload,
+    });
+  });
+
   it('enqueue-path response time is under 100ms in test conditions', async () => {
     const payload = { message: { id: 'msg_e2e_perf' } };
     const signature = sign(payload);
