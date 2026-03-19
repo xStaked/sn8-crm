@@ -24,6 +24,15 @@ export function configureSwagger(app: INestApplication) {
       },
       'access_token',
     )
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        description: 'Alternativa para clientes que envian `Authorization: Bearer <token>`.',
+      },
+      'access_token_bearer',
+    )
     .build();
 
   const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig, {

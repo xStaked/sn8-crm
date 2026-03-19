@@ -11,6 +11,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import {
+  ApiBearerAuth,
   ApiBody,
   ApiCreatedResponse,
   ApiForbiddenResponse,
@@ -68,7 +69,8 @@ export class AuthController {
 
   @ApiOperation({
     summary: 'Iniciar sesion',
-    description: 'Autentica al usuario y devuelve la cookie httpOnly `access_token`.',
+    description:
+      'Autentica al usuario, devuelve la cookie httpOnly `access_token` y tambien el token en el body.',
   })
   @ApiBody({ type: LoginDto })
   @ApiOkResponse({
@@ -91,11 +93,12 @@ export class AuthController {
       sameSite: 'strict',
       maxAge: 8 * 60 * 60 * 1000, // 8 hours
     });
-    return { message: 'ok' };
+    return { message: 'ok', accessToken: access_token };
   }
 
   @ApiOperation({ summary: 'Obtener sesion actual' })
   @ApiCookieAuth('access_token')
+  @ApiBearerAuth('access_token_bearer')
   @ApiOkResponse({
     description: 'Usuario autenticado.',
     type: AuthUserResponseDto,

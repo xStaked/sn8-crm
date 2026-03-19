@@ -1,5 +1,6 @@
 import { Controller, Get, Param, UseGuards } from '@nestjs/common';
 import {
+  ApiBearerAuth,
   ApiCookieAuth,
   ApiNotFoundResponse,
   ApiOkResponse,
@@ -17,6 +18,7 @@ import { ConversationsService } from './conversations.service';
 
 @ApiTags('Conversations')
 @ApiCookieAuth('access_token')
+@ApiBearerAuth('access_token_bearer')
 @ApiUnauthorizedResponse({ description: 'La cookie de sesion es invalida o no existe.' })
 @Controller()
 export class ConversationsController {

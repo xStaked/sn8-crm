@@ -8,7 +8,11 @@ import { PrismaModule } from '../src/prisma/prisma.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { AuthController } from '../src/auth/auth.controller';
 import { AuthService } from '../src/auth/auth.service';
-import { JwtStrategy, cookieJwtExtractor } from '../src/auth/strategies/jwt.strategy';
+import {
+  JwtStrategy,
+  bearerJwtExtractor,
+  cookieJwtExtractor,
+} from '../src/auth/strategies/jwt.strategy';
 import { LocalStrategy } from '../src/auth/strategies/local.strategy';
 
 describe('Auth (e2e)', () => {
@@ -81,6 +85,20 @@ describe('Auth (e2e)', () => {
     expect(cookieJwtExtractor({} as any)).toBeNull();
   });
 
+  it('JwtStrategy extracts token from Authorization Bearer header', () => {
+    expect(
+      bearerJwtExtractor({
+        headers: { authorization: 'Bearer header-token' },
+      } as any),
+    ).toBe('header-token');
+    expect(
+      bearerJwtExtractor({
+        headers: { authorization: 'Basic credentials' },
+      } as any),
+    ).toBeNull();
+    expect(bearerJwtExtractor({ headers: {} } as any)).toBeNull();
+  });
+
   it('JwtStrategy.validate maps payload sub/email to userId/email', async () => {
     await expect(jwtStrategy.validate({ sub: 'user_1', email: seededEmail })).resolves.toEqual({
       userId: 'user_1',
@@ -96,11 +114,12 @@ describe('Auth (e2e)', () => {
       res,
     );
 
-    expect(result).toEqual({ message: 'ok' });
+    expect(result).toEqual({ message: 'ok', accessToken: expect.any(String) });
     expect(res.cookie).toHaveBeenCalledTimes(1);
     const [name, value, options] = res.cookie.mock.calls[0];
     expect(name).toBe('access_token');
     expect(typeof value).toBe('string');
+    expect(result.accessToken).toBe(value);
     expect(options).toMatchObject({
       httpOnly: true,
       sameSite: 'strict',
