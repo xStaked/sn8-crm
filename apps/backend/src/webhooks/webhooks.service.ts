@@ -27,6 +27,12 @@ export class WebhooksService {
       (headerIdempotencyKey && headerIdempotencyKey.trim()) ||
       this.extractMessageId(payload);
 
+    this.logger.log({
+      event: 'webhook_processing_started',
+      headerIdempotencyKey: headerIdempotencyKey ?? null,
+      messageId: messageId ?? null,
+    });
+
     if (!messageId) {
       this.logger.warn({ event: 'webhook_missing_idempotency_key' });
       return { status: 'ignored' };
@@ -44,7 +50,17 @@ export class WebhooksService {
     }
 
     try {
+      this.logger.log({
+        event: 'webhook_enqueue_attempt',
+        messageId,
+        redisKey,
+      });
       await this.messageQueue.add('process-message', { messageId, payload });
+      this.logger.log({
+        event: 'webhook_enqueue_success',
+        messageId,
+        redisKey,
+      });
       return { status: 'enqueued', messageId };
     } catch (err) {
       await this.redis.del(redisKey);

@@ -131,7 +131,14 @@ describe('Auth (e2e)', () => {
   it('AuthController.logout clears the access_token cookie and returns 200 payload', () => {
     const res = { clearCookie: jest.fn() } as any;
     expect(controller.logout(res)).toEqual({ message: 'ok' });
-    expect(res.clearCookie).toHaveBeenCalledWith('access_token');
+    expect(res.clearCookie).toHaveBeenCalledWith(
+      'access_token',
+      expect.objectContaining({
+        httpOnly: true,
+        sameSite: 'strict',
+        secure: false,
+      }),
+    );
   });
 
   it('bootstrap-user rejects requests without the bootstrap secret', async () => {

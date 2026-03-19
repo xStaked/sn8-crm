@@ -91,6 +91,16 @@ export class WebhooksController {
     @Headers('x-idempotency-key') idempotencyKeyHeader: string | undefined,
     @Headers('x-kapso-idempotency-key') legacyIdempotencyKeyHeader: string | undefined,
   ) {
+    this.logger.log({
+      event: 'kapso_webhook_received',
+      hasSignature: Boolean(signatureHeader),
+      hasRawBody: Boolean(req.rawBody),
+      headerIdempotencyKey: idempotencyKeyHeader ?? legacyIdempotencyKeyHeader ?? null,
+      topLevelMessageId:
+        typeof payload?.message?.id === 'string' ? payload.message.id : null,
+      entryCount: Array.isArray(payload?.entry) ? payload.entry.length : 0,
+    });
+
     const secret = process.env.KAPSO_WEBHOOK_SECRET;
     if (!secret) {
       this.logger.error('Rejecting Kapso webhook because KAPSO_WEBHOOK_SECRET is not configured');
@@ -113,10 +123,19 @@ export class WebhooksController {
       throw new UnauthorizedException();
     }
 
+    this.logger.log({
+      event: 'kapso_webhook_signature_valid',
+      rawBodyLength: rawBody.length,
+    });
+
     const result = await this.webhooks.handleKapsoWebhook(
       payload,
       idempotencyKeyHeader ?? legacyIdempotencyKeyHeader,
     );
+    this.logger.log({
+      event: 'kapso_webhook_handled',
+      result,
+    });
     return { message: 'ok', ...result };
   }
 }
