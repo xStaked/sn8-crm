@@ -1,25 +1,35 @@
 FROM node:22-bookworm-slim AS deps
 WORKDIR /app
 
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+
 RUN apt-get update \
   && apt-get install -y --no-install-recommends openssl \
   && rm -rf /var/lib/apt/lists/*
 
-COPY package.json package-lock.json ./
+RUN corepack enable
+
+COPY package.json pnpm-lock.yaml ./
 COPY prisma/schema.prisma prisma/schema.prisma
 
-RUN npm ci
+RUN pnpm install --frozen-lockfile
 
 FROM node:22-bookworm-slim AS build
 WORKDIR /app
 
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+
 RUN apt-get update \
   && apt-get install -y --no-install-recommends openssl \
   && rm -rf /var/lib/apt/lists/*
 
+RUN corepack enable
+
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/package.json ./package.json
-COPY --from=deps /app/package-lock.json ./package-lock.json
+COPY --from=deps /app/pnpm-lock.yaml ./pnpm-lock.yaml
 COPY --from=deps /app/prisma/schema.prisma prisma/schema.prisma
 
 COPY prisma prisma
@@ -27,20 +37,24 @@ COPY nest-cli.json tsconfig*.json ./
 COPY src src
 
 RUN npx prisma generate --schema=prisma/schema.prisma
-RUN npm run build
+RUN pnpm run build
 
 FROM node:22-bookworm-slim AS prod-deps
 WORKDIR /app
 
 ENV NODE_ENV=production
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends openssl \
   && rm -rf /var/lib/apt/lists/*
 
-COPY package.json package-lock.json ./
+RUN corepack enable
 
-RUN npm ci --omit=dev
+COPY package.json pnpm-lock.yaml ./
+
+RUN pnpm install --prod --frozen-lockfile
 
 FROM node:22-bookworm-slim AS runtime
 WORKDIR /app
