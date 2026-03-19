@@ -1,5 +1,5 @@
 import { buildTemplateSendPayload, WhatsAppClient } from '@kapso/whatsapp-cloud-api';
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnprocessableEntityException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 type KapsoOutboundConfig = {
@@ -38,10 +38,40 @@ export class KapsoClient {
     return { client: this.client, phoneNumberId: this.cfg.phoneNumberId };
   }
 
+  private isOutsideWindowError(error: unknown): boolean {
+    if (typeof error !== 'object' || error === null) {
+      return false;
+    }
+
+    const maybeError = error as {
+      code?: unknown;
+      raw?: { error?: unknown };
+    };
+
+    return (
+      maybeError.code === 422 &&
+      typeof maybeError.raw?.error === 'string' &&
+      maybeError.raw.error.includes('outside the 24-hour window')
+    );
+  }
+
   async sendText(to: string, body: string): Promise<string> {
     const { client, phoneNumberId } = this.assertConfigured();
-    const response = await client.messages.sendText({ phoneNumberId, to, body });
-    return response.messages[0].id;
+
+    try {
+      const response = await client.messages.sendText({ phoneNumberId, to, body });
+      return response.messages[0].id;
+    } catch (error) {
+      if (this.isOutsideWindowError(error)) {
+        throw new UnprocessableEntityException({
+          code: 'WHATSAPP_WINDOW_CLOSED',
+          message:
+            'No puedes enviar mensajes libres fuera de la ventana de 24 horas de WhatsApp. Debes enviar una plantilla para reabrir la conversacion.',
+        });
+      }
+
+      throw error;
+    }
   }
 
   async sendTemplate(
