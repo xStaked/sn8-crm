@@ -18,7 +18,7 @@ const fetcher = (path: string) => apiFetchJson<ConversationMessageDto[]>(path);
 
 export function useConversationMessages(conversationId: string | null) {
   const router = useRouter();
-  const { data, error, isLoading } = useSWR<ConversationMessageDto[]>(
+  const { data, error, isLoading, mutate } = useSWR<ConversationMessageDto[]>(
     conversationId ? buildMessagesEndpoint(conversationId) : null,
     fetcher,
     {
@@ -65,5 +65,6 @@ export function useConversationMessages(conversationId: string | null) {
     error,
     isLoading,
     state,
+    mutate,
   };
 }

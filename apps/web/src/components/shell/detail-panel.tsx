@@ -1,12 +1,15 @@
 "use client";
 
+import { useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { MessageSquare } from "lucide-react";
+import { MessageSquare, Send } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useConversationMessages } from "@/hooks/use-conversation-messages";
 import { useConversations } from "@/hooks/use-conversations";
-import { isApiError } from "@/lib/api";
+import { apiFetchJson, isApiError } from "@/lib/api";
+import type { ConversationMessageDto } from "@/types/conversation";
 
 function formatTimestamp(isoString: string) {
   return new Date(isoString).toLocaleString("es-MX", {
@@ -36,7 +39,32 @@ export function DetailPanel() {
   const selectedConversation =
     conversations.find((conversation) => conversation.id === selectedId) ??
     null;
-  const { messages, error, state } = useConversationMessages(selectedId);
+  const { messages, error, state, mutate } = useConversationMessages(selectedId);
+  const [messageBody, setMessageBody] = useState("");
+  const [sending, setSending] = useState(false);
+
+  async function handleSend() {
+    if (!messageBody.trim() || !selectedId || sending) return;
+
+    setSending(true);
+
+    try {
+      const sent = await apiFetchJson<ConversationMessageDto>(
+        `/conversations/${encodeURIComponent(selectedId)}/messages`,
+        {
+          method: "POST",
+          body: JSON.stringify({ body: messageBody.trim() }),
+        },
+      );
+
+      await mutate((current) => [...(current ?? []), sent], { revalidate: false });
+      setMessageBody("");
+    } catch {
+      // Keep the draft in place so the socio can retry after transient failures.
+    } finally {
+      setSending(false);
+    }
+  }
 
   if (!selectedConversation) {
     return (
@@ -144,6 +172,35 @@ export function DetailPanel() {
           })}
         </div>
       )}
+
+      {state !== "unauthorized" ? (
+        <div className="border-t border-border px-6 py-4">
+          <div className="flex items-end gap-3">
+            <textarea
+              className="flex-1 resize-none rounded-lg border border-border bg-card px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              placeholder="Escribe un mensaje..."
+              rows={2}
+              value={messageBody}
+              onChange={(event) => setMessageBody(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault();
+                  void handleSend();
+                }
+              }}
+              disabled={sending}
+            />
+            <Button
+              size="icon"
+              disabled={!messageBody.trim() || sending}
+              onClick={() => void handleSend()}
+              className="h-10 w-10 shrink-0"
+            >
+              <Send className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
