@@ -109,6 +109,8 @@ export class KapsoAdapter extends ChannelAdapter {
       }
     }
 
-    throw new Error('Unable to normalize inbound Kapso payload');
+    throw new Error(
+      `Unable to normalize inbound Kapso payload. Keys: ${isRecord(rawPayload) ? Object.keys(rawPayload).join(', ') : typeof rawPayload}. Payload: ${JSON.stringify(rawPayload)}`,
+    );
   }
 }
