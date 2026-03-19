@@ -1,0 +1,8 @@
+{
+  "name": "sn8-wpp-crm",
+  "private": true,
+  "workspaces": [
+    "apps/backend",
+    "apps/web"
+  ]
+}

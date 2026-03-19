@@ -1,0 +1,18 @@
+node_modules
+dist
+.env
+.env.*
+!.env.example
+
+npm-debug.log*
+
+  node_modules
+  dist
+  .next
+  .env
+  .env.local
+  test-results
+  .agent
+  .agents
+  .claude
+  .planning
