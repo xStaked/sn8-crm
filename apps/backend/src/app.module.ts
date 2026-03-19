@@ -16,12 +16,19 @@ import { WebhooksModule } from './webhooks/webhooks.module';
     AuthModule,
     BullModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: (config: ConfigService) => ({
-        connection: {
+      useFactory: (config: ConfigService) => {
+        const username = config.get<string>('REDIS_USERNAME');
+        const password = config.get<string>('REDIS_PASSWORD');
+
+        return {
+          connection: {
           host: config.get('REDIS_HOST', 'localhost'),
           port: config.get<number>('REDIS_PORT', 6379),
-        },
-      }),
+            ...(username ? { username } : {}),
+            ...(password ? { password } : {}),
+          },
+        };
+      },
       inject: [ConfigService],
     }),
     MessagingModule,
