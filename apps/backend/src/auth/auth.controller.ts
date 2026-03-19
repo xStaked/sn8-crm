@@ -36,6 +36,29 @@ import { LocalAuthGuard } from './guards/local-auth.guard';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  private getSessionCookieOptions() {
+    const sameSite = (process.env.AUTH_COOKIE_SAME_SITE?.toLowerCase() ??
+      (process.env.NODE_ENV === 'production' ? 'none' : 'strict')) as
+      | 'strict'
+      | 'lax'
+      | 'none';
+
+    const secure =
+      process.env.AUTH_COOKIE_SECURE === 'true' ||
+      sameSite === 'none' ||
+      process.env.NODE_ENV === 'production';
+
+    const domain = process.env.AUTH_COOKIE_DOMAIN;
+
+    return {
+      httpOnly: true,
+      secure,
+      sameSite,
+      maxAge: 8 * 60 * 60 * 1000,
+      ...(domain ? { domain } : {}),
+    } as const;
+  }
+
   @ApiOperation({
     summary: 'Bootstrap de usuario',
     description:
@@ -87,12 +110,7 @@ export class AuthController {
     @Response({ passthrough: true }) res: ExpressResponse,
   ) {
     const { access_token } = await this.authService.login(req.user);
-    res.cookie('access_token', access_token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 8 * 60 * 60 * 1000, // 8 hours
-    });
+    res.cookie('access_token', access_token, this.getSessionCookieOptions());
     return { message: 'ok', accessToken: access_token };
   }
 
@@ -117,7 +135,7 @@ export class AuthController {
   })
   @Delete('logout')
   logout(@Response({ passthrough: true }) res: ExpressResponse) {
-    res.clearCookie('access_token');
+    res.clearCookie('access_token', this.getSessionCookieOptions());
     return { message: 'ok' };
   }
 }
