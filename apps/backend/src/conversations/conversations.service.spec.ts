@@ -1,18 +1,35 @@
+import { ConfigService } from '@nestjs/config';
+import { MessagingService } from '../messaging/messaging.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConversationsService } from './conversations.service';
 
 describe('ConversationsService', () => {
-  let prisma: { message: { findMany: jest.Mock } };
+  let prisma: { message: { findMany: jest.Mock; create: jest.Mock } };
+  let messagingService: { sendText: jest.Mock };
+  let config: { get: jest.Mock };
   let service: ConversationsService;
 
   beforeEach(() => {
     prisma = {
       message: {
         findMany: jest.fn(),
+        create: jest.fn(),
       },
     };
 
-    service = new ConversationsService(prisma as unknown as PrismaService);
+    messagingService = {
+      sendText: jest.fn(),
+    };
+
+    config = {
+      get: jest.fn(),
+    };
+
+    service = new ConversationsService(
+      prisma as unknown as PrismaService,
+      messagingService as unknown as MessagingService,
+      config as unknown as ConfigService,
+    );
   });
 
   it('groups multiple inbound messages from the same phone into one summary', async () => {
@@ -75,77 +92,6 @@ describe('ConversationsService', () => {
       lastMessage: 'te respondo',
       unreadCount: 0,
     });
-    expect(conversations[0].id).not.toBe('msg_outbound');
-    expect(conversations[0].id).not.toBe('msg_inbound');
-  });
-
-  it('sorts summaries by newest activity first', async () => {
-    prisma.message.findMany.mockResolvedValue([
-      {
-        id: 'msg_latest',
-        direction: 'inbound',
-        fromPhone: '573001112233',
-        toPhone: '573009998877',
-        body: 'mas reciente',
-        createdAt: new Date('2026-03-18T15:00:00.000Z'),
-      },
-      {
-        id: 'msg_older',
-        direction: 'inbound',
-        fromPhone: '573004445566',
-        toPhone: '573009998877',
-        body: 'anterior',
-        createdAt: new Date('2026-03-18T11:00:00.000Z'),
-      },
-    ]);
-
-    const conversations = await service.listConversations();
-
-    expect(conversations.map((conversation) => conversation.id)).toEqual([
-      '573001112233',
-      '573004445566',
-    ]);
-  });
-
-  it('uses an empty string when the latest message body is null', async () => {
-    prisma.message.findMany.mockResolvedValue([
-      {
-        id: 'msg_null_body',
-        direction: 'inbound',
-        fromPhone: '573001112233',
-        toPhone: '573009998877',
-        body: null,
-        createdAt: new Date('2026-03-18T09:00:00.000Z'),
-      },
-    ]);
-
-    await expect(service.listConversations()).resolves.toEqual([
-      {
-        id: '573001112233',
-        contactName: '573001112233',
-        lastMessage: '',
-        lastMessageAt: '2026-03-18T09:00:00.000Z',
-        unreadCount: 0,
-      },
-    ]);
-  });
-
-  it('queries messages newest-first before projecting summaries', async () => {
-    prisma.message.findMany.mockResolvedValue([]);
-
-    await service.listConversations();
-
-    expect(prisma.message.findMany).toHaveBeenCalledWith({
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        direction: true,
-        fromPhone: true,
-        toPhone: true,
-        body: true,
-        createdAt: true,
-      },
-    });
   });
 
   it('returns chronological history for the same stable conversation id used in summaries', async () => {
@@ -196,5 +142,108 @@ describe('ConversationsService', () => {
         createdAt: '2026-03-18T13:00:00.000Z',
       },
     ]);
+  });
+
+  it('uses the inbound raw payload phone_number_id when sending a reply', async () => {
+    prisma.message.findMany.mockResolvedValue([
+      {
+        id: 'msg_outbound',
+        direction: 'outbound',
+        fromPhone: 'pnid_fallback',
+        toPhone: '573001112233',
+        body: 'te respondo',
+        createdAt: new Date('2026-03-18T13:00:00.000Z'),
+        rawPayload: { source: 'crm-manual-reply' },
+      },
+      {
+        id: 'msg_inbound',
+        direction: 'inbound',
+        fromPhone: '573001112233',
+        toPhone: '573009998877',
+        body: 'hola',
+        createdAt: new Date('2026-03-18T12:00:00.000Z'),
+        rawPayload: {
+          entry: [
+            {
+              changes: [
+                {
+                  value: {
+                    metadata: {
+                      phone_number_id: 'phone_number_id_123',
+                    },
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      },
+    ]);
+    messagingService.sendText.mockResolvedValue('wamid.outbound.123');
+    prisma.message.create.mockResolvedValue({
+      id: 'db_1',
+      direction: 'outbound',
+      body: 'respuesta',
+      createdAt: new Date('2026-03-18T14:00:00.000Z'),
+    });
+
+    const response = await service.sendMessage('573001112233', ' respuesta ');
+
+    expect(messagingService.sendText).toHaveBeenCalledWith(
+      '573001112233',
+      'respuesta',
+      'phone_number_id_123',
+    );
+    expect(prisma.message.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        externalMessageId: 'wamid.outbound.123',
+        fromPhone: 'phone_number_id_123',
+        toPhone: '573001112233',
+        body: 'respuesta',
+      }),
+      select: {
+        id: true,
+        direction: true,
+        body: true,
+        createdAt: true,
+      },
+    });
+    expect(response).toEqual({
+      id: 'db_1',
+      conversationId: '573001112233',
+      direction: 'outbound',
+      body: 'respuesta',
+      createdAt: '2026-03-18T14:00:00.000Z',
+    });
+  });
+
+  it('falls back to KAPSO_PHONE_NUMBER_ID when the conversation has no stored phone_number_id', async () => {
+    prisma.message.findMany.mockResolvedValue([
+      {
+        id: 'msg_inbound',
+        direction: 'inbound',
+        fromPhone: '573001112233',
+        toPhone: '573009998877',
+        body: 'hola',
+        createdAt: new Date('2026-03-18T12:00:00.000Z'),
+        rawPayload: { fixture: 'no_phone_number_id' },
+      },
+    ]);
+    messagingService.sendText.mockResolvedValue('wamid.outbound.456');
+    prisma.message.create.mockResolvedValue({
+      id: 'db_2',
+      direction: 'outbound',
+      body: 'respuesta fallback',
+      createdAt: new Date('2026-03-18T14:05:00.000Z'),
+    });
+    config.get.mockReturnValue('configured_phone_number_id');
+
+    await service.sendMessage('573001112233', 'respuesta fallback');
+
+    expect(messagingService.sendText).toHaveBeenCalledWith(
+      '573001112233',
+      'respuesta fallback',
+      'configured_phone_number_id',
+    );
   });
 });

@@ -12,6 +12,7 @@ type MessageRow = {
   toPhone: string;
   body: string | null;
   createdAt: Date;
+  rawPayload?: unknown;
 };
 
 type ConversationSummary = {
@@ -38,6 +39,15 @@ const messageProjection = {
   body: true,
   createdAt: true,
 } as const;
+
+const messageProjectionWithRawPayload = {
+  ...messageProjection,
+  rawPayload: true,
+} as const;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object';
+}
 
 @Injectable()
 export class ConversationsService {
@@ -106,11 +116,14 @@ export class ConversationsService {
   ): Promise<ConversationMessage> {
     const normalizedConversationId = this.normalizeParticipantPhone(conversationId);
     const normalizedBody = body.trim();
+    const senderPhoneNumberId = await this.resolveSenderPhoneNumberId(normalizedConversationId);
     const externalMessageId = await this.messagingService.sendText(
       normalizedConversationId,
       normalizedBody,
+      senderPhoneNumberId,
     );
-    const fromPhone = this.config.get<string>('KAPSO_PHONE_NUMBER_ID')?.trim();
+    const fromPhone =
+      senderPhoneNumberId ?? this.config.get<string>('KAPSO_PHONE_NUMBER_ID')?.trim();
 
     const created = await this.prisma.message.create({
       data: {
@@ -153,6 +166,82 @@ export class ConversationsService {
         : message.fromPhone;
 
     return this.normalizeParticipantPhone(participantPhone);
+  }
+
+  private async resolveSenderPhoneNumberId(
+    normalizedConversationId: string,
+  ): Promise<string | undefined> {
+    const messages = await this.prisma.message.findMany({
+      orderBy: { createdAt: 'desc' },
+      select: messageProjectionWithRawPayload,
+    });
+
+    for (const message of messages) {
+      if (this.getStableConversationId(message) !== normalizedConversationId) {
+        continue;
+      }
+
+      const senderPhoneNumberId = this.extractSenderPhoneNumberId(message.rawPayload);
+      if (senderPhoneNumberId) {
+        return senderPhoneNumberId;
+      }
+    }
+
+    return this.config.get<string>('KAPSO_PHONE_NUMBER_ID')?.trim() || undefined;
+  }
+
+  private extractSenderPhoneNumberId(rawPayload: unknown): string | undefined {
+    if (!isRecord(rawPayload)) {
+      return undefined;
+    }
+
+    const directPhoneNumberId =
+      typeof rawPayload.phone_number_id === 'string' ? rawPayload.phone_number_id.trim() : '';
+    if (directPhoneNumberId) {
+      return directPhoneNumberId;
+    }
+
+    const metadata = isRecord(rawPayload.metadata) ? rawPayload.metadata : undefined;
+    const metadataPhoneNumberId =
+      metadata && typeof metadata.phone_number_id === 'string'
+        ? metadata.phone_number_id.trim()
+        : '';
+    if (metadataPhoneNumberId) {
+      return metadataPhoneNumberId;
+    }
+
+    if (Array.isArray(rawPayload.entry)) {
+      for (const entry of rawPayload.entry) {
+        if (!isRecord(entry) || !Array.isArray(entry.changes)) {
+          continue;
+        }
+
+        for (const change of entry.changes) {
+          const value = isRecord(change) && isRecord(change.value) ? change.value : undefined;
+          const nestedMetadata =
+            value && isRecord(value.metadata) ? value.metadata : undefined;
+          const nestedPhoneNumberId =
+            nestedMetadata && typeof nestedMetadata.phone_number_id === 'string'
+              ? nestedMetadata.phone_number_id.trim()
+              : '';
+
+          if (nestedPhoneNumberId) {
+            return nestedPhoneNumberId;
+          }
+        }
+      }
+    }
+
+    const conversation = isRecord(rawPayload.conversation) ? rawPayload.conversation : undefined;
+    const conversationPhoneNumberId =
+      conversation && typeof conversation.phone_number_id === 'string'
+        ? conversation.phone_number_id.trim()
+        : '';
+    if (conversationPhoneNumberId) {
+      return conversationPhoneNumberId;
+    }
+
+    return undefined;
   }
 
   private normalizeDirection(direction: string): ConversationDirection {

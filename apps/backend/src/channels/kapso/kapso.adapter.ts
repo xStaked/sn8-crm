@@ -16,8 +16,12 @@ export class KapsoAdapter extends ChannelAdapter {
     super();
   }
 
-  async sendText(to: string, body: string): Promise<string> {
-    return this.kapso.sendText(to, body);
+  async sendText(
+    to: string,
+    body: string,
+    senderPhoneNumberId?: string,
+  ): Promise<string> {
+    return this.kapso.sendText(to, body, senderPhoneNumberId);
   }
 
   async sendTemplate(

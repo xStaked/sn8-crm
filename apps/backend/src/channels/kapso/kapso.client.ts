@@ -4,7 +4,7 @@ import { ConfigService } from '@nestjs/config';
 
 type KapsoOutboundConfig = {
   apiKey: string;
-  phoneNumberId: string;
+  phoneNumberId: string | null;
 };
 
 @Injectable()
@@ -14,9 +14,9 @@ export class KapsoClient {
 
   constructor(private readonly config: ConfigService) {
     const apiKey = this.config.get<string>('KAPSO_API_KEY') ?? '';
-    const phoneNumberId = this.config.get<string>('KAPSO_PHONE_NUMBER_ID') ?? '';
+    const phoneNumberId = this.config.get<string>('KAPSO_PHONE_NUMBER_ID')?.trim() ?? '';
 
-    if (!apiKey || !phoneNumberId) {
+    if (!apiKey) {
       this.client = null;
       this.cfg = null;
       return;
@@ -26,16 +26,28 @@ export class KapsoClient {
       baseUrl: 'https://api.kapso.ai/meta/whatsapp',
       kapsoApiKey: apiKey,
     });
-    this.cfg = { apiKey, phoneNumberId };
+    this.cfg = { apiKey, phoneNumberId: phoneNumberId || null };
   }
 
-  private assertConfigured(): { client: WhatsAppClient; phoneNumberId: string } {
+  private assertConfigured(senderPhoneNumberId?: string): {
+    client: WhatsAppClient;
+    phoneNumberId: string;
+  } {
     if (!this.client || !this.cfg) {
       throw new Error(
-        'KapsoClient is not configured. Set KAPSO_API_KEY and KAPSO_PHONE_NUMBER_ID.',
+        'KapsoClient is not configured. Set KAPSO_API_KEY and provide a sender phone number id.',
       );
     }
-    return { client: this.client, phoneNumberId: this.cfg.phoneNumberId };
+
+    const phoneNumberId = senderPhoneNumberId?.trim() || this.cfg.phoneNumberId;
+
+    if (!phoneNumberId) {
+      throw new Error(
+        'KapsoClient is missing a sender phone number id. Set KAPSO_PHONE_NUMBER_ID or derive it from the inbound conversation.',
+      );
+    }
+
+    return { client: this.client, phoneNumberId };
   }
 
   private isOutsideWindowError(error: unknown): boolean {
@@ -55,8 +67,12 @@ export class KapsoClient {
     );
   }
 
-  async sendText(to: string, body: string): Promise<string> {
-    const { client, phoneNumberId } = this.assertConfigured();
+  async sendText(
+    to: string,
+    body: string,
+    senderPhoneNumberId?: string,
+  ): Promise<string> {
+    const { client, phoneNumberId } = this.assertConfigured(senderPhoneNumberId);
 
     try {
       const response = await client.messages.sendText({ phoneNumberId, to, body });

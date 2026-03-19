@@ -61,19 +61,39 @@ describe('KapsoAdapter', () => {
 
   it('delegates sendText() to KapsoClient.sendText()', async () => {
     const kapsoClient = {
-      sendText: jest.fn(async () => undefined),
+      sendText: jest.fn(async () => 'wamid.test'),
       sendTemplate: jest.fn(async () => undefined),
     } as unknown as KapsoClient;
 
     const adapter = new KapsoAdapter(kapsoClient);
     await adapter.sendText('+15551234567', 'Hello');
 
-    expect(kapsoClient.sendText).toHaveBeenCalledWith('+15551234567', 'Hello');
+    expect(kapsoClient.sendText).toHaveBeenCalledWith(
+      '+15551234567',
+      'Hello',
+      undefined,
+    );
+  });
+
+  it('passes through an explicit sender phone number id for replies', async () => {
+    const kapsoClient = {
+      sendText: jest.fn(async () => 'wamid.test'),
+      sendTemplate: jest.fn(async () => undefined),
+    } as unknown as KapsoClient;
+
+    const adapter = new KapsoAdapter(kapsoClient);
+    await adapter.sendText('+15551234567', 'Hello', 'phone_number_id_123');
+
+    expect(kapsoClient.sendText).toHaveBeenCalledWith(
+      '+15551234567',
+      'Hello',
+      'phone_number_id_123',
+    );
   });
 
   it('delegates sendTemplate() to KapsoClient.sendTemplate()', async () => {
     const kapsoClient = {
-      sendText: jest.fn(async () => undefined),
+      sendText: jest.fn(async () => 'wamid.test'),
       sendTemplate: jest.fn(async () => undefined),
     } as unknown as KapsoClient;
 
@@ -89,7 +109,7 @@ describe('KapsoAdapter', () => {
 
   it('normalizes a nested Kapso inbound payload from later change entries', () => {
     const kapsoClient = {
-      sendText: jest.fn(async () => undefined),
+      sendText: jest.fn(async () => 'wamid.test'),
       sendTemplate: jest.fn(async () => undefined),
     } as unknown as KapsoClient;
 
