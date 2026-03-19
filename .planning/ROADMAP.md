@@ -19,6 +19,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 4: CRM Dashboard** - Panel Next.js con inbox, pipeline, cola de aprobación y tiempo real
 - [ ] **Phase 5: Frontend integration with current backend** - Reemplazar datos mock del frontend por consumo real del backend actual y cerrar flujos end-to-end
 - [x] **Phase 05.1: Integración real de Kapso y flujo inbound end-to-end** (INSERTED) - Conectar el webhook real/simulado de Kapso al backend actual y probar que los mensajes inbound persistidos aparecen en APIs y CRM (completed 2026-03-19)
+- [ ] **Phase 05.2: Manual Reply from CRM** (INSERTED) - El socio puede responder mensajes inbound desde el panel de detalle del CRM: backend outbound endpoint + UI de reply integrada
 
 ## Phase Details
 
@@ -104,6 +105,7 @@ Phases execute in numeric order: 1 → 1.1 → 2 → 3 → 4 → 5 → 5.1
 | 4. CRM Dashboard | 0/TBD | Not started | - |
 | 5. Frontend integration with current backend | 3/4 | In Progress | - |
 | 05.1. Integración real de Kapso y flujo inbound end-to-end | 3/3 | Complete    | 2026-03-19 |
+| 05.2. Manual Reply from CRM | 0/2 | Not started | - |
 
 ### Phase 5: Frontend integration with current backend
 
@@ -117,6 +119,21 @@ Plans:
 - [x] 05-02-PLAN.md — Backend conversation history endpoint and API contract verification
 - [x] 05-03-PLAN.md — Frontend inbox/detail integration against real backend data and auth-aware error handling
 - [ ] 05-04-PLAN.md — End-to-end verification for login, inbox, detail, and logout against the current backend
+
+### Phase 05.2: Manual Reply from CRM (INSERTED)
+
+**Goal:** El socio puede responder mensajes inbound desde el panel de detalle del CRM — el backend expone un endpoint outbound autenticado via Kapso y el frontend integra una UI de composición que persiste el mensaje enviado en el historial sin recargar la página
+**Depends on:** Phase 05.1
+**Requirements**: REPLY-01, REPLY-02, REPLY-03
+**Success Criteria** (what must be TRUE):
+  1. El socio puede escribir y enviar un mensaje desde el panel de detalle del CRM
+  2. El mensaje se envía via Kapso.ai y retorna confirmación (messageId de Kapso)
+  3. El mensaje enviado aparece en el historial de la conversación inmediatamente después de enviar
+**Plans:** 2 plans
+
+Plans:
+- [ ] 05.2-01-PLAN.md — Backend outbound send chain (sendText returns wamid), POST endpoint, DTO, service method, module wiring (REPLY-02)
+- [ ] 05.2-02-PLAN.md — Frontend compose area in detail panel with SWR mutate for instant history update (REPLY-01, REPLY-03)
 
 ### Phase 05.1: Integración real de Kapso y flujo inbound end-to-end (INSERTED)
 
