@@ -1,5 +1,5 @@
 import { buildTemplateSendPayload, WhatsAppClient } from '@kapso/whatsapp-cloud-api';
-import { Injectable, UnprocessableEntityException } from '@nestjs/common';
+import { Injectable, Logger, UnprocessableEntityException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 type KapsoOutboundConfig = {
@@ -11,6 +11,7 @@ type KapsoOutboundConfig = {
 export class KapsoClient {
   private readonly client: WhatsAppClient | null;
   private readonly cfg: KapsoOutboundConfig | null;
+  private readonly logger = new Logger(KapsoClient.name);
 
   constructor(private readonly config: ConfigService) {
     const apiKey = this.config.get<string>('KAPSO_API_KEY') ?? '';
@@ -73,11 +74,46 @@ export class KapsoClient {
     senderPhoneNumberId?: string,
   ): Promise<string> {
     const { client, phoneNumberId } = this.assertConfigured(senderPhoneNumberId);
+    this.logger.log({
+      event: 'kapso_send_text_attempt',
+      to,
+      senderPhoneNumberId: phoneNumberId,
+      senderSource: senderPhoneNumberId?.trim() ? 'conversation-history' : 'config-fallback',
+      bodyPreview: body.slice(0, 120),
+    });
 
     try {
       const response = await client.messages.sendText({ phoneNumberId, to, body });
+      this.logger.log({
+        event: 'kapso_send_text_success',
+        to,
+        senderPhoneNumberId: phoneNumberId,
+        externalMessageId: response.messages[0]?.id ?? null,
+      });
       return response.messages[0].id;
     } catch (error) {
+      this.logger.error({
+        event: 'kapso_send_text_failed',
+        to,
+        senderPhoneNumberId: phoneNumberId,
+        senderSource: senderPhoneNumberId?.trim() ? 'conversation-history' : 'config-fallback',
+        error:
+          error instanceof Error
+            ? {
+                name: error.name,
+                message: error.message,
+              }
+            : String(error),
+        raw:
+          typeof error === 'object' && error !== null && 'raw' in error
+            ? (error as { raw?: unknown }).raw
+            : null,
+        code:
+          typeof error === 'object' && error !== null && 'code' in error
+            ? (error as { code?: unknown }).code
+            : null,
+      });
+
       if (this.isOutsideWindowError(error)) {
         throw new UnprocessableEntityException({
           code: 'WHATSAPP_WINDOW_CLOSED',

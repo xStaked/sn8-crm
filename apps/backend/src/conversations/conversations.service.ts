@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { MessagingService } from '../messaging/messaging.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -51,6 +51,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 @Injectable()
 export class ConversationsService {
+  private readonly logger = new Logger(ConversationsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly messagingService: MessagingService,
@@ -116,7 +118,16 @@ export class ConversationsService {
   ): Promise<ConversationMessage> {
     const normalizedConversationId = this.normalizeParticipantPhone(conversationId);
     const normalizedBody = body.trim();
-    const senderPhoneNumberId = await this.resolveSenderPhoneNumberId(normalizedConversationId);
+    const { senderPhoneNumberId, source } = await this.resolveSenderPhoneNumberId(
+      normalizedConversationId,
+    );
+    this.logger.log({
+      event: 'conversation_send_message_attempt',
+      conversationId: normalizedConversationId,
+      senderPhoneNumberId: senderPhoneNumberId ?? null,
+      senderSource: source,
+      bodyPreview: normalizedBody.slice(0, 120),
+    });
     const externalMessageId = await this.messagingService.sendText(
       normalizedConversationId,
       normalizedBody,
@@ -170,7 +181,7 @@ export class ConversationsService {
 
   private async resolveSenderPhoneNumberId(
     normalizedConversationId: string,
-  ): Promise<string | undefined> {
+  ): Promise<{ senderPhoneNumberId?: string; source: 'history' | 'config' | 'missing' }> {
     const messages = await this.prisma.message.findMany({
       orderBy: { createdAt: 'desc' },
       select: messageProjectionWithRawPayload,
@@ -183,11 +194,16 @@ export class ConversationsService {
 
       const senderPhoneNumberId = this.extractSenderPhoneNumberId(message.rawPayload);
       if (senderPhoneNumberId) {
-        return senderPhoneNumberId;
+        return { senderPhoneNumberId, source: 'history' };
       }
     }
 
-    return this.config.get<string>('KAPSO_PHONE_NUMBER_ID')?.trim() || undefined;
+    const fallbackPhoneNumberId = this.config.get<string>('KAPSO_PHONE_NUMBER_ID')?.trim();
+    if (fallbackPhoneNumberId) {
+      return { senderPhoneNumberId: fallbackPhoneNumberId, source: 'config' };
+    }
+
+    return { source: 'missing' };
   }
 
   private extractSenderPhoneNumberId(rawPayload: unknown): string | undefined {
