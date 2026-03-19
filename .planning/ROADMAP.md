@@ -105,7 +105,7 @@ Phases execute in numeric order: 1 → 1.1 → 2 → 3 → 4 → 5 → 5.1
 | 4. CRM Dashboard | 0/TBD | Not started | - |
 | 5. Frontend integration with current backend | 3/4 | In Progress | - |
 | 05.1. Integración real de Kapso y flujo inbound end-to-end | 3/3 | Complete    | 2026-03-19 |
-| 05.2. Manual Reply from CRM | 0/2 | Not started | - |
+| 05.2. Manual Reply from CRM | 1/2 | In Progress|  |
 
 ### Phase 5: Frontend integration with current backend
 
@@ -129,7 +129,7 @@ Plans:
   1. El socio puede escribir y enviar un mensaje desde el panel de detalle del CRM
   2. El mensaje se envía via Kapso.ai y retorna confirmación (messageId de Kapso)
   3. El mensaje enviado aparece en el historial de la conversación inmediatamente después de enviar
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
 - [ ] 05.2-01-PLAN.md — Backend outbound send chain (sendText returns wamid), POST endpoint, DTO, service method, module wiring (REPLY-02)

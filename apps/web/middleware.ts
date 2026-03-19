@@ -1,32 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
-export async function middleware(request: NextRequest) {
-  const cookie = request.cookies.get("access_token");
-
-  if (!cookie) {
-    return NextResponse.redirect(new URL("/login", request.url));
-  }
-
-  try {
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"}/auth/me`,
-      {
-        headers: {
-          Cookie: `access_token=${cookie.value}`,
-        },
-      },
-    );
-
-    if (!response.ok) {
-      return NextResponse.redirect(new URL("/login", request.url));
-    }
-  } catch {
-    return NextResponse.redirect(new URL("/login", request.url));
-  }
-
+// The authenticated session cookie is created by the API domain, not by the
+// Next.js app domain. Middleware on the app domain cannot reliably inspect that
+// cookie, so auth must be enforced by client requests to the API instead.
+export function middleware() {
   return NextResponse.next();
 }
-
-export const config = {
-  matcher: ["/dashboard/:path*"],
-};

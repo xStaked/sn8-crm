@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { LogOut, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, clearStoredAccessToken } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 export function AppSidebar() {
@@ -14,6 +14,7 @@ export function AppSidebar() {
     try {
       await apiFetch("/auth/logout", { method: "DELETE" });
     } finally {
+      clearStoredAccessToken();
       router.push("/login");
       router.refresh();
     }

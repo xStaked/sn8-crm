@@ -4,13 +4,13 @@ milestone: v1.0
 milestone_name: milestone
 status: executing
 stopped_at: Completed 05.1-03-PLAN.md
-last_updated: "2026-03-19T01:22:52.985Z"
+last_updated: "2026-03-19T03:54:52.568Z"
 last_activity: 2026-03-18 — Completed Phase 05.1 Plan 05.1-03 (local Kapso smoke proof and CRM visibility verification)
 progress:
-  total_phases: 7
+  total_phases: 8
   completed_phases: 3
-  total_plans: 14
-  completed_plans: 13
+  total_plans: 16
+  completed_plans: 14
   percent: 93
 ---
 
@@ -60,6 +60,7 @@ Progress: [█████████░] 93%
 | Phase 05.1 P01 | 3m | 2 tasks | 6 files |
 | Phase 05.1 P02 | 4min | 2 tasks | 4 files |
 | Phase 05.1 P03 | 19 min | 2 tasks | 4 files |
+| Phase 05.2 P01 | 14 min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -86,6 +87,7 @@ Recent decisions affecting current work:
 - [Phase 05.1]: Conversation read proof reuses MessageProcessor-backed durable rows instead of introducing a parallel projection path.
 - [Phase 05.1]: Kapso local verification is satisfied by one documented signed smoke flow plus optional real tunnel delivery; no extra backend script was needed.
 - [Phase 05.1]: CRM freshness for inbound Kapso proof stays in the existing SWR hooks with 5-second revalidation instead of a UI rewrite or contract change.
+- [Phase 05.2]: Manual reply persistence stores the configured KAPSO_PHONE_NUMBER_ID as fromPhone when present and falls back to a crm marker without changing the Message schema.
 
 ### Roadmap Evolution
 

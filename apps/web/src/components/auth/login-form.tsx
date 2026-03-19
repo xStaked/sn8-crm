@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, setStoredAccessToken } from "@/lib/api";
 
 export function LoginForm() {
   const router = useRouter();
@@ -29,7 +29,14 @@ export function LoginForm() {
       });
 
       if (response.ok) {
+        const payload = (await response.json()) as { accessToken?: string };
+
+        if (payload.accessToken) {
+          setStoredAccessToken(payload.accessToken);
+        }
+
         router.push("/dashboard");
+        router.refresh();
         return;
       }
 

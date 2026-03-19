@@ -69,6 +69,12 @@ Requirements para el lanzamiento inicial. Cada uno mapea a fases del roadmap.
 - [x] **FE-BE-03**: El panel de detalle muestra historial real de mensajes de la conversacion seleccionada desde el backend actual y conserva las acciones principales del shell
 - [ ] **FE-BE-04**: El flujo login → inbox → detalle → logout queda verificado end-to-end contra el backend actual
 
+### Manual Reply from CRM
+
+- [ ] **REPLY-01**: El socio puede enviar un mensaje de texto a un contacto desde el panel de detalle del CRM
+- [x] **REPLY-02**: El backend expone un endpoint autenticado `POST /conversations/:id/messages` que envia el mensaje outbound via Kapso.ai y lo persiste en la base de datos
+- [ ] **REPLY-03**: El mensaje enviado aparece en el historial de la conversación en el CRM sin recargar la página completa
+
 ### Kapso Real Inbound Integration
 
 - [x] **KAPSO-E2E-01**: El webhook actual de Kapso solo acepta requests con firma/secret validos y resuelve el idempotency key tanto para payloads Kapso flatten como para payloads estilo Meta webhook
@@ -157,6 +163,9 @@ Actualizado durante la creación del roadmap.
 | FE-BE-02 | Phase 5 | Complete |
 | FE-BE-03 | Phase 5 | Complete |
 | FE-BE-04 | Phase 5 | Pending |
+| REPLY-01 | Phase 05.2 | Pending |
+| REPLY-02 | Phase 05.2 | Complete |
+| REPLY-03 | Phase 05.2 | Pending |
 | KAPSO-E2E-01 | Phase 05.1 | Complete |
 | KAPSO-E2E-02 | Phase 05.1 | Complete |
 | KAPSO-E2E-03 | Phase 05.1 | Complete |
@@ -164,8 +173,8 @@ Actualizado durante la creación del roadmap.
 | KAPSO-E2E-05 | Phase 05.1 | Complete |
 
 **Coverage:**
-- v1 requirements: 38 total
-- Mapped to phases: 38
+- v1 requirements: 41 total
+- Mapped to phases: 41
 - Unmapped: 0 ✓
 
 ---

@@ -42,11 +42,13 @@ export function DetailPanel() {
   const { messages, error, state, mutate } = useConversationMessages(selectedId);
   const [messageBody, setMessageBody] = useState("");
   const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
 
   async function handleSend() {
     if (!messageBody.trim() || !selectedId || sending) return;
 
     setSending(true);
+    setSendError(null);
 
     try {
       const sent = await apiFetchJson<ConversationMessageDto>(
@@ -59,8 +61,12 @@ export function DetailPanel() {
 
       await mutate((current) => [...(current ?? []), sent], { revalidate: false });
       setMessageBody("");
-    } catch {
-      // Keep the draft in place so the socio can retry after transient failures.
+    } catch (sendAttemptError) {
+      if (isApiError(sendAttemptError)) {
+        setSendError(sendAttemptError.message);
+      } else {
+        setSendError("No se pudo enviar el mensaje. Intenta nuevamente.");
+      }
     } finally {
       setSending(false);
     }
@@ -181,7 +187,12 @@ export function DetailPanel() {
               placeholder="Escribe un mensaje..."
               rows={2}
               value={messageBody}
-              onChange={(event) => setMessageBody(event.target.value)}
+              onChange={(event) => {
+                setMessageBody(event.target.value);
+                if (sendError) {
+                  setSendError(null);
+                }
+              }}
               onKeyDown={(event) => {
                 if (event.key === "Enter" && !event.shiftKey) {
                   event.preventDefault();
@@ -199,6 +210,9 @@ export function DetailPanel() {
               <Send className="h-4 w-4" />
             </Button>
           </div>
+          {sendError ? (
+            <p className="mt-2 text-sm text-destructive">{sendError}</p>
+          ) : null}
         </div>
       ) : null}
     </div>
