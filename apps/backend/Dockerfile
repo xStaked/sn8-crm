@@ -6,7 +6,6 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 
 COPY package.json package-lock.json ./
-COPY apps/backend/package.json apps/backend/package.json
 COPY prisma/schema.prisma prisma/schema.prisma
 
 RUN npm ci
@@ -21,14 +20,14 @@ RUN apt-get update \
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/package.json ./package.json
 COPY --from=deps /app/package-lock.json ./package-lock.json
-COPY --from=deps /app/apps/backend/package.json apps/backend/package.json
 COPY --from=deps /app/prisma/schema.prisma prisma/schema.prisma
 
-COPY apps/backend apps/backend
 COPY prisma prisma
+COPY nest-cli.json tsconfig*.json ./
+COPY src src
 
 RUN npx prisma generate --schema=prisma/schema.prisma
-RUN npm --workspace apps/backend run build
+RUN npm run build
 
 FROM node:22-bookworm-slim AS prod-deps
 WORKDIR /app
@@ -40,7 +39,6 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 
 COPY package.json package-lock.json ./
-COPY apps/backend/package.json apps/backend/package.json
 
 RUN npm ci --omit=dev
 
@@ -57,9 +55,9 @@ RUN apt-get update \
 COPY --from=prod-deps /app/node_modules ./node_modules
 COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=build /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=build /app/apps/backend/dist apps/backend/dist
+COPY --from=build /app/dist ./dist
 COPY --from=build /app/prisma prisma
 
 EXPOSE 3001
 
-CMD ["node", "apps/backend/dist/main.js"]
+CMD ["node", "dist/main.js"]

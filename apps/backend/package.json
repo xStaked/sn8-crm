@@ -9,7 +9,7 @@
     "seed:user": "ts-node --project tsconfig.json ../../prisma/seed.ts"
   },
   "prisma": {
-    "schema": "../../prisma/schema.prisma"
+    "schema": "./prisma/schema.prisma"
   },
   "dependencies": {
     "@kapso/whatsapp-cloud-api": "^0.2.0",
