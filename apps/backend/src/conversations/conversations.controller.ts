@@ -1,6 +1,7 @@
-import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiCreatedResponse,
   ApiCookieAuth,
   ApiNotFoundResponse,
   ApiOkResponse,
@@ -14,6 +15,7 @@ import {
   ConversationMessageDto,
   ConversationSummaryDto,
 } from './dto/conversation-response.dto';
+import { SendMessageDto } from './dto/send-message.dto';
 import { ConversationsService } from './conversations.service';
 
 @ApiTags('Conversations')
@@ -52,5 +54,24 @@ export class ConversationsController {
   @UseGuards(JwtAuthGuard)
   listConversationMessages(@Param('conversationId') conversationId: string) {
     return this.conversationsService.listConversationMessages(conversationId);
+  }
+
+  @ApiOperation({ summary: 'Enviar mensaje manual a una conversacion' })
+  @ApiParam({
+    name: 'conversationId',
+    example: '573001112233',
+    description: 'Telefono normalizado usado como id estable de la conversacion.',
+  })
+  @ApiCreatedResponse({
+    description: 'Mensaje enviado y persistido correctamente.',
+    type: ConversationMessageDto,
+  })
+  @Post('conversations/:conversationId/messages')
+  @UseGuards(JwtAuthGuard)
+  sendMessage(
+    @Param('conversationId') conversationId: string,
+    @Body() dto: SendMessageDto,
+  ) {
+    return this.conversationsService.sendMessage(conversationId, dto.body);
   }
 }

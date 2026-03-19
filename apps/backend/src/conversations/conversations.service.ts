@@ -1,4 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { MessagingService } from '../messaging/messaging.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 type ConversationDirection = 'inbound' | 'outbound';
@@ -39,7 +41,11 @@ const messageProjection = {
 
 @Injectable()
 export class ConversationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly messagingService: MessagingService,
+    private readonly config: ConfigService,
+  ) {}
 
   async listConversations(): Promise<ConversationSummary[]> {
     const messages = await this.prisma.message.findMany({
@@ -92,6 +98,52 @@ export class ConversationsService {
     }
 
     return history;
+  }
+
+  async sendMessage(
+    conversationId: string,
+    body: string,
+  ): Promise<ConversationMessage> {
+    const normalizedConversationId = this.normalizeParticipantPhone(conversationId);
+    const normalizedBody = body.trim();
+    const externalMessageId = await this.messagingService.sendText(
+      normalizedConversationId,
+      normalizedBody,
+    );
+    const fromPhone = this.config.get<string>('KAPSO_PHONE_NUMBER_ID')?.trim();
+
+    const created = await this.prisma.message.create({
+      data: {
+        externalMessageId,
+        direction: 'outbound',
+        fromPhone: fromPhone && fromPhone.length > 0 ? fromPhone : 'crm',
+        toPhone: normalizedConversationId,
+        body: normalizedBody,
+        channel: 'whatsapp',
+        rawPayload: {
+          externalMessageId,
+          direction: 'outbound',
+          fromPhone: fromPhone && fromPhone.length > 0 ? fromPhone : 'crm',
+          toPhone: normalizedConversationId,
+          body: normalizedBody,
+          source: 'crm-manual-reply',
+        },
+      },
+      select: {
+        id: true,
+        direction: true,
+        body: true,
+        createdAt: true,
+      },
+    });
+
+    return {
+      id: created.id,
+      conversationId: normalizedConversationId,
+      direction: this.normalizeDirection(created.direction),
+      body: created.body,
+      createdAt: created.createdAt.toISOString(),
+    };
   }
 
   private getStableConversationId(message: MessageRow): string {
