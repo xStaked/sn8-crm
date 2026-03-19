@@ -53,6 +53,7 @@ RUN apt-get update \
 RUN corepack enable
 
 COPY package.json pnpm-lock.yaml ./
+COPY prisma/schema.prisma prisma/schema.prisma
 
 RUN pnpm install --prod --frozen-lockfile
 
@@ -67,8 +68,6 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 
 COPY --from=prod-deps /app/node_modules ./node_modules
-COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=build /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/prisma prisma
 
