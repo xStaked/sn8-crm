@@ -78,6 +78,41 @@ export class KapsoAdapter extends ChannelAdapter {
       }
     }
 
+    // Kapso native batch format: { type, batch, data: [...], batch_info }
+    if (isRecord(rawPayload) && Array.isArray(rawPayload.data)) {
+      for (const item of rawPayload.data) {
+        if (!isRecord(item) || !isRecord(item.message)) continue;
+
+        const message = item.message;
+        const id = isNonEmptyString(message.id) ? message.id : undefined;
+        const from = isNonEmptyString(message.from) ? message.from : undefined;
+        const toPhone =
+          (isRecord(item.conversation) && isNonEmptyString(item.conversation.phone_number_id)
+            ? item.conversation.phone_number_id
+            : undefined) ??
+          (isNonEmptyString(item.phone_number_id) ? item.phone_number_id : '') ??
+          '';
+        const body =
+          isRecord(message.text) && typeof message.text.body === 'string'
+            ? message.text.body
+            : isRecord(message.kapso) && typeof message.kapso.content === 'string'
+              ? message.kapso.content
+              : null;
+
+        if (id && from) {
+          return {
+            externalMessageId: id,
+            direction: 'inbound',
+            fromPhone: from,
+            toPhone,
+            body,
+            channel: 'whatsapp',
+            rawPayload,
+          };
+        }
+      }
+    }
+
     // Fallback: some Kapso events may flatten the message object.
     if (isRecord(rawPayload) && isRecord(rawPayload.message)) {
       const message = rawPayload.message;
@@ -109,8 +144,6 @@ export class KapsoAdapter extends ChannelAdapter {
       }
     }
 
-    throw new Error(
-      `Unable to normalize inbound Kapso payload. Keys: ${isRecord(rawPayload) ? Object.keys(rawPayload).join(', ') : typeof rawPayload}. Payload: ${JSON.stringify(rawPayload)}`,
-    );
+    throw new Error('Unable to normalize inbound Kapso payload');
   }
 }
