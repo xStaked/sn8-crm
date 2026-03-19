@@ -217,6 +217,51 @@ describe('ConversationsService', () => {
     });
   });
 
+  it('uses the Kapso batch data phone_number_id when the inbound raw payload is stored as data[]', async () => {
+    prisma.message.findMany.mockResolvedValue([
+      {
+        id: 'msg_inbound_batch',
+        direction: 'inbound',
+        fromPhone: '573015871054',
+        toPhone: '1084934881360304',
+        body: 'Oe bro',
+        createdAt: new Date('2026-03-19T04:12:16.214Z'),
+        rawPayload: {
+          data: [
+            {
+              message: {
+                id: 'wamid.batch.1',
+                from: '573015871054',
+              },
+              conversation: {
+                id: 'conv_1',
+                phone_number_id: '597907523413541',
+              },
+              phone_number_id: '597907523413541',
+            },
+          ],
+          type: 'whatsapp.message.received',
+          batch: true,
+        },
+      },
+    ]);
+    messagingService.sendText.mockResolvedValue('wamid.outbound.batch');
+    prisma.message.create.mockResolvedValue({
+      id: 'db_batch',
+      direction: 'outbound',
+      body: 'estoy vivo',
+      createdAt: new Date('2026-03-19T04:13:00.000Z'),
+    });
+
+    await service.sendMessage('573015871054', 'estoy vivo');
+
+    expect(messagingService.sendText).toHaveBeenCalledWith(
+      '573015871054',
+      'estoy vivo',
+      '597907523413541',
+    );
+  });
+
   it('falls back to KAPSO_PHONE_NUMBER_ID when the conversation has no stored phone_number_id', async () => {
     prisma.message.findMany.mockResolvedValue([
       {

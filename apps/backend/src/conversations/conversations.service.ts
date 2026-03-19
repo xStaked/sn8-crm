@@ -248,6 +248,29 @@ export class ConversationsService {
       }
     }
 
+    if (Array.isArray(rawPayload.data)) {
+      for (const item of rawPayload.data) {
+        if (!isRecord(item)) {
+          continue;
+        }
+
+        const itemPhoneNumberId =
+          typeof item.phone_number_id === 'string' ? item.phone_number_id.trim() : '';
+        if (itemPhoneNumberId) {
+          return itemPhoneNumberId;
+        }
+
+        const itemConversation = isRecord(item.conversation) ? item.conversation : undefined;
+        const itemConversationPhoneNumberId =
+          itemConversation && typeof itemConversation.phone_number_id === 'string'
+            ? itemConversation.phone_number_id.trim()
+            : '';
+        if (itemConversationPhoneNumberId) {
+          return itemConversationPhoneNumberId;
+        }
+      }
+    }
+
     const conversation = isRecord(rawPayload.conversation) ? rawPayload.conversation : undefined;
     const conversationPhoneNumberId =
       conversation && typeof conversation.phone_number_id === 'string'
