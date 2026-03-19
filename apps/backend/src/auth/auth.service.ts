@@ -30,5 +30,15 @@ export class AuthService {
     const payload = { sub: user.userId, email: user.email };
     return { access_token: this.jwt.sign(payload) };
   }
-}
 
+  async bootstrapUser(email: string, password: string): Promise<{ userId: string; email: string }> {
+    const passwordHash = await argon2.hash(password);
+    const user = await this.prisma.user.upsert({
+      where: { email },
+      update: { passwordHash },
+      create: { email, passwordHash },
+    });
+
+    return { userId: user.id, email: user.email };
+  }
+}

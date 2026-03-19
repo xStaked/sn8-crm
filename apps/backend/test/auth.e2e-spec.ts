@@ -2,6 +2,7 @@ import { ConfigModule } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import * as argon2 from 'argon2';
 import cookieParser from 'cookie-parser';
+import request from 'supertest';
 import { AuthModule } from '../src/auth/auth.module';
 import { PrismaModule } from '../src/prisma/prisma.module';
 import { PrismaService } from '../src/prisma/prisma.service';
@@ -13,16 +14,18 @@ import { LocalStrategy } from '../src/auth/strategies/local.strategy';
 describe('Auth (e2e)', () => {
   const seededEmail = 'socio@example.com';
   const seededPassword = 'password123';
+  const bootstrapSecret = 'bootstrap_secret';
 
   let app: any;
   let controller: AuthController;
   let localStrategy: LocalStrategy;
   let jwtStrategy: JwtStrategy;
-  let prismaMock: { user: { findUnique: jest.Mock } };
+  let prismaMock: { user: { findUnique: jest.Mock; upsert: jest.Mock } };
 
   beforeAll(async () => {
     process.env.JWT_SECRET = 'test_jwt_secret';
     process.env.JWT_EXPIRY = '8h';
+    process.env.AUTH_BOOTSTRAP_SECRET = bootstrapSecret;
 
     const passwordHash = await argon2.hash(seededPassword);
     prismaMock = {
@@ -31,6 +34,11 @@ describe('Auth (e2e)', () => {
           if (where.email !== seededEmail) return null;
           return { id: 'user_1', email: seededEmail, passwordHash };
         }),
+        upsert: jest.fn(async ({ where, create, update }: any) => ({
+          id: 'user_bootstrap',
+          email: where.email,
+          passwordHash: update?.passwordHash ?? create.passwordHash,
+        })),
       },
     };
 
@@ -105,5 +113,35 @@ describe('Auth (e2e)', () => {
     const res = { clearCookie: jest.fn() } as any;
     expect(controller.logout(res)).toEqual({ message: 'ok' });
     expect(res.clearCookie).toHaveBeenCalledWith('access_token');
+  });
+
+  it('bootstrap-user rejects requests without the bootstrap secret', async () => {
+    await request(app.getHttpServer())
+      .post('/auth/bootstrap-user')
+      .send({ email: 'admin@example.com', password: 'supersecret123' })
+      .expect(403);
+  });
+
+  it('bootstrap-user upserts the user with the configured bootstrap secret', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/auth/bootstrap-user')
+      .set('x-bootstrap-secret', bootstrapSecret)
+      .send({ email: 'admin@example.com', password: 'supersecret123' })
+      .expect(201);
+
+    expect(response.body).toEqual({
+      userId: 'user_bootstrap',
+      email: 'admin@example.com',
+    });
+    expect(prismaMock.user.upsert).toHaveBeenCalledTimes(1);
+    expect(prismaMock.user.upsert.mock.calls[0][0].where).toEqual({
+      email: 'admin@example.com',
+    });
+    expect(prismaMock.user.upsert.mock.calls[0][0].update.passwordHash).toEqual(
+      expect.any(String),
+    );
+    expect(prismaMock.user.upsert.mock.calls[0][0].create.passwordHash).toEqual(
+      expect.any(String),
+    );
   });
 });

@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   HttpCode,
   Post,
@@ -11,16 +12,21 @@ import {
 } from '@nestjs/common';
 import {
   ApiBody,
+  ApiCreatedResponse,
+  ApiForbiddenResponse,
   ApiCookieAuth,
+  ApiHeader,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import type { Response as ExpressResponse } from 'express';
+import { BootstrapUserDto } from './dto/bootstrap-user.dto';
 import { LoginDto } from './dto/login.dto';
 import { AuthService } from './auth.service';
 import { AuthOkResponseDto, AuthUserResponseDto } from './dto/auth-responses.dto';
+import { BootstrapUserResponseDto } from './dto/bootstrap-user-response.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 
@@ -28,6 +34,37 @@ import { LocalAuthGuard } from './guards/local-auth.guard';
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
+
+  @ApiOperation({
+    summary: 'Bootstrap de usuario',
+    description:
+      'Crea o actualiza el usuario inicial usando un secreto administrativo enviado por header.',
+  })
+  @ApiHeader({
+    name: 'x-bootstrap-secret',
+    required: true,
+    description: 'Debe coincidir con AUTH_BOOTSTRAP_SECRET del backend.',
+  })
+  @ApiBody({ type: BootstrapUserDto })
+  @ApiCreatedResponse({
+    description: 'Usuario creado o actualizado.',
+    type: BootstrapUserResponseDto,
+  })
+  @ApiForbiddenResponse({ description: 'El secreto administrativo es invalido o no esta configurado.' })
+  @Post('bootstrap-user')
+  async bootstrapUser(
+    @Body() dto: BootstrapUserDto,
+    @Request() req: { headers: { ['x-bootstrap-secret']?: string } },
+  ) {
+    const configuredSecret = process.env.AUTH_BOOTSTRAP_SECRET;
+    const providedSecret = req.headers['x-bootstrap-secret'];
+
+    if (!configuredSecret || providedSecret !== configuredSecret) {
+      throw new ForbiddenException();
+    }
+
+    return this.authService.bootstrapUser(dto.email, dto.password);
+  }
 
   @ApiOperation({
     summary: 'Iniciar sesion',
