@@ -27,6 +27,7 @@ describe('WebhooksService', () => {
   let redis: { set: jest.Mock; del: jest.Mock };
   let queue: { add: jest.Mock };
   let ownerReviewService: { handleOwnerCommand: jest.Mock };
+  let messageProcessor: { process: jest.Mock };
   let service: WebhooksService;
 
   beforeEach(() => {
@@ -40,11 +41,15 @@ describe('WebhooksService', () => {
     ownerReviewService = {
       handleOwnerCommand: jest.fn().mockResolvedValue(false),
     };
+    messageProcessor = {
+      process: jest.fn().mockResolvedValue(undefined),
+    };
 
     service = new WebhooksService(
       queue as any,
       redis as any,
       ownerReviewService as any,
+      messageProcessor as any,
     );
   });
 
@@ -60,6 +65,12 @@ describe('WebhooksService', () => {
     expect(queue.add).toHaveBeenCalledWith('process-message', {
       messageId,
       payload: { message: { id: messageId } },
+    });
+    expect(messageProcessor.process).toHaveBeenCalledWith({
+      data: {
+        messageId,
+        payload: { message: { id: messageId } },
+      },
     });
   });
 
@@ -77,6 +88,12 @@ describe('WebhooksService', () => {
       messageId,
       payload: nestedPayload,
     });
+    expect(messageProcessor.process).toHaveBeenCalledWith({
+      data: {
+        messageId,
+        payload: nestedPayload,
+      },
+    });
   });
 
   it('does not enqueue a duplicate delivery and emits webhook_duplicate_skipped log', async () => {
@@ -88,6 +105,7 @@ describe('WebhooksService', () => {
     ).resolves.toMatchObject({ status: 'duplicate', messageId });
 
     expect(queue.add).not.toHaveBeenCalled();
+    expect(messageProcessor.process).not.toHaveBeenCalled();
     expect(logSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         event: 'webhook_duplicate_skipped',
@@ -106,6 +124,7 @@ describe('WebhooksService', () => {
     });
 
     expect(queue.add).not.toHaveBeenCalled();
+    expect(messageProcessor.process).not.toHaveBeenCalled();
   });
 
   it('skips duplicate flattened deliveries', async () => {
@@ -116,6 +135,7 @@ describe('WebhooksService', () => {
     ).resolves.toMatchObject({ status: 'duplicate', messageId });
 
     expect(queue.add).not.toHaveBeenCalled();
+    expect(messageProcessor.process).not.toHaveBeenCalled();
   });
 
   it('does not enqueue if no idempotency key can be resolved', async () => {
@@ -140,6 +160,7 @@ describe('WebhooksService', () => {
 
     expect(redis.set).not.toHaveBeenCalled();
     expect(queue.add).not.toHaveBeenCalled();
+    expect(messageProcessor.process).not.toHaveBeenCalled();
   });
 
   it('deletes Redis reservation and throws retryable 5xx if enqueue fails', async () => {
@@ -151,6 +172,7 @@ describe('WebhooksService', () => {
     ).rejects.toBeInstanceOf(ServiceUnavailableException);
 
     expect(redis.del).toHaveBeenCalledWith(`wh:msg:${messageId}`);
+    expect(messageProcessor.process).not.toHaveBeenCalled();
   });
 
   it('captures owner review commands from the same webhook path before the dashboard exists', async () => {
@@ -186,6 +208,7 @@ describe('WebhooksService', () => {
         },
       },
     });
+    expect(messageProcessor.process).toHaveBeenCalled();
   });
 
   it('does not treat customer messages that mimic commands as owner approvals', async () => {
@@ -211,5 +234,6 @@ describe('WebhooksService', () => {
       fromPhone: '+573001234567',
       messageId,
     });
+    expect(messageProcessor.process).toHaveBeenCalled();
   });
 });

@@ -12,6 +12,6 @@ import { MessageProcessor } from './processors/message.processor';
     BullModule.registerQueue({ name: 'incoming-messages' }),
   ],
   providers: [MessagingService, MessageProcessor],
-  exports: [MessagingService, BullModule],
+  exports: [MessagingService, MessageProcessor, BullModule],
 })
 export class MessagingModule {}

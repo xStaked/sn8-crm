@@ -3,6 +3,7 @@ import { InjectQueue } from '@nestjs/bullmq';
 import type { Queue } from 'bullmq';
 import type Redis from 'ioredis';
 import { OwnerReviewService } from '../ai-sales/owner-review.service';
+import { MessageProcessor } from '../messaging/processors/message.processor';
 import { REDIS_CLIENT } from '../redis/redis.constants';
 import type { KapsoWebhookDto } from './dto/kapso-webhook.dto';
 
@@ -27,6 +28,7 @@ export class WebhooksService {
     @InjectQueue('incoming-messages') private readonly messageQueue: Queue,
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
     private readonly ownerReviewService: OwnerReviewService,
+    private readonly messageProcessor: MessageProcessor,
   ) {}
 
   async handleKapsoWebhook(
@@ -73,6 +75,17 @@ export class WebhooksService {
         redisKey,
         ownerCommandHandled,
       });
+
+      await this.messageProcessor.process({
+        data: { messageId, payload },
+      } as any);
+
+      this.logger.log({
+        event: 'webhook_inline_processing_success',
+        messageId,
+        redisKey,
+      });
+
       return {
         status: ownerCommandHandled ? 'owner-review-command' : 'enqueued',
         messageId,
