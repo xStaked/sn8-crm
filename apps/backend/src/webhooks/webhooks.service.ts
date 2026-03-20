@@ -35,6 +35,13 @@ export class WebhooksService {
     payload: KapsoWebhookDto,
     headerIdempotencyKey?: string,
   ): Promise<KapsoWebhookHandlingResult> {
+    if (!this.hasProcessableInboundMessage(payload)) {
+      this.logger.log({
+        event: 'webhook_non_inbound_ignored',
+      });
+      return { status: 'ignored' };
+    }
+
     const messageId =
       (headerIdempotencyKey && headerIdempotencyKey.trim()) ||
       this.extractMessageId(payload);
@@ -132,6 +139,29 @@ export class WebhooksService {
       fromPhone,
       messageId,
     });
+  }
+
+  private hasProcessableInboundMessage(payload: KapsoWebhookDto): boolean {
+    const directMessage = payload?.message;
+    if (
+      directMessage &&
+      typeof directMessage === 'object' &&
+      typeof directMessage.from === 'string' &&
+      directMessage.from.trim()
+    ) {
+      return true;
+    }
+
+    const nestedMessages = payload?.entry
+      ?.flatMap((entry) => entry?.changes ?? [])
+      .flatMap((change) => change?.value?.messages ?? []);
+
+    return Boolean(
+      nestedMessages?.some(
+        (message) =>
+          typeof message?.from === 'string' && message.from.trim(),
+      ),
+    );
   }
 
   private extractMessageBody(payload: KapsoWebhookDto): string | undefined {

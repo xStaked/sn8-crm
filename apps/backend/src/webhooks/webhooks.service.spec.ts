@@ -58,18 +58,21 @@ describe('WebhooksService', () => {
     queue.add.mockResolvedValue({ id: 'job_1' });
 
     await expect(
-      service.handleKapsoWebhook({ message: { id: messageId } } as any, undefined),
+      service.handleKapsoWebhook(
+        { message: { id: messageId, from: '573001234567' } } as any,
+        undefined,
+      ),
     ).resolves.toMatchObject({ status: 'enqueued', messageId });
 
     expect(redis.set).toHaveBeenCalledWith(`wh:msg:${messageId}`, '1', 'EX', 86400, 'NX');
     expect(queue.add).toHaveBeenCalledWith('process-message', {
       messageId,
-      payload: { message: { id: messageId } },
+      payload: { message: { id: messageId, from: '573001234567' } },
     });
     expect(messageProcessor.process).toHaveBeenCalledWith({
       data: {
         messageId,
-        payload: { message: { id: messageId } },
+        payload: { message: { id: messageId, from: '573001234567' } },
       },
     });
   });
@@ -101,7 +104,10 @@ describe('WebhooksService', () => {
 
     const logSpy = jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
     await expect(
-      service.handleKapsoWebhook({ message: { id: messageId } } as any, undefined),
+      service.handleKapsoWebhook(
+        { message: { id: messageId, from: '573001234567' } } as any,
+        undefined,
+      ),
     ).resolves.toMatchObject({ status: 'duplicate', messageId });
 
     expect(queue.add).not.toHaveBeenCalled();
@@ -163,12 +169,37 @@ describe('WebhooksService', () => {
     expect(messageProcessor.process).not.toHaveBeenCalled();
   });
 
+  it('ignores non-inbound webhook events like outbound delivery updates', async () => {
+    await expect(
+      service.handleKapsoWebhook(
+        {
+          message: {
+            id: 'wamid.outbound_1',
+            status: 'delivered',
+          },
+          conversation: {
+            id: 'conv_1',
+          },
+          phone_number_id: '123',
+        } as any,
+        'status_evt_1',
+      ),
+    ).resolves.toMatchObject({ status: 'ignored' });
+
+    expect(redis.set).not.toHaveBeenCalled();
+    expect(queue.add).not.toHaveBeenCalled();
+    expect(messageProcessor.process).not.toHaveBeenCalled();
+  });
+
   it('deletes Redis reservation and throws retryable 5xx if enqueue fails', async () => {
     redis.set.mockResolvedValue('OK');
     queue.add.mockRejectedValue(new Error('queue down'));
 
     await expect(
-      service.handleKapsoWebhook({ message: { id: messageId } } as any, undefined),
+      service.handleKapsoWebhook(
+        { message: { id: messageId, from: '573001234567' } } as any,
+        undefined,
+      ),
     ).rejects.toBeInstanceOf(ServiceUnavailableException);
 
     expect(redis.del).toHaveBeenCalledWith(`wh:msg:${messageId}`);
