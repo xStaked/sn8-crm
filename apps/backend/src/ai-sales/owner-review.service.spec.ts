@@ -168,6 +168,209 @@ describe('OwnerReviewService', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
+  it('records requested changes and enqueues a regeneration job', async () => {
+    prisma.quoteDraft.findFirst.mockResolvedValue({
+      id: 'draft_2',
+      commercialBriefId: 'brief_1',
+      conversationId: '+573001234567',
+      version: 2,
+      reviewStatus: 'pending_owner_review',
+      reviewEvents: [{ id: 'evt_1', iteration: 3 }],
+      commercialBrief: {
+        id: 'brief_1',
+        conversationId: '+573001234567',
+        customerName: 'Acme',
+        summary: 'Resumen',
+      },
+    });
+    prisma.quoteReviewEvent.create.mockResolvedValue({
+      id: 'evt_2',
+      quoteDraftId: 'draft_2',
+      conversationId: '+573001234567',
+      iteration: 4,
+      reviewStatus: 'changes_requested',
+      feedback: 'Ajustar alcance y aclarar pricing.',
+    });
+
+    await service.requestChanges({
+      action: 'revise' as any,
+      conversationId: '+573001234567',
+      version: 2,
+      reviewerPhone: '+573009998877',
+      feedback: 'Ajustar alcance y aclarar pricing.',
+    });
+
+    expect(prisma.quoteDraft.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'draft_2' },
+        data: expect.objectContaining({
+          reviewStatus: 'changes_requested',
+          ownerFeedbackSummary: 'Ajustar alcance y aclarar pricing.',
+        }),
+      }),
+    );
+    expect(queue.add).toHaveBeenCalledWith(
+      'process-owner-revision',
+      expect.objectContaining({
+        conversationId: '+573001234567',
+        quoteDraftId: 'draft_2',
+        reviewEventId: 'evt_2',
+      }),
+      expect.objectContaining({
+        jobId: 'owner-revision:draft_2:evt_2',
+      }),
+    );
+  });
+
+  it('regenerates a new draft version from owner feedback and re-notifies the owner', async () => {
+    prisma.quoteDraft.findUnique
+      .mockResolvedValueOnce({
+        id: 'draft_2',
+        commercialBriefId: 'brief_1',
+        conversationId: '+573001234567',
+        version: 2,
+        templateVersion: 'pending-owner-template',
+        renderedQuote: 'Version original',
+        reviewStatus: 'changes_requested',
+        reviewEvents: [],
+        commercialBrief: {
+          id: 'brief_1',
+          conversationId: '+573001234567',
+          customerName: 'Acme',
+          projectType: 'App B2B',
+          businessProblem: 'Unificar ventas',
+          desiredScope: 'MVP',
+          budget: '10k-15k',
+          urgency: 'alta',
+          constraints: '2 meses',
+          summary: 'Lead con urgencia alta y alcance confirmado.',
+        },
+      })
+      .mockResolvedValueOnce({
+        id: 'draft_3',
+        conversationId: '+573001234567',
+        version: 3,
+        reviewStatus: 'pending_owner_review',
+        draftPayload: { summary: 'Nueva version' },
+        renderedQuote: 'Nueva version renderizada',
+        commercialBrief: {
+          id: 'brief_1',
+          conversationId: '+573001234567',
+          customerName: 'Acme',
+          summary: 'Lead con urgencia alta y alcance confirmado.',
+        },
+      });
+    prisma.quoteDraft.findFirst
+      .mockResolvedValueOnce({
+        id: 'draft_2',
+        commercialBriefId: 'brief_1',
+        conversationId: '+573001234567',
+        version: 2,
+        templateVersion: 'pending-owner-template',
+        renderedQuote: 'Version original',
+        reviewStatus: 'changes_requested',
+        reviewEvents: [],
+        commercialBrief: {
+          id: 'brief_1',
+          conversationId: '+573001234567',
+          customerName: 'Acme',
+          projectType: 'App B2B',
+          businessProblem: 'Unificar ventas',
+          desiredScope: 'MVP',
+          budget: '10k-15k',
+          urgency: 'alta',
+          constraints: '2 meses',
+          summary: 'Lead con urgencia alta y alcance confirmado.',
+        },
+      })
+      .mockResolvedValueOnce({
+        id: 'draft_2',
+        conversationId: '+573001234567',
+        version: 2,
+      });
+    prisma.quoteReviewEvent.findUnique.mockResolvedValue({
+      id: 'evt_2',
+      quoteDraftId: 'draft_2',
+      conversationId: '+573001234567',
+      iteration: 4,
+      reviewStatus: 'changes_requested',
+      feedback: 'Ajustar alcance y aclarar pricing.',
+    });
+    prisma.message.findMany.mockResolvedValue([
+      {
+        createdAt: new Date('2026-03-19T00:00:00.000Z'),
+        direction: 'inbound',
+        body: 'Necesito una app B2B',
+      },
+    ]);
+    aiSalesService.regenerateQuoteDraft.mockResolvedValue({
+      summary: 'Version ajustada con pricing mas claro.',
+      structuredDraft: {
+        ownerReviewDraft: {
+          title: 'Cotizacion ajustada',
+        },
+      },
+      renderedQuote: 'Cotizacion ajustada',
+      ownerReviewNotes: ['Se aclararon supuestos'],
+      customerSafeStatus: 'Pendiente',
+      model: 'deepseek-chat',
+    });
+    prisma.quoteDraft.create.mockResolvedValue({
+      id: 'draft_3',
+      commercialBriefId: 'brief_1',
+      conversationId: '+573001234567',
+      version: 3,
+      reviewStatus: 'pending_owner_review',
+      draftPayload: { summary: 'Nueva version' },
+      renderedQuote: 'Nueva version renderizada',
+      commercialBrief: {
+        id: 'brief_1',
+        conversationId: '+573001234567',
+        customerName: 'Acme',
+        summary: 'Lead con urgencia alta y alcance confirmado.',
+      },
+    });
+
+    const result = await service.processRevisionJob({
+      conversationId: '+573001234567',
+      quoteDraftId: 'draft_2',
+      reviewEventId: 'evt_2',
+      requestedAt: '2026-03-19T00:00:00.000Z',
+    });
+
+    expect(aiSalesService.regenerateQuoteDraft).toHaveBeenCalledWith(
+      expect.objectContaining({
+        conversationId: '+573001234567',
+        ownerFeedback: 'Ajustar alcance y aclarar pricing.',
+        previousDraft: 'Version original',
+      }),
+    );
+    expect(prisma.quoteDraft.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          conversationId: '+573001234567',
+          version: 3,
+          origin: 'regenerated',
+          ownerFeedbackSummary: 'Ajustar alcance y aclarar pricing.',
+        }),
+      }),
+    );
+    expect(prisma.quoteReviewEvent.update).toHaveBeenCalledWith({
+      where: { id: 'evt_2' },
+      data: { resolvedAt: expect.any(Date) },
+    });
+    expect(messagingService.sendText).toHaveBeenCalledWith(
+      '+573009998877',
+      expect.stringContaining('SN8 APPROVE +573001234567 v3'),
+      'kapso-phone-id',
+    );
+    expect(result).toMatchObject({
+      id: 'draft_3',
+      version: 3,
+      conversationId: '+573001234567',
+    });
+  });
+
   it('throws when the owner command targets an outdated version', async () => {
     prisma.quoteDraft.findFirst.mockResolvedValue({
       id: 'draft_3',
