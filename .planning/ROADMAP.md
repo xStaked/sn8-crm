@@ -83,7 +83,7 @@ Plans:
 
 Plans:
 - [x] 02.1-01-PLAN.md — AI sales domain foundation: durable brief/draft/review state, DeepSeek provider contract, and quotation-format configuration surface
-- [ ] 02.1-02-PLAN.md — Qualification handoff into AI orchestration: structured brief extraction, quote draft generation, and pending-review customer messaging
+- [x] 02.1-02-PLAN.md — Qualification handoff into AI orchestration: structured brief extraction, quote draft generation, and pending-review customer messaging
 - [ ] 02.1-03-PLAN.md — WhatsApp-first owner consultation, draft regeneration from feedback, and hard no-send guardrail before approval
 
 ### Phase 3: AI Quotation + Approval Loop
@@ -119,7 +119,7 @@ Phases execute in numeric order: 1 → 1.1 → 2 → 2.1 → 3 → 4 → 5 → 5
 | 1. Foundation | 4/4 | Complete | 2026-03-18 |
 | 1.1. Frontend Foundation | 3/3 | Complete | 2026-03-18 |
 | 2. Bot Conversation Engine | 0/TBD | Not started | - |
-| 2.1. AI Sales Agent Configuration | 1/3 | In Progress | - |
+| 2.1. AI Sales Agent Configuration | 2/3 | In Progress | - |
 | 3. AI Quotation + Approval Loop | 0/TBD | Not started | - |
 | 4. CRM Dashboard | 0/TBD | Not started | - |
 | 5. Frontend integration with current backend | 4/4 | Complete | 2026-03-20 |

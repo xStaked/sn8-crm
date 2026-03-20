@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 02.1-01-PLAN.md
-last_updated: "2026-03-20T01:44:28.241Z"
-last_activity: 2026-03-20 — Completed Phase 02.1 Plan 02.1-01 (AI sales domain foundation: persistence, provider contract, and quote-template surface)
+stopped_at: Completed 02.1-02-PLAN.md
+last_updated: "2026-03-20T01:54:37.057Z"
+last_activity: "2026-03-20 — Completed Phase 02.1 Plan 02.1-02 (qualification handoff, structured brief extraction, and pending-review customer messaging)"
 progress:
   total_phases: 9
   completed_phases: 4
   total_plans: 19
-  completed_plans: 16
-  percent: 79
+  completed_plans: 17
+  percent: 89
 ---
 
 # Project State
@@ -21,24 +21,24 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-15)
 
 **Core value:** El bot nunca deja a un cliente sin respuesta y toda cotización pasa por validación del socio antes de enviarse — garantizando rentabilidad sin sacrificar velocidad de respuesta.
-**Current focus:** Phase 02.1 AI sales-agent configuration is now in progress with Plan 01 complete; Plan 02 will build qualification handoff and first draft-generation orchestration on top of the new domain foundation
+**Current focus:** Phase 02.1 AI sales-agent configuration now has its async handoff and first draft-generation orchestration in place; Plan 03 will build owner consultation, regeneration, and the hard no-send guardrail before approval
 
 ## Current Position
 
 Phase: 02.1 of 9 (AI Sales Agent Configuration)
-Plan: 2 of 3 in current phase
+Plan: 3 of 3 in current phase
 Status: In progress
-Last activity: 2026-03-20 — Completed Phase 02.1 Plan 02.1-01 (AI sales domain foundation: persistence, provider contract, and quote-template surface)
+Last activity: 2026-03-20 — Completed Phase 02.1 Plan 02.1-02 (qualification handoff, structured brief extraction, and pending-review customer messaging)
 
-Progress: [████████░░] 79%
+Progress: [█████████░] 89%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 16
+- Total plans completed: 17
 - Average duration: 8 min
-- Total execution time: 121 min
+- Total execution time: 129 min
 
 **By Phase:**
 
@@ -49,12 +49,12 @@ Progress: [████████░░] 79%
 | 5. Frontend integration with current backend | 4 | 38 min | 10 min |
 | 05.1. Integración real de Kapso y flujo inbound end-to-end | 3 | 26 min | 9 min |
 | 05.2. Manual Reply from CRM | 1 | 14 min | 14 min |
-| 02.1. AI Sales Agent Configuration | 1 | 3 min | 3 min |
+| 02.1. AI Sales Agent Configuration | 2 | 11 min | 6 min |
 
 **Recent Trend:**
 
-- Last 5 plans: 02.1-01 (3 min), 05-04 (14 min), 05.1-03 (19 min), 05.1-02 (4 min), 05.1-01 (3 min)
-- Trend: Execution has reopened the Phase 02.1 branch with the AI sales foundation in place, while 05.2 manual reply UI work still remains unfinished.
+- Last 5 plans: 02.1-02 (8 min), 02.1-01 (3 min), 05-04 (14 min), 05.1-03 (19 min), 05.1-02 (4 min)
+- Trend: Phase 02.1 now has both its persistence foundation and async orchestration layer in place, leaving only the owner consultation/revision loop to close the inserted AI-sales branch.
 
 *Updated after each plan completion*
 | Phase 05 P02 | 5m | 2 tasks | 4 files |
@@ -65,6 +65,7 @@ Progress: [████████░░] 79%
 | Phase 05.1 P03 | 19 min | 2 tasks | 4 files |
 | Phase 05.2 P01 | 14 min | 2 tasks | 8 files |
 | Phase 02.1 P01 | 3min | 3 tasks | 10 files |
+| Phase 02.1-ai-sales-agent-configuration P02 | 8min | 3 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -97,6 +98,8 @@ Recent decisions affecting current work:
 - [Phase 02.1]: AI sales state stays separate from Message so transcript history remains transport truth and review rules stay queryable.
 - [Phase 02.1]: DeepSeek access is localized behind AiProvider so later plans can swap prompt/orchestration behavior without provider coupling.
 - [Phase 02.1]: The owner quotation template remains an explicit pending contract instead of an invented format, so SALES-AI-03 is not overstated.
+- [Phase 02.1]: Qualification handoff is a queue job keyed by conversationId so Phase 2 can trigger ai-sales without coupling to request lifetime.
+- [Phase 02.1]: Customer-visible AI sales messaging stays limited to persisted pending-review status updates; quote bodies remain internal until approval.
 
 ### Roadmap Evolution
 
@@ -114,6 +117,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-20T01:44:28.239Z
-Stopped at: Completed 02.1-01-PLAN.md
+Last session: 2026-03-20T01:54:37.055Z
+Stopped at: Completed 02.1-02-PLAN.md
 Resume file: None
