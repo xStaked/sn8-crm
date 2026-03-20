@@ -1,5 +1,7 @@
 import { ConfigModule } from '@nestjs/config';
+import { getQueueToken } from '@nestjs/bull-shared';
 import { Test } from '@nestjs/testing';
+import { BullRegistrar } from '@nestjs/bullmq';
 import * as argon2 from 'argon2';
 import cookieParser from 'cookie-parser';
 import request from 'supertest';
@@ -129,6 +131,17 @@ describe('Conversations (e2e)', () => {
         ConversationsModule,
       ],
     })
+      .overrideProvider(getQueueToken('incoming-messages'))
+      .useValue({
+        add: jest.fn(),
+        close: jest.fn(),
+        on: jest.fn(),
+      })
+      .overrideProvider(BullRegistrar)
+      .useValue({
+        onModuleInit: jest.fn(),
+        register: jest.fn(),
+      })
       .overrideProvider(PrismaService)
       .useValue(prismaMock)
       .compile();
