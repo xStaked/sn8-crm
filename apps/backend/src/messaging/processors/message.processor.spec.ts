@@ -14,6 +14,8 @@ describe('MessageProcessor', () => {
 
   let prisma: { message: { create: jest.Mock } };
   let channel: { normalizeInbound: jest.Mock };
+  let messagingService: { sendText: jest.Mock };
+  let config: { get: jest.Mock };
   let processor: MessageProcessor;
 
   beforeEach(() => {
@@ -27,17 +29,43 @@ describe('MessageProcessor', () => {
       normalizeInbound: jest.fn(),
     };
 
-    processor = new MessageProcessor(prisma as any, channel as any);
+    messagingService = {
+      sendText: jest.fn().mockResolvedValue('out_1'),
+    };
+
+    config = {
+      get: jest.fn((key: string) => {
+        switch (key) {
+          case 'DEFAULT_AUTO_REPLY_MESSAGE':
+            return undefined;
+          case 'KAPSO_PHONE_NUMBER_ID':
+            return 'phone_number_id_123';
+          case 'AI_SALES_OWNER_PHONE':
+            return '+573009998887';
+          default:
+            return undefined;
+        }
+      }),
+    };
+
+    processor = new MessageProcessor(
+      prisma as any,
+      channel as any,
+      messagingService as any,
+      config as any,
+    );
   });
 
   it('normalizes raw payload and persists Message via Prisma', async () => {
     channel.normalizeInbound.mockReturnValue(normalizedMessage);
-    prisma.message.create.mockResolvedValue({ id: 'db_1' });
+    prisma.message.create
+      .mockResolvedValueOnce({ id: 'db_1' })
+      .mockResolvedValueOnce({ id: 'db_2' });
 
     await expect(processor.process({ data: { payload } } as any)).resolves.toBeUndefined();
 
     expect(channel.normalizeInbound).toHaveBeenCalledWith(payload);
-    expect(prisma.message.create).toHaveBeenCalledWith({
+    expect(prisma.message.create).toHaveBeenNthCalledWith(1, {
       data: {
         externalMessageId: 'msg_1',
         direction: 'inbound',
@@ -48,6 +76,30 @@ describe('MessageProcessor', () => {
         rawPayload: payload,
       },
     });
+    expect(messagingService.sendText).toHaveBeenCalledWith(
+      '573001112233',
+      expect.stringContaining('Hola, soy el asistente comercial de SN8 Labs'),
+      'phone_number_id_123',
+    );
+    expect(prisma.message.create).toHaveBeenNthCalledWith(2, {
+      data: {
+        externalMessageId: 'out_1',
+        direction: 'outbound',
+        fromPhone: 'phone_number_id_123',
+        toPhone: '573001112233',
+        body: expect.stringContaining('Hola, soy el asistente comercial de SN8 Labs'),
+        channel: 'whatsapp',
+        rawPayload: {
+          externalMessageId: 'out_1',
+          direction: 'outbound',
+          fromPhone: 'phone_number_id_123',
+          toPhone: '573001112233',
+          body: expect.stringContaining('Hola, soy el asistente comercial de SN8 Labs'),
+          source: 'default-auto-reply',
+          replyToExternalMessageId: 'msg_1',
+        },
+      },
+    });
   });
 
   it('falls back to the inbound payload when normalized rawPayload is missing', async () => {
@@ -55,11 +107,13 @@ describe('MessageProcessor', () => {
       ...normalizedMessage,
       rawPayload: undefined,
     });
-    prisma.message.create.mockResolvedValue({ id: 'db_1' });
+    prisma.message.create
+      .mockResolvedValueOnce({ id: 'db_1' })
+      .mockResolvedValueOnce({ id: 'db_2' });
 
     await expect(processor.process({ data: { payload } } as any)).resolves.toBeUndefined();
 
-    expect(prisma.message.create).toHaveBeenCalledWith({
+    expect(prisma.message.create).toHaveBeenNthCalledWith(1, {
       data: {
         externalMessageId: 'msg_1',
         direction: 'inbound',
@@ -80,6 +134,7 @@ describe('MessageProcessor', () => {
     prisma.message.create.mockRejectedValue({ code: 'P2002' });
 
     await expect(processor.process({ data: { payload } } as any)).resolves.toBeUndefined();
+    expect(messagingService.sendText).not.toHaveBeenCalled();
   });
 
   it('keeps a single durable message row when the same externalMessageId is delivered twice', async () => {
@@ -104,11 +159,25 @@ describe('MessageProcessor', () => {
     await expect(processor.process({ data: { payload } } as any)).resolves.toBeUndefined();
     await expect(processor.process({ data: { payload } } as any)).resolves.toBeUndefined();
 
-    expect(prisma.message.create).toHaveBeenCalledTimes(2);
+    expect(prisma.message.create).toHaveBeenCalledTimes(3);
     expect(persistedRows).toEqual([
       {
         externalMessageId: 'msg_1',
         rawPayload: payload,
+      },
+      {
+        externalMessageId: 'out_1',
+        rawPayload: {
+          externalMessageId: 'out_1',
+          direction: 'outbound',
+          fromPhone: 'phone_number_id_123',
+          toPhone: '573001112233',
+          body: expect.stringContaining(
+            'Hola, soy el asistente comercial de SN8 Labs',
+          ),
+          source: 'default-auto-reply',
+          replyToExternalMessageId: 'msg_1',
+        },
       },
     ]);
   });
@@ -122,5 +191,19 @@ describe('MessageProcessor', () => {
     prisma.message.create.mockRejectedValue(err);
 
     await expect(processor.process({ data: { payload } } as any)).rejects.toBe(err);
+  });
+
+  it('does not auto-reply to owner approval commands', async () => {
+    channel.normalizeInbound.mockReturnValue({
+      ...normalizedMessage,
+      fromPhone: '573009998887',
+      body: 'SN8 APPROVE 573001112233 v1',
+    });
+    prisma.message.create.mockResolvedValueOnce({ id: 'db_1' });
+
+    await expect(processor.process({ data: { payload } } as any)).resolves.toBeUndefined();
+
+    expect(messagingService.sendText).not.toHaveBeenCalled();
+    expect(prisma.message.create).toHaveBeenCalledTimes(1);
   });
 });

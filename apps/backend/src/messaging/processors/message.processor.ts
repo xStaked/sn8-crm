@@ -1,8 +1,13 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import type { Job } from 'bullmq';
 import { ChannelAdapter } from '../../channels/channel.adapter';
+import { MessagingService } from '../messaging.service';
 import { PrismaService } from '../../prisma/prisma.service';
+
+const DEFAULT_AUTO_REPLY =
+  'Hola, soy el asistente comercial de SN8 Labs. Ya recibi tu mensaje y te voy a guiar para entender tu proyecto antes de preparar una propuesta.';
 
 @Processor('incoming-messages')
 export class MessageProcessor extends WorkerHost {
@@ -11,6 +16,8 @@ export class MessageProcessor extends WorkerHost {
   constructor(
     private readonly prisma: PrismaService,
     private readonly channel: ChannelAdapter,
+    private readonly messagingService: MessagingService,
+    private readonly config: ConfigService,
   ) {
     super();
   }
@@ -83,5 +90,86 @@ export class MessageProcessor extends WorkerHost {
       });
       throw err;
     }
+
+    if (!this.shouldAutoReply(normalized)) {
+      return;
+    }
+
+    const replyBody =
+      this.config.get<string>('DEFAULT_AUTO_REPLY_MESSAGE')?.trim() || DEFAULT_AUTO_REPLY;
+    const senderPhoneNumberId =
+      this.config.get<string>('KAPSO_PHONE_NUMBER_ID')?.trim() || undefined;
+    const externalMessageId = await this.messagingService.sendText(
+      normalized.fromPhone,
+      replyBody,
+      senderPhoneNumberId,
+    );
+
+    await this.prisma.message.create({
+      data: {
+        externalMessageId,
+        direction: 'outbound',
+        fromPhone: senderPhoneNumberId ?? 'bot',
+        toPhone: normalized.fromPhone,
+        body: replyBody,
+        channel: normalized.channel,
+        rawPayload: {
+          externalMessageId,
+          direction: 'outbound',
+          fromPhone: senderPhoneNumberId ?? 'bot',
+          toPhone: normalized.fromPhone,
+          body: replyBody,
+          source: 'default-auto-reply',
+          replyToExternalMessageId: normalized.externalMessageId,
+        },
+      },
+    });
+
+    this.logger.log({
+      event: 'message_auto_replied',
+      jobId: job.id ?? null,
+      inboundExternalMessageId: normalized.externalMessageId,
+      outboundExternalMessageId: externalMessageId,
+      toPhone: normalized.fromPhone,
+    });
+  }
+
+  private shouldAutoReply(normalized: {
+    direction: string;
+    fromPhone: string;
+    body: string | null;
+    externalMessageId: string;
+  }): boolean {
+    if (normalized.direction !== 'inbound') {
+      return false;
+    }
+
+    const body = normalized.body?.trim() ?? '';
+    if (!body) {
+      return false;
+    }
+
+    if (this.isOwnerPhone(normalized.fromPhone)) {
+      return false;
+    }
+
+    if (body.toUpperCase().startsWith('SN8 ')) {
+      return false;
+    }
+
+    return true;
+  }
+
+  private isOwnerPhone(fromPhone: string): boolean {
+    const ownerPhone = this.config.get<string>('AI_SALES_OWNER_PHONE')?.trim();
+    if (!ownerPhone) {
+      return false;
+    }
+
+    return this.normalizePhone(fromPhone) === this.normalizePhone(ownerPhone);
+  }
+
+  private normalizePhone(value: string): string {
+    return value.replace(/\D/g, '');
   }
 }
