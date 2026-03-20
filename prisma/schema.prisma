@@ -7,6 +7,26 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum CommercialBriefStatus {
+  collecting
+  ready_for_quote
+  quote_in_review
+  approved
+}
+
+enum QuoteDraftOrigin {
+  initial
+  regenerated
+}
+
+enum QuoteReviewStatus {
+  pending_owner_review
+  changes_requested
+  ready_for_recheck
+  approved
+  delivered_to_customer
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -28,3 +48,60 @@ model Message {
   createdAt         DateTime @default(now())
 }
 
+model CommercialBrief {
+  id               String                @id @default(cuid())
+  conversationId   String                @unique
+  status           CommercialBriefStatus @default(collecting)
+  customerName     String?
+  projectType      String?
+  businessProblem  String?
+  desiredScope     String?
+  budget           String?
+  urgency          String?
+  constraints      String?
+  summary          String?
+  sourceTranscript Json?
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  quoteDrafts      QuoteDraft[]
+
+  @@index([status])
+}
+
+model QuoteDraft {
+  id                    String            @id @default(cuid())
+  commercialBriefId     String
+  conversationId        String
+  version               Int
+  origin                QuoteDraftOrigin  @default(initial)
+  reviewStatus          QuoteReviewStatus @default(pending_owner_review)
+  templateVersion       String?
+  draftPayload          Json
+  renderedQuote         String?
+  ownerFeedbackSummary  String?
+  approvedAt            DateTime?
+  deliveredToCustomerAt DateTime?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+  commercialBrief       CommercialBrief   @relation(fields: [commercialBriefId], references: [id], onDelete: Cascade)
+  reviewEvents          QuoteReviewEvent[]
+
+  @@unique([conversationId, version])
+  @@index([commercialBriefId, version])
+  @@index([conversationId, reviewStatus, createdAt])
+}
+
+model QuoteReviewEvent {
+  id             String            @id @default(cuid())
+  quoteDraftId   String
+  conversationId String
+  iteration      Int
+  reviewStatus   QuoteReviewStatus
+  feedback       String
+  createdAt      DateTime          @default(now())
+  resolvedAt     DateTime?
+  quoteDraft     QuoteDraft        @relation(fields: [quoteDraftId], references: [id], onDelete: Cascade)
+
+  @@unique([quoteDraftId, iteration])
+  @@index([conversationId, createdAt])
+}
