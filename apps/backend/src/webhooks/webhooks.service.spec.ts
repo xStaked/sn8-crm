@@ -26,6 +26,7 @@ describe('WebhooksService', () => {
 
   let redis: { set: jest.Mock; del: jest.Mock };
   let queue: { add: jest.Mock };
+  let ownerReviewService: { handleOwnerCommand: jest.Mock };
   let service: WebhooksService;
 
   beforeEach(() => {
@@ -36,8 +37,15 @@ describe('WebhooksService', () => {
     queue = {
       add: jest.fn(),
     };
+    ownerReviewService = {
+      handleOwnerCommand: jest.fn().mockResolvedValue(false),
+    };
 
-    service = new WebhooksService(queue as any, redis as any);
+    service = new WebhooksService(
+      queue as any,
+      redis as any,
+      ownerReviewService as any,
+    );
   });
 
   it('enqueues a new delivery once', async () => {
@@ -143,5 +151,40 @@ describe('WebhooksService', () => {
     ).rejects.toBeInstanceOf(ServiceUnavailableException);
 
     expect(redis.del).toHaveBeenCalledWith(`wh:msg:${messageId}`);
+  });
+
+  it('captures owner review commands from the same webhook path before the dashboard exists', async () => {
+    redis.set.mockResolvedValue('OK');
+    queue.add.mockResolvedValue({ id: 'job_1' });
+    ownerReviewService.handleOwnerCommand.mockResolvedValue(true);
+
+    await expect(
+      service.handleKapsoWebhook(
+        {
+          message: {
+            id: messageId,
+            from: '+573009998877',
+            text: { body: 'SN8 APPROVE +573001234567 v2' },
+          },
+        } as any,
+        undefined,
+      ),
+    ).resolves.toMatchObject({ status: 'owner-review-command', messageId });
+
+    expect(ownerReviewService.handleOwnerCommand).toHaveBeenCalledWith({
+      body: 'SN8 APPROVE +573001234567 v2',
+      fromPhone: '+573009998877',
+      messageId,
+    });
+    expect(queue.add).toHaveBeenCalledWith('process-message', {
+      messageId,
+      payload: {
+        message: {
+          id: messageId,
+          from: '+573009998877',
+          text: { body: 'SN8 APPROVE +573001234567 v2' },
+        },
+      },
+    });
   });
 });

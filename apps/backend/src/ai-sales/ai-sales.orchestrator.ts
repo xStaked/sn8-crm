@@ -12,6 +12,7 @@ import {
   AiSalesStateDto,
   ProcessQualifiedConversationJob,
 } from './dto/ai-sales-state.dto';
+import { OwnerReviewService } from './owner-review.service';
 
 const REQUIRED_BRIEF_FIELDS = [
   'projectType',
@@ -36,6 +37,7 @@ export class AiSalesOrchestrator {
     private readonly messagingService: MessagingService,
     private readonly config: ConfigService,
     private readonly aiSalesService: AiSalesService,
+    private readonly ownerReviewService: OwnerReviewService,
   ) {}
 
   async enqueueQualifiedConversation(
@@ -157,6 +159,7 @@ export class AiSalesOrchestrator {
       version: quoteDraft.version,
     });
 
+    await this.ownerReviewService.requestOwnerReview(quoteDraft.id);
     await this.sendPendingReviewStatus(normalizedConversationId);
 
     return {

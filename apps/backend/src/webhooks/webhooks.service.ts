@@ -2,13 +2,22 @@ import { Inject, Injectable, Logger, ServiceUnavailableException } from '@nestjs
 import { InjectQueue } from '@nestjs/bullmq';
 import type { Queue } from 'bullmq';
 import type Redis from 'ioredis';
+import { OwnerReviewService } from '../ai-sales/owner-review.service';
 import { REDIS_CLIENT } from '../redis/redis.constants';
 import type { KapsoWebhookDto } from './dto/kapso-webhook.dto';
 
 export type KapsoWebhookHandlingResult =
   | { status: 'ignored' }
   | { status: 'duplicate'; messageId: string }
+  | { status: 'owner-review-command'; messageId: string }
   | { status: 'enqueued'; messageId: string };
+
+type TextCarrier = {
+  text?: {
+    body?: string;
+  };
+  from?: string;
+};
 
 @Injectable()
 export class WebhooksService {
@@ -17,6 +26,7 @@ export class WebhooksService {
   constructor(
     @InjectQueue('incoming-messages') private readonly messageQueue: Queue,
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
+    private readonly ownerReviewService: OwnerReviewService,
   ) {}
 
   async handleKapsoWebhook(
@@ -50,6 +60,7 @@ export class WebhooksService {
     }
 
     try {
+      const ownerCommandHandled = await this.tryHandleOwnerReviewCommand(payload, messageId);
       this.logger.log({
         event: 'webhook_enqueue_attempt',
         messageId,
@@ -60,8 +71,12 @@ export class WebhooksService {
         event: 'webhook_enqueue_success',
         messageId,
         redisKey,
+        ownerCommandHandled,
       });
-      return { status: 'enqueued', messageId };
+      return {
+        status: ownerCommandHandled ? 'owner-review-command' : 'enqueued',
+        messageId,
+      };
     } catch (err) {
       await this.redis.del(redisKey);
       this.logger.error({
@@ -86,5 +101,58 @@ export class WebhooksService {
       .find((message) => typeof message?.id === 'string' && message.id.trim())?.id;
 
     return nestedMessageId;
+  }
+
+  private async tryHandleOwnerReviewCommand(
+    payload: KapsoWebhookDto,
+    messageId: string,
+  ): Promise<boolean> {
+    const body = this.extractMessageBody(payload);
+    const fromPhone = this.extractFromPhone(payload);
+
+    if (!body || !fromPhone) {
+      return false;
+    }
+
+    return this.ownerReviewService.handleOwnerCommand({
+      body,
+      fromPhone,
+      messageId,
+    });
+  }
+
+  private extractMessageBody(payload: KapsoWebhookDto): string | undefined {
+    const directMessage = payload?.message as TextCarrier | undefined;
+    if (
+      typeof directMessage?.text?.body === 'string' &&
+      directMessage.text.body.trim()
+    ) {
+      return directMessage.text.body;
+    }
+
+    const nestedBody = payload?.entry
+      ?.flatMap((entry) => entry?.changes ?? [])
+      .flatMap((change) => (change?.value?.messages ?? []) as TextCarrier[])
+      .find(
+        (message) =>
+          typeof message?.text?.body === 'string' && message.text.body.trim(),
+      )?.text?.body;
+
+    return nestedBody;
+  }
+
+  private extractFromPhone(payload: KapsoWebhookDto): string | undefined {
+    const directMessage = payload?.message as TextCarrier | undefined;
+    if (typeof directMessage?.from === 'string' && directMessage.from.trim()) {
+      return directMessage.from;
+    }
+
+    const nestedFrom = payload?.entry
+      ?.flatMap((entry) => entry?.changes ?? [])
+      .flatMap((change) => (change?.value?.messages ?? []) as TextCarrier[])
+      .find((message) => typeof message?.from === 'string' && message.from.trim())
+      ?.from;
+
+    return nestedFrom;
   }
 }

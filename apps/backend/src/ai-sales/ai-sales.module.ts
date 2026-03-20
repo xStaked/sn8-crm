@@ -9,6 +9,8 @@ import { AiSalesProcessor } from './ai-sales.processor';
 import { DeepSeekClient } from './deepseek/deepseek.client';
 import { AI_SALES_QUEUE } from './dto/ai-sales-state.dto';
 import { AiSalesService } from './ai-sales.service';
+import { OwnerReviewProcessor } from './owner-review.processor';
+import { OwnerReviewService } from './owner-review.service';
 
 @Module({
   imports: [
@@ -21,12 +23,14 @@ import { AiSalesService } from './ai-sales.service';
     DeepSeekClient,
     AiSalesService,
     AiSalesOrchestrator,
+    OwnerReviewService,
     AiSalesProcessor,
+    OwnerReviewProcessor,
     {
       provide: AI_PROVIDER,
       useExisting: DeepSeekClient,
     },
   ],
-  exports: [AiSalesService, AiSalesOrchestrator, AI_PROVIDER],
+  exports: [AiSalesService, AiSalesOrchestrator, OwnerReviewService, AI_PROVIDER],
 })
 export class AiSalesModule {}

@@ -9,10 +9,8 @@ import {
   RegenerateQuoteDraftInput,
 } from '../ai-provider.interface';
 import { buildBriefExtractionPrompt } from '../prompts/brief-extraction.prompt';
-import {
-  buildQuoteDraftPrompt,
-  buildQuoteRegenerationPrompt,
-} from '../prompts/quote-draft.prompt';
+import { buildQuoteDraftPrompt } from '../prompts/quote-draft.prompt';
+import { buildRevisionFromOwnerFeedbackPrompt } from '../prompts/revision-from-owner-feedback.prompt';
 
 type DeepSeekMessage = {
   role: 'system' | 'user';
@@ -85,7 +83,7 @@ export class DeepSeekClient implements AiProvider {
     const content = await this.createCompletion([
       {
         role: 'user',
-        content: buildQuoteRegenerationPrompt(input),
+        content: buildRevisionFromOwnerFeedbackPrompt(input),
       },
     ]);
 
