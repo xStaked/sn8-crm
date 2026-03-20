@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 05.1-03-PLAN.md
-last_updated: "2026-03-19T03:54:52.568Z"
-last_activity: 2026-03-18 — Completed Phase 05.1 Plan 05.1-03 (local Kapso smoke proof and CRM visibility verification)
+stopped_at: Completed 05-04-PLAN.md
+last_updated: "2026-03-20T01:33:53.421Z"
+last_activity: 2026-03-20 — Completed Phase 05 Plan 05-04 (end-to-end CRM browser proof against the live local backend)
 progress:
-  total_phases: 8
-  completed_phases: 3
-  total_plans: 16
-  completed_plans: 14
-  percent: 93
+  total_phases: 9
+  completed_phases: 4
+  total_plans: 19
+  completed_plans: 15
+  percent: 79
 ---
 
 # Project State
@@ -21,24 +21,24 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-15)
 
 **Core value:** El bot nunca deja a un cliente sin respuesta y toda cotización pasa por validación del socio antes de enviarse — garantizando rentabilidad sin sacrificar velocidad de respuesta.
-**Current focus:** Phase 05 remaining frontend end-to-end verification after completing the Kapso inbound proof phase
+**Current focus:** Phase 05.2 remaining frontend manual-reply verification now that Phase 05 browser verification is complete
 
 ## Current Position
 
-Phase: 05 of 7 (Frontend integration with current backend)
-Plan: 3 of 4 in current phase
+Phase: 05.2 of 9 (Manual Reply from CRM)
+Plan: 1 of 2 in current phase
 Status: In progress
-Last activity: 2026-03-18 — Completed Phase 05.1 Plan 05.1-03 (local Kapso smoke proof and CRM visibility verification)
+Last activity: 2026-03-20 — Completed Phase 05 Plan 05-04 (end-to-end CRM browser proof against the live local backend)
 
-Progress: [█████████░] 93%
+Progress: [████████░░] 79%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 13
-- Average duration: 7 min
-- Total execution time: 104 min
+- Total plans completed: 15
+- Average duration: 8 min
+- Total execution time: 118 min
 
 **By Phase:**
 
@@ -46,17 +46,19 @@ Progress: [█████████░] 93%
 |-------|-------|-------|----------|
 | 1. Foundation | 4 | 27 min | 7 min |
 | 1.1. Frontend Foundation | 3 | 27 min | 9 min |
-| 5. Frontend integration with current backend | 3 | 24 min | 8 min |
+| 5. Frontend integration with current backend | 4 | 38 min | 10 min |
 | 05.1. Integración real de Kapso y flujo inbound end-to-end | 3 | 26 min | 9 min |
+| 05.2. Manual Reply from CRM | 1 | 14 min | 14 min |
 
 **Recent Trend:**
 
-- Last 5 plans: 05.1-03 (19 min), 05.1-02 (4 min), 05.1-01 (3 min), 05-03 (5 min), 05-02 (5 min)
-- Trend: Kapso inbound proof is now fully closed from signed webhook ingress through CRM visibility, leaving only the older Phase 05 logout/end-to-end pass outstanding
+- Last 5 plans: 05-04 (14 min), 05.1-03 (19 min), 05.1-02 (4 min), 05.1-01 (3 min), 05-03 (5 min)
+- Trend: Phase 05 is now fully closed with browser proof; remaining frontend/backend integration work is concentrated in the 05.2 manual reply UI finish.
 
 *Updated after each plan completion*
 | Phase 05 P02 | 5m | 2 tasks | 4 files |
 | Phase 05 P03 | 5m | 2 tasks | 6 files |
+| Phase 05 P04 | 14min | 2 tasks | 2 files |
 | Phase 05.1 P01 | 3m | 2 tasks | 6 files |
 | Phase 05.1 P02 | 4min | 2 tasks | 4 files |
 | Phase 05.1 P03 | 19 min | 2 tasks | 4 files |
@@ -81,6 +83,8 @@ Recent decisions affecting current work:
 - [Phase 05]: Conversation history returns chronological lightweight message DTOs so the detail panel can render directly.
 - [Phase 05]: Frontend CRM reads treat backend 401s as session expiry and route back to /login.
 - [Phase 05]: Production inbox/detail views expose loading, empty, unauthorized, and generic failure states instead of falling back to canned mock data.
+- [Phase 05]: Conversation e2e coverage stubs BullMQ queue and registrar providers instead of requiring Redis for read-contract verification.
+- [Phase 05]: Phase 05 browser proof runs against http://localhost:3000 so the frontend origin matches the backend CORS allowlist.
 - [Phase 05.1]: Webhook id resolution keeps X-Kapso-Idempotency-Key precedence and falls back to nested entry/change/message ids.
 - [Phase 05.1]: Kapso inbound normalization now scans nested entry/change/message arrays so real fixtures reach a stable NormalizedMessage contract.
 - [Phase 05.1]: Inbound persistence now falls back to the original webhook payload when normalized rawPayload is absent.
@@ -105,6 +109,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-19T01:17:06.939Z
-Stopped at: Completed 05.1-03-PLAN.md
+Last session: 2026-03-20T01:33:53.419Z
+Stopped at: Completed 05-04-PLAN.md
 Resume file: None

@@ -18,7 +18,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 2.1: AI Sales Agent Configuration** (INSERTED) - Agente IA experto en ventas de desarrollo de software guía la conversación, captura el brief comercial y prepara una cotización en formato definido por el socio para revisión humana
 - [ ] **Phase 3: AI Quotation + Approval Loop** - DeepSeek genera cotización validada, socio aprueba/rechaza, bot entrega al cliente
 - [ ] **Phase 4: CRM Dashboard** - Panel Next.js con inbox, pipeline, cola de aprobación y tiempo real
-- [ ] **Phase 5: Frontend integration with current backend** - Reemplazar datos mock del frontend por consumo real del backend actual y cerrar flujos end-to-end
+- [x] **Phase 5: Frontend integration with current backend** - Reemplazar datos mock del frontend por consumo real del backend actual y cerrar flujos end-to-end (completed 2026-03-20)
 - [x] **Phase 05.1: Integración real de Kapso y flujo inbound end-to-end** (INSERTED) - Conectar el webhook real/simulado de Kapso al backend actual y probar que los mensajes inbound persistidos aparecen en APIs y CRM (completed 2026-03-19)
 - [ ] **Phase 05.2: Manual Reply from CRM** (INSERTED) - El socio puede responder mensajes inbound desde el panel de detalle del CRM: backend outbound endpoint + UI de reply integrada
 
@@ -122,9 +122,9 @@ Phases execute in numeric order: 1 → 1.1 → 2 → 2.1 → 3 → 4 → 5 → 5
 | 2.1. AI Sales Agent Configuration | 0/3 | Planned | - |
 | 3. AI Quotation + Approval Loop | 0/TBD | Not started | - |
 | 4. CRM Dashboard | 0/TBD | Not started | - |
-| 5. Frontend integration with current backend | 3/4 | In Progress | - |
+| 5. Frontend integration with current backend | 4/4 | Complete | 2026-03-20 |
 | 05.1. Integración real de Kapso y flujo inbound end-to-end | 3/3 | Complete    | 2026-03-19 |
-| 05.2. Manual Reply from CRM | 1/2 | In Progress|  |
+| 05.2. Manual Reply from CRM | 1/2 | In Progress | - |
 
 ### Phase 5: Frontend integration with current backend
 
@@ -137,7 +137,7 @@ Plans:
 - [x] 05-01-PLAN.md — Backend conversations read model and authenticated GET /conversations summary endpoint
 - [x] 05-02-PLAN.md — Backend conversation history endpoint and API contract verification
 - [x] 05-03-PLAN.md — Frontend inbox/detail integration against real backend data and auth-aware error handling
-- [ ] 05-04-PLAN.md — End-to-end verification for login, inbox, detail, and logout against the current backend
+- [x] 05-04-PLAN.md — End-to-end verification for login, inbox, detail, and logout against the current backend
 
 ### Phase 05.2: Manual Reply from CRM (INSERTED)
 
@@ -151,7 +151,7 @@ Plans:
 **Plans:** 1/2 plans executed
 
 Plans:
-- [ ] 05.2-01-PLAN.md — Backend outbound send chain (sendText returns wamid), POST endpoint, DTO, service method, module wiring (REPLY-02)
+- [x] 05.2-01-PLAN.md — Backend outbound send chain (sendText returns wamid), POST endpoint, DTO, service method, module wiring (REPLY-02)
 - [ ] 05.2-02-PLAN.md — Frontend compose area in detail panel with SWR mutate for instant history update (REPLY-01, REPLY-03)
 
 ### Phase 05.1: Integración real de Kapso y flujo inbound end-to-end (INSERTED)

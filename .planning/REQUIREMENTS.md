@@ -75,7 +75,7 @@ Requirements para el lanzamiento inicial. Cada uno mapea a fases del roadmap.
 - [x] **FE-BE-01**: El frontend mantiene autenticacion real con el backend actual durante toda la navegacion del CRM y redirige a /login si la sesion deja de ser valida
 - [x] **FE-BE-02**: El inbox del CRM consume conversaciones reales agregadas desde el backend actual sin depender de mocks en produccion
 - [x] **FE-BE-03**: El panel de detalle muestra historial real de mensajes de la conversacion seleccionada desde el backend actual y conserva las acciones principales del shell
-- [ ] **FE-BE-04**: El flujo login → inbox → detalle → logout queda verificado end-to-end contra el backend actual
+- [x] **FE-BE-04**: El flujo login → inbox → detalle → logout queda verificado end-to-end contra el backend actual
 
 ### Manual Reply from CRM
 
@@ -175,7 +175,7 @@ Actualizado durante la creación del roadmap.
 | FE-BE-01 | Phase 5 | Complete |
 | FE-BE-02 | Phase 5 | Complete |
 | FE-BE-03 | Phase 5 | Complete |
-| FE-BE-04 | Phase 5 | Pending |
+| FE-BE-04 | Phase 5 | Complete |
 | REPLY-01 | Phase 05.2 | Pending |
 | REPLY-02 | Phase 05.2 | Complete |
 | REPLY-03 | Phase 05.2 | Pending |
