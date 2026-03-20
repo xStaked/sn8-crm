@@ -1,7 +1,9 @@
 import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import type { Queue } from 'bullmq';
 import { ConversationsService } from '../conversations/conversations.service';
+import { MessagingService } from '../messaging/messaging.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AiSalesService } from './ai-sales.service';
 import {
@@ -20,6 +22,9 @@ const REQUIRED_BRIEF_FIELDS = [
   'constraints',
 ] as const;
 
+const DRAFT_PENDING_REVIEW_STATUS =
+  'Gracias por la informacion. Ya estamos consolidando una propuesta preliminar y en este momento queda en revision interna con el socio antes de compartir cualquier cotizacion final.';
+
 @Injectable()
 export class AiSalesOrchestrator {
   private readonly logger = new Logger(AiSalesOrchestrator.name);
@@ -28,6 +33,8 @@ export class AiSalesOrchestrator {
     @InjectQueue(AI_SALES_QUEUE) private readonly aiSalesQueue: Queue,
     private readonly prisma: PrismaService,
     private readonly conversationsService: ConversationsService,
+    private readonly messagingService: MessagingService,
+    private readonly config: ConfigService,
     private readonly aiSalesService: AiSalesService,
   ) {}
 
@@ -150,6 +157,8 @@ export class AiSalesOrchestrator {
       version: quoteDraft.version,
     });
 
+    await this.sendPendingReviewStatus(normalizedConversationId);
+
     return {
       conversationId: normalizedConversationId,
       briefId: brief.id,
@@ -160,5 +169,34 @@ export class AiSalesOrchestrator {
       processingStage: 'draft_ready_for_review',
       missingFields: [],
     };
+  }
+
+  private async sendPendingReviewStatus(conversationId: string): Promise<void> {
+    const senderPhoneNumberId =
+      this.config.get<string>('KAPSO_PHONE_NUMBER_ID')?.trim() || undefined;
+    const externalMessageId = await this.messagingService.sendText(
+      conversationId,
+      DRAFT_PENDING_REVIEW_STATUS,
+      senderPhoneNumberId,
+    );
+
+    await this.prisma.message.create({
+      data: {
+        externalMessageId,
+        direction: 'outbound',
+        fromPhone: senderPhoneNumberId ?? 'ai-sales',
+        toPhone: conversationId,
+        body: DRAFT_PENDING_REVIEW_STATUS,
+        channel: 'whatsapp',
+        rawPayload: {
+          externalMessageId,
+          direction: 'outbound',
+          fromPhone: senderPhoneNumberId ?? 'ai-sales',
+          toPhone: conversationId,
+          body: DRAFT_PENDING_REVIEW_STATUS,
+          source: 'ai-sales-pending-review',
+        },
+      },
+    });
   }
 }

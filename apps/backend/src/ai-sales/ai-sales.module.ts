@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { ConversationsModule } from '../conversations/conversations.module';
+import { MessagingModule } from '../messaging/messaging.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AI_PROVIDER } from './ai-provider.interface';
 import { AiSalesOrchestrator } from './ai-sales.orchestrator';
@@ -13,6 +14,7 @@ import { AiSalesService } from './ai-sales.service';
   imports: [
     PrismaModule,
     ConversationsModule,
+    MessagingModule,
     BullModule.registerQueue({ name: AI_SALES_QUEUE }),
   ],
   providers: [
