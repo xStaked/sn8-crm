@@ -9,6 +9,9 @@ export type CommercialBriefSnapshot = {
   urgency?: string;
   constraints?: string;
   summary?: string;
+  customerSignals?: string[];
+  agentInferences?: string[];
+  missingInformation?: string[];
 };
 
 export type ExtractCommercialBriefInput = {
@@ -40,6 +43,8 @@ export type QuoteDraftResult = {
   summary: string;
   structuredDraft: Record<string, unknown>;
   renderedQuote: string;
+  ownerReviewNotes?: string[];
+  customerSafeStatus?: string;
   model: string;
 };
 

@@ -8,7 +8,11 @@ import {
   QuoteDraftResult,
   RegenerateQuoteDraftInput,
 } from '../ai-provider.interface';
-import { SALES_AGENT_SYSTEM_PROMPT } from '../prompts/sales-agent.system';
+import { buildBriefExtractionPrompt } from '../prompts/brief-extraction.prompt';
+import {
+  buildQuoteDraftPrompt,
+  buildQuoteRegenerationPrompt,
+} from '../prompts/quote-draft.prompt';
 
 type DeepSeekMessage = {
   role: 'system' | 'user';
@@ -48,15 +52,8 @@ export class DeepSeekClient implements AiProvider {
   ): Promise<CommercialBriefSnapshot> {
     const content = await this.createCompletion([
       {
-        role: 'system',
-        content: `${SALES_AGENT_SYSTEM_PROMPT}
-
-Devuelve solo JSON valido con estas llaves:
-customerName, projectType, businessProblem, desiredScope, budget, urgency, constraints, summary.`,
-      },
-      {
         role: 'user',
-        content: JSON.stringify(input, null, 2),
+        content: buildBriefExtractionPrompt(input),
       },
     ]);
 
@@ -68,15 +65,8 @@ customerName, projectType, businessProblem, desiredScope, budget, urgency, const
   ): Promise<QuoteDraftResult> {
     const content = await this.createCompletion([
       {
-        role: 'system',
-        content: `${SALES_AGENT_SYSTEM_PROMPT}
-
-Devuelve solo JSON valido con estas llaves:
-summary, structuredDraft, renderedQuote.`,
-      },
-      {
         role: 'user',
-        content: JSON.stringify(input, null, 2),
+        content: buildQuoteDraftPrompt(input),
       },
     ]);
 
@@ -92,12 +82,22 @@ summary, structuredDraft, renderedQuote.`,
   async regenerateQuoteDraft(
     input: RegenerateQuoteDraftInput,
   ): Promise<QuoteDraftResult> {
-    return this.generateQuoteDraft({
-      conversationId: input.conversationId,
-      transcript: input.transcript,
-      commercialBrief: input.commercialBrief,
-      quoteTemplate: input.quoteTemplate,
-    });
+    const content = await this.createCompletion([
+      {
+        role: 'user',
+        content: buildQuoteRegenerationPrompt(input),
+      },
+    ]);
+
+    const parsed = this.parseJson<Omit<QuoteDraftResult, 'model'>>(content);
+    return {
+      summary: parsed.summary,
+      structuredDraft: parsed.structuredDraft,
+      renderedQuote: parsed.renderedQuote,
+      ownerReviewNotes: parsed.ownerReviewNotes,
+      customerSafeStatus: parsed.customerSafeStatus,
+      model: this.model,
+    };
   }
 
   private async createCompletion(messages: DeepSeekMessage[]): Promise<string> {

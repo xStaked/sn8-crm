@@ -83,6 +83,8 @@ export class AiSalesService {
       summary: result.summary,
       structuredDraft: result.structuredDraft as Prisma.InputJsonValue,
       renderedQuote: result.renderedQuote,
+      ownerReviewNotes: (result.ownerReviewNotes ?? []) as Prisma.InputJsonValue,
+      customerSafeStatus: result.customerSafeStatus ?? QUOTE_TEMPLATE.customerDisclosure,
       model: result.model,
     };
 
