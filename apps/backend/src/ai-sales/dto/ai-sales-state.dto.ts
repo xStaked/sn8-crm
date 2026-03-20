@@ -17,7 +17,7 @@ export type AiSalesStateDto = {
 
 export type ProcessQualifiedConversationJob = {
   conversationId: string;
-  triggeredBy: 'phase-2-handoff' | 'manual-retry' | 'test';
+  triggeredBy: 'phase-2-handoff' | 'manual-retry' | 'test' | 'customer-message';
   requestedAt: string;
 };
 

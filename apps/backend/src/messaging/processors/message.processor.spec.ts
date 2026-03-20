@@ -15,6 +15,7 @@ describe('MessageProcessor', () => {
   let prisma: { message: { create: jest.Mock } };
   let channel: { normalizeInbound: jest.Mock };
   let messagingService: { sendText: jest.Mock };
+  let conversationFlowService: { planReply: jest.Mock };
   let config: { get: jest.Mock };
   let processor: MessageProcessor;
 
@@ -31,6 +32,13 @@ describe('MessageProcessor', () => {
 
     messagingService = {
       sendText: jest.fn().mockResolvedValue('out_1'),
+    };
+
+    conversationFlowService = {
+      planReply: jest.fn().mockResolvedValue({
+        body: 'Respuesta dinamica del flujo comercial.',
+        source: 'commercial-discovery',
+      }),
     };
 
     config = {
@@ -53,6 +61,7 @@ describe('MessageProcessor', () => {
       channel as any,
       messagingService as any,
       config as any,
+      conversationFlowService as any,
     );
   });
 
@@ -76,9 +85,14 @@ describe('MessageProcessor', () => {
         rawPayload: payload,
       },
     });
+    expect(conversationFlowService.planReply).toHaveBeenCalledWith({
+      conversationId: '573001112233',
+      inboundMessageId: 'msg_1',
+      inboundBody: 'hola',
+    });
     expect(messagingService.sendText).toHaveBeenCalledWith(
       '573001112233',
-      expect.stringContaining('Hola, soy el asistente comercial de SN8 Labs'),
+      'Respuesta dinamica del flujo comercial.',
       'phone_number_id_123',
     );
     expect(prisma.message.create).toHaveBeenNthCalledWith(2, {
@@ -87,15 +101,15 @@ describe('MessageProcessor', () => {
         direction: 'outbound',
         fromPhone: 'phone_number_id_123',
         toPhone: '573001112233',
-        body: expect.stringContaining('Hola, soy el asistente comercial de SN8 Labs'),
+        body: 'Respuesta dinamica del flujo comercial.',
         channel: 'whatsapp',
         rawPayload: {
           externalMessageId: 'out_1',
           direction: 'outbound',
           fromPhone: 'phone_number_id_123',
           toPhone: '573001112233',
-          body: expect.stringContaining('Hola, soy el asistente comercial de SN8 Labs'),
-          source: 'default-auto-reply',
+          body: 'Respuesta dinamica del flujo comercial.',
+          source: 'commercial-discovery',
           replyToExternalMessageId: 'msg_1',
         },
       },
@@ -172,10 +186,8 @@ describe('MessageProcessor', () => {
           direction: 'outbound',
           fromPhone: 'phone_number_id_123',
           toPhone: '573001112233',
-          body: expect.stringContaining(
-            'Hola, soy el asistente comercial de SN8 Labs',
-          ),
-          source: 'default-auto-reply',
+          body: 'Respuesta dinamica del flujo comercial.',
+          source: 'commercial-discovery',
           replyToExternalMessageId: 'msg_1',
         },
       },
@@ -203,6 +215,7 @@ describe('MessageProcessor', () => {
 
     await expect(processor.process({ data: { payload } } as any)).resolves.toBeUndefined();
 
+    expect(conversationFlowService.planReply).not.toHaveBeenCalled();
     expect(messagingService.sendText).not.toHaveBeenCalled();
     expect(prisma.message.create).toHaveBeenCalledTimes(1);
   });

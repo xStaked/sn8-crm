@@ -1,13 +1,11 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
-import { Logger } from '@nestjs/common';
+import { Inject, Logger, forwardRef } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Job } from 'bullmq';
+import { ConversationFlowService } from '../../ai-sales/conversation-flow.service';
 import { ChannelAdapter } from '../../channels/channel.adapter';
 import { MessagingService } from '../messaging.service';
 import { PrismaService } from '../../prisma/prisma.service';
-
-const DEFAULT_AUTO_REPLY =
-  'Hola, soy el asistente comercial de SN8 Labs. Ya recibi tu mensaje y te voy a guiar para entender tu proyecto antes de preparar una propuesta.';
 
 @Processor('incoming-messages')
 export class MessageProcessor extends WorkerHost {
@@ -18,6 +16,8 @@ export class MessageProcessor extends WorkerHost {
     private readonly channel: ChannelAdapter,
     private readonly messagingService: MessagingService,
     private readonly config: ConfigService,
+    @Inject(forwardRef(() => ConversationFlowService))
+    private readonly conversationFlowService: ConversationFlowService,
   ) {
     super();
   }
@@ -95,8 +95,12 @@ export class MessageProcessor extends WorkerHost {
       return;
     }
 
-    const replyBody =
-      this.config.get<string>('DEFAULT_AUTO_REPLY_MESSAGE')?.trim() || DEFAULT_AUTO_REPLY;
+    const replyPlan = await this.conversationFlowService.planReply({
+      conversationId: normalized.fromPhone,
+      inboundMessageId: normalized.externalMessageId,
+      inboundBody: normalized.body,
+    });
+    const replyBody = replyPlan.body;
     const senderPhoneNumberId =
       this.config.get<string>('KAPSO_PHONE_NUMBER_ID')?.trim() || undefined;
     const externalMessageId = await this.messagingService.sendText(
@@ -119,7 +123,7 @@ export class MessageProcessor extends WorkerHost {
           fromPhone: senderPhoneNumberId ?? 'bot',
           toPhone: normalized.fromPhone,
           body: replyBody,
-          source: 'default-auto-reply',
+          source: replyPlan.source,
           replyToExternalMessageId: normalized.externalMessageId,
         },
       },

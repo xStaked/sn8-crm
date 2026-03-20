@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { ConversationsModule } from '../conversations/conversations.module';
 import { MessagingModule } from '../messaging/messaging.module';
@@ -9,6 +9,7 @@ import { AiSalesProcessor } from './ai-sales.processor';
 import { DeepSeekClient } from './deepseek/deepseek.client';
 import { AI_SALES_QUEUE } from './dto/ai-sales-state.dto';
 import { AiSalesService } from './ai-sales.service';
+import { ConversationFlowService } from './conversation-flow.service';
 import { OwnerReviewProcessor } from './owner-review.processor';
 import { OwnerReviewService } from './owner-review.service';
 
@@ -16,13 +17,14 @@ import { OwnerReviewService } from './owner-review.service';
   imports: [
     PrismaModule,
     ConversationsModule,
-    MessagingModule,
+    forwardRef(() => MessagingModule),
     BullModule.registerQueue({ name: AI_SALES_QUEUE }),
   ],
   providers: [
     DeepSeekClient,
     AiSalesService,
     AiSalesOrchestrator,
+    ConversationFlowService,
     OwnerReviewService,
     AiSalesProcessor,
     OwnerReviewProcessor,
@@ -31,6 +33,12 @@ import { OwnerReviewService } from './owner-review.service';
       useExisting: DeepSeekClient,
     },
   ],
-  exports: [AiSalesService, AiSalesOrchestrator, OwnerReviewService, AI_PROVIDER],
+  exports: [
+    AiSalesService,
+    AiSalesOrchestrator,
+    ConversationFlowService,
+    OwnerReviewService,
+    AI_PROVIDER,
+  ],
 })
 export class AiSalesModule {}
