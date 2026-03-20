@@ -115,12 +115,23 @@ export class ConversationFlowService {
       });
 
       if (missingFields.length > 0) {
-        const replyBody = await this.aiSalesService.generateDiscoveryReply({
-          transcript,
-          missingField: missingFields[0],
-          isFirstTouch: !currentBrief,
-          knownProjectType: mergedBrief.projectType,
-        });
+        let replyBody: string;
+        try {
+          replyBody = await this.aiSalesService.generateDiscoveryReply({
+            transcript,
+            missingField: missingFields[0],
+            isFirstTouch: !currentBrief,
+            knownProjectType: mergedBrief.projectType,
+          });
+        } catch (replyError) {
+          this.logger.warn({
+            event: 'discovery_reply_ai_fallback',
+            conversationId: normalizedConversationId,
+            missingField: missingFields[0],
+            error: replyError instanceof Error ? replyError.message : String(replyError),
+          });
+          replyBody = this.buildStaticDiscoveryFallback(missingFields[0], !currentBrief, mergedBrief.projectType);
+        }
         return {
           body: replyBody,
           source: 'commercial-discovery',
@@ -150,6 +161,27 @@ export class ConversationFlowService {
         source: 'default-auto-reply',
       };
     }
+  }
+
+  private buildStaticDiscoveryFallback(
+    missingField: RequiredBriefField,
+    isFirstTouch: boolean,
+    projectType: string | null,
+  ): string {
+    const intro = isFirstTouch
+      ? 'Hola, soy el asesor comercial de SN8 Labs.'
+      : 'Sigo contigo.';
+    const questions: Record<RequiredBriefField, string> = {
+      projectType: 'Que tipo de solucion quieres construir?',
+      businessProblem: 'Cual es el problema principal que quieres resolver?',
+      desiredScope: projectType
+        ? `Que debe incluir la primera version de ese ${projectType}?`
+        : 'Que funciones clave debe tener la primera version?',
+      budget: 'Que rango de presupuesto manejas?',
+      urgency: 'Tienes fecha objetivo o ventana para arrancar?',
+      constraints: 'Hay alguna restriccion importante que deba considerar?',
+    };
+    return `${intro} ${questions[missingField]}`;
   }
 
   private buildReviewStatusReply(reviewStatus: QuoteDraft['reviewStatus']): string {

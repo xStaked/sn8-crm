@@ -55,7 +55,7 @@ export class AiSalesOrchestrator {
       AI_SALES_PROCESS_QUALIFIED_JOB,
       job,
       {
-        jobId: `qualified:${normalizedConversationId}`,
+        jobId: `qualified_${normalizedConversationId}`,
         removeOnComplete: 100,
         removeOnFail: 100,
       },

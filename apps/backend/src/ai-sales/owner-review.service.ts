@@ -248,7 +248,7 @@ export class OwnerReviewService {
     } satisfies ProcessOwnerRevisionJob;
 
     await this.aiSalesQueue.add(AI_SALES_PROCESS_OWNER_REVISION_JOB, job, {
-      jobId: `owner-revision:${latestDraft.id}:${reviewEvent.id}`,
+      jobId: `owner-revision_${latestDraft.id}_${reviewEvent.id}`,
       removeOnComplete: 100,
       removeOnFail: 100,
     });
