@@ -168,6 +168,25 @@ describe('OwnerReviewService', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
+  it('prepares customer delivery only after explicit approval exists', async () => {
+    prisma.quoteDraft.findFirst.mockResolvedValue({
+      id: 'draft_2',
+      conversationId: '+573001234567',
+      version: 2,
+      reviewStatus: 'approved',
+      renderedQuote: 'Cotizacion aprobada lista para envio.',
+    });
+
+    await expect(
+      service.prepareApprovedCustomerDelivery('+573001234567'),
+    ).resolves.toMatchObject({
+      conversationId: '+573001234567',
+      quoteDraftId: 'draft_2',
+      version: 2,
+      body: 'Cotizacion aprobada lista para envio.',
+    });
+  });
+
   it('records requested changes and enqueues a regeneration job', async () => {
     prisma.quoteDraft.findFirst.mockResolvedValue({
       id: 'draft_2',

@@ -187,4 +187,29 @@ describe('WebhooksService', () => {
       },
     });
   });
+
+  it('does not treat customer messages that mimic commands as owner approvals', async () => {
+    redis.set.mockResolvedValue('OK');
+    queue.add.mockResolvedValue({ id: 'job_1' });
+    ownerReviewService.handleOwnerCommand.mockResolvedValue(false);
+
+    await expect(
+      service.handleKapsoWebhook(
+        {
+          message: {
+            id: messageId,
+            from: '+573001234567',
+            text: { body: 'SN8 APPROVE +573001234567 v2' },
+          },
+        } as any,
+        undefined,
+      ),
+    ).resolves.toMatchObject({ status: 'enqueued', messageId });
+
+    expect(ownerReviewService.handleOwnerCommand).toHaveBeenCalledWith({
+      body: 'SN8 APPROVE +573001234567 v2',
+      fromPhone: '+573001234567',
+      messageId,
+    });
+  });
 });

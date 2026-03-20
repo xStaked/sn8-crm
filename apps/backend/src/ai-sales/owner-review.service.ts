@@ -28,6 +28,13 @@ type ReviewCommandSource = {
   messageId?: string;
 };
 
+export type ApprovedCustomerDeliveryPayload = {
+  conversationId: string;
+  quoteDraftId: string;
+  version: number;
+  body: string;
+};
+
 type ReviewContext = QuoteDraft & {
   commercialBrief: {
     id: string;
@@ -369,6 +376,26 @@ export class OwnerReviewService {
     }
 
     return latestDraft;
+  }
+
+  async prepareApprovedCustomerDelivery(
+    conversationId: string,
+  ): Promise<ApprovedCustomerDeliveryPayload> {
+    const approvedDraft = await this.assertLatestDraftApproved(conversationId);
+    const body = approvedDraft.renderedQuote?.trim();
+
+    if (!body) {
+      throw new BadRequestException(
+        `Approved quote draft ${approvedDraft.conversationId} v${approvedDraft.version} has no rendered quote body.`,
+      );
+    }
+
+    return {
+      conversationId: approvedDraft.conversationId,
+      quoteDraftId: approvedDraft.id,
+      version: approvedDraft.version,
+      body,
+    };
   }
 
   private async getLatestDraftForCommand(
