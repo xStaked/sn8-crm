@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 02.1-02-PLAN.md
-last_updated: "2026-03-20T01:54:37.057Z"
-last_activity: "2026-03-20 — Completed Phase 02.1 Plan 02.1-02 (qualification handoff, structured brief extraction, and pending-review customer messaging)"
+stopped_at: Completed 02.1-03-PLAN.md
+last_updated: "2026-03-20T02:09:53.807Z"
+last_activity: "2026-03-20 — Completed Phase 02.1 Plan 02.1-03 (owner consultation, draft regeneration, and approved-delivery guardrail)"
 progress:
   total_phases: 9
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 19
-  completed_plans: 17
-  percent: 89
+  completed_plans: 18
+  percent: 95
 ---
 
 # Project State
@@ -21,24 +21,24 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-15)
 
 **Core value:** El bot nunca deja a un cliente sin respuesta y toda cotización pasa por validación del socio antes de enviarse — garantizando rentabilidad sin sacrificar velocidad de respuesta.
-**Current focus:** Phase 02.1 AI sales-agent configuration now has its async handoff and first draft-generation orchestration in place; Plan 03 will build owner consultation, regeneration, and the hard no-send guardrail before approval
+**Current focus:** Phase 02.1 AI sales-agent configuration is complete with WhatsApp-first owner consultation and explicit approval blocking; the next dependency chain can consume this state from Phase 3 and the remaining frontend/manual-reply work.
 
 ## Current Position
 
 Phase: 02.1 of 9 (AI Sales Agent Configuration)
 Plan: 3 of 3 in current phase
 Status: In progress
-Last activity: 2026-03-20 — Completed Phase 02.1 Plan 02.1-02 (qualification handoff, structured brief extraction, and pending-review customer messaging)
+Last activity: 2026-03-20 — Completed Phase 02.1 Plan 02.1-03 (owner consultation, draft regeneration, and approved-delivery guardrail)
 
-Progress: [█████████░] 89%
+Progress: [██████████] 95%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 17
+- Total plans completed: 18
 - Average duration: 8 min
-- Total execution time: 129 min
+- Total execution time: 137 min
 
 **By Phase:**
 
@@ -49,12 +49,12 @@ Progress: [█████████░] 89%
 | 5. Frontend integration with current backend | 4 | 38 min | 10 min |
 | 05.1. Integración real de Kapso y flujo inbound end-to-end | 3 | 26 min | 9 min |
 | 05.2. Manual Reply from CRM | 1 | 14 min | 14 min |
-| 02.1. AI Sales Agent Configuration | 2 | 11 min | 6 min |
+| 02.1. AI Sales Agent Configuration | 3 | 19 min | 6 min |
 
 **Recent Trend:**
 
-- Last 5 plans: 02.1-02 (8 min), 02.1-01 (3 min), 05-04 (14 min), 05.1-03 (19 min), 05.1-02 (4 min)
-- Trend: Phase 02.1 now has both its persistence foundation and async orchestration layer in place, leaving only the owner consultation/revision loop to close the inserted AI-sales branch.
+- Last 5 plans: 02.1-03 (8 min), 02.1-02 (8 min), 02.1-01 (3 min), 05-04 (14 min), 05.1-03 (19 min)
+- Trend: Phase 02.1 is now complete, giving the roadmap a durable owner-review/regeneration loop and a reusable approval guardrail ahead of formal delivery work.
 
 *Updated after each plan completion*
 | Phase 05 P02 | 5m | 2 tasks | 4 files |
@@ -66,6 +66,7 @@ Progress: [█████████░] 89%
 | Phase 05.2 P01 | 14 min | 2 tasks | 8 files |
 | Phase 02.1 P01 | 3min | 3 tasks | 10 files |
 | Phase 02.1-ai-sales-agent-configuration P02 | 8min | 3 tasks | 11 files |
+| Phase 02.1-ai-sales-agent-configuration P03 | 8min | 3 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -100,6 +101,9 @@ Recent decisions affecting current work:
 - [Phase 02.1]: The owner quotation template remains an explicit pending contract instead of an invented format, so SALES-AI-03 is not overstated.
 - [Phase 02.1]: Qualification handoff is a queue job keyed by conversationId so Phase 2 can trigger ai-sales without coupling to request lifetime.
 - [Phase 02.1]: Customer-visible AI sales messaging stays limited to persisted pending-review status updates; quote bodies remain internal until approval.
+- [Phase 02.1]: Owner review v1 runs through WhatsApp using AI_SALES_OWNER_PHONE instead of waiting for the CRM approval UI.
+- [Phase 02.1]: Owner commands use explicit text syntax (SN8 APPROVE|REVISE <conversationId> v<version>) so approval stays machine-readable and attributable.
+- [Phase 02.1]: Customer-facing quote release stays behind prepareApprovedCustomerDelivery so delivery remains blocked until the latest draft is explicitly approved.
 
 ### Roadmap Evolution
 
@@ -117,6 +121,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-20T01:54:37.055Z
-Stopped at: Completed 02.1-02-PLAN.md
+Last session: 2026-03-20T02:09:53.805Z
+Stopped at: Completed 02.1-03-PLAN.md
 Resume file: None

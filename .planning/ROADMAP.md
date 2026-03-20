@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Foundation** - Backbone completo: auth, webhooks idempotentes, BullMQ, adaptador de canal, schema multi-canal
 - [x] **Phase 1.1: Frontend Foundation** (INSERTED) - Next.js app shell con login, protección de rutas y conexión a Phase 1 API
 - [ ] **Phase 2: Bot Conversation Engine** - FSM Redis-backed completa los estados GREETING → QUALIFYING → handoff sin IA
-- [ ] **Phase 2.1: AI Sales Agent Configuration** (INSERTED) - Agente IA experto en ventas de desarrollo de software guía la conversación, captura el brief comercial y prepara una cotización en formato definido por el socio para revisión humana
+- [x] **Phase 2.1: AI Sales Agent Configuration** (INSERTED) - Agente IA experto en ventas de desarrollo de software guía la conversación, captura el brief comercial y prepara una cotización en formato definido por el socio para revisión humana (completed 2026-03-20)
 - [ ] **Phase 3: AI Quotation + Approval Loop** - DeepSeek genera cotización validada, socio aprueba/rechaza, bot entrega al cliente
 - [ ] **Phase 4: CRM Dashboard** - Panel Next.js con inbox, pipeline, cola de aprobación y tiempo real
 - [x] **Phase 5: Frontend integration with current backend** - Reemplazar datos mock del frontend por consumo real del backend actual y cerrar flujos end-to-end (completed 2026-03-20)
@@ -84,7 +84,7 @@ Plans:
 Plans:
 - [x] 02.1-01-PLAN.md — AI sales domain foundation: durable brief/draft/review state, DeepSeek provider contract, and quotation-format configuration surface
 - [x] 02.1-02-PLAN.md — Qualification handoff into AI orchestration: structured brief extraction, quote draft generation, and pending-review customer messaging
-- [ ] 02.1-03-PLAN.md — WhatsApp-first owner consultation, draft regeneration from feedback, and hard no-send guardrail before approval
+- [x] 02.1-03-PLAN.md — WhatsApp-first owner consultation, draft regeneration from feedback, and hard no-send guardrail before approval
 
 ### Phase 3: AI Quotation + Approval Loop
 **Goal**: La cotización preliminar generada por la IA se valida, persiste y entra en un loop operativo de aprobación/rechazo para que el socio la gestione de forma auditable antes de que el cliente la reciba
@@ -119,7 +119,7 @@ Phases execute in numeric order: 1 → 1.1 → 2 → 2.1 → 3 → 4 → 5 → 5
 | 1. Foundation | 4/4 | Complete | 2026-03-18 |
 | 1.1. Frontend Foundation | 3/3 | Complete | 2026-03-18 |
 | 2. Bot Conversation Engine | 0/TBD | Not started | - |
-| 2.1. AI Sales Agent Configuration | 2/3 | In Progress | - |
+| 2.1. AI Sales Agent Configuration | 3/3 | Complete | 2026-03-20 |
 | 3. AI Quotation + Approval Loop | 0/TBD | Not started | - |
 | 4. CRM Dashboard | 0/TBD | Not started | - |
 | 5. Frontend integration with current backend | 4/4 | Complete | 2026-03-20 |

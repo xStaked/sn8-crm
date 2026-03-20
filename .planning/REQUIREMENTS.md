@@ -45,8 +45,8 @@ Requirements para el lanzamiento inicial. Cada uno mapea a fases del roadmap.
 - [x] **SALES-AI-01**: El agente de IA conduce la conversación con tono premium y consultivo como experto en ventas de desarrollo de software
 - [x] **SALES-AI-02**: El agente profundiza y consolida un brief comercial estructurado con problema, alcance, presupuesto, urgencia y restricciones clave
 - [x] **SALES-AI-03**: El agente genera una cotización preliminar usando un formato definido por el socio y la marca explícitamente como pendiente de revisión
-- [ ] **SALES-AI-04**: El agente consulta la cotización al socio, incorpora correcciones y puede iterar varias veces antes de aprobación
-- [ ] **SALES-AI-05**: El agente nunca envía una cotización al cliente sin aprobación explícita del socio
+- [x] **SALES-AI-04**: El agente consulta la cotización al socio, incorpora correcciones y puede iterar varias veces antes de aprobación
+- [x] **SALES-AI-05**: El agente nunca envía una cotización al cliente sin aprobación explícita del socio
 
 ### Cotización
 
@@ -154,8 +154,8 @@ Actualizado durante la creación del roadmap.
 | SALES-AI-01 | Phase 2.1 | Complete |
 | SALES-AI-02 | Phase 2.1 | Complete |
 | SALES-AI-03 | Phase 2.1 | Complete |
-| SALES-AI-04 | Phase 2.1 | Pending |
-| SALES-AI-05 | Phase 2.1 | Pending |
+| SALES-AI-04 | Phase 2.1 | Complete |
+| SALES-AI-05 | Phase 2.1 | Complete |
 | AI-01 | Phase 3 | Pending |
 | AI-02 | Phase 3 | Pending |
 | AI-03 | Phase 3 | Pending |
