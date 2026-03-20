@@ -1,5 +1,12 @@
 export const AI_PROVIDER = Symbol('AI_PROVIDER');
 
+export type GenerateDiscoveryReplyInput = {
+  transcript: string;
+  missingField: string;
+  isFirstTouch: boolean;
+  knownProjectType?: string | null;
+};
+
 export type CommercialBriefSnapshot = {
   customerName?: string;
   projectType?: string;
@@ -52,6 +59,8 @@ export interface AiProvider {
   extractCommercialBrief(
     input: ExtractCommercialBriefInput,
   ): Promise<CommercialBriefSnapshot>;
+
+  generateDiscoveryReply(input: GenerateDiscoveryReplyInput): Promise<string>;
 
   generateQuoteDraft(input: GenerateQuoteDraftInput): Promise<QuoteDraftResult>;
 

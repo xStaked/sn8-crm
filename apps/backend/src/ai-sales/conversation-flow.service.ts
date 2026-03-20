@@ -115,12 +115,14 @@ export class ConversationFlowService {
       });
 
       if (missingFields.length > 0) {
+        const replyBody = await this.aiSalesService.generateDiscoveryReply({
+          transcript,
+          missingField: missingFields[0],
+          isFirstTouch: !currentBrief,
+          knownProjectType: mergedBrief.projectType,
+        });
         return {
-          body: this.buildDiscoveryReply({
-            missingField: missingFields[0],
-            isFirstTouch: !currentBrief,
-            projectType: mergedBrief.projectType,
-          }),
+          body: replyBody,
           source: 'commercial-discovery',
         };
       }
@@ -148,34 +150,6 @@ export class ConversationFlowService {
         source: 'default-auto-reply',
       };
     }
-  }
-
-  private buildDiscoveryReply(input: {
-    missingField: RequiredBriefField;
-    isFirstTouch: boolean;
-    projectType: string | null;
-  }): string {
-    const intro = input.isFirstTouch
-      ? 'Hola, soy el asistente comercial de SN8 Labs. Te voy a hacer unas preguntas cortas para entender bien tu proyecto antes de cotizar.'
-      : 'Perfecto, sigo contigo.';
-
-    const questionByField: Record<RequiredBriefField, string> = {
-      projectType:
-        'Para arrancar, que tipo de solucion quieres construir? Por ejemplo: CRM, app movil, ecommerce, automatizacion o dashboard interno.',
-      businessProblem:
-        'Cual es el problema principal que quieres resolver con esto? Entre mas concreto seas, mejor.',
-      desiredScope: input.projectType
-        ? `Que alcance esperas para ese ${input.projectType}? Dime lo minimo que debe incluir en la primera version.`
-        : 'Que alcance esperas para la primera version? Dime las funciones clave que si o si necesitas.',
-      budget:
-        'Que rango de presupuesto tienes en mente para este proyecto? Si prefieres, puedes responder con un rango aproximado.',
-      urgency:
-        'Que tan urgente es? Tienes una fecha objetivo o una ventana estimada para arrancar o lanzar?',
-      constraints:
-        'Hay alguna restriccion importante que debamos considerar? Por ejemplo integraciones, tecnologia, equipo interno, compliance o tiempo.',
-    };
-
-    return `${intro} ${questionByField[input.missingField]}`;
   }
 
   private buildReviewStatusReply(reviewStatus: QuoteDraft['reviewStatus']): string {

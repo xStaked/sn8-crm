@@ -6,6 +6,7 @@ import {
   AI_PROVIDER,
   AiProvider,
   CommercialBriefSnapshot,
+  GenerateDiscoveryReplyInput,
   GenerateQuoteDraftInput,
   QuoteDraftResult,
 } from './ai-provider.interface';
@@ -27,6 +28,10 @@ export class AiSalesService {
       transcript,
       existingBrief,
     });
+  }
+
+  generateDiscoveryReply(input: GenerateDiscoveryReplyInput): Promise<string> {
+    return this.provider.generateDiscoveryReply(input);
   }
 
   generateQuoteDraft(input: GenerateQuoteDraftInput): Promise<QuoteDraftResult> {

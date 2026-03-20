@@ -4,11 +4,13 @@ import {
   AiProvider,
   CommercialBriefSnapshot,
   ExtractCommercialBriefInput,
+  GenerateDiscoveryReplyInput,
   GenerateQuoteDraftInput,
   QuoteDraftResult,
   RegenerateQuoteDraftInput,
 } from '../ai-provider.interface';
 import { buildBriefExtractionPrompt } from '../prompts/brief-extraction.prompt';
+import { buildDiscoveryReplyPrompt } from '../prompts/discovery-reply.prompt';
 import { buildQuoteDraftPrompt } from '../prompts/quote-draft.prompt';
 import { buildRevisionFromOwnerFeedbackPrompt } from '../prompts/revision-from-owner-feedback.prompt';
 
@@ -56,6 +58,18 @@ export class DeepSeekClient implements AiProvider {
     ]);
 
     return this.parseJson<CommercialBriefSnapshot>(content);
+  }
+
+  async generateDiscoveryReply(input: GenerateDiscoveryReplyInput): Promise<string> {
+    const content = await this.createCompletion([
+      {
+        role: 'user',
+        content: buildDiscoveryReplyPrompt(input),
+      },
+    ]);
+
+    const parsed = this.parseJson<{ reply: string }>(content);
+    return parsed.reply;
   }
 
   async generateQuoteDraft(

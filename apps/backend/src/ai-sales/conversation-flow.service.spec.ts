@@ -5,7 +5,7 @@ describe('ConversationFlowService', () => {
     commercialBrief: { findUnique: jest.Mock; upsert: jest.Mock };
   };
   let conversationsService: { listConversationMessages: jest.Mock };
-  let aiSalesService: { extractCommercialBrief: jest.Mock };
+  let aiSalesService: { extractCommercialBrief: jest.Mock; generateDiscoveryReply: jest.Mock };
   let aiSalesOrchestrator: { enqueueQualifiedConversation: jest.Mock };
   let service: ConversationFlowService;
 
@@ -21,6 +21,7 @@ describe('ConversationFlowService', () => {
     };
     aiSalesService = {
       extractCommercialBrief: jest.fn(),
+      generateDiscoveryReply: jest.fn(),
     };
     aiSalesOrchestrator = {
       enqueueQualifiedConversation: jest.fn(),
@@ -54,6 +55,9 @@ describe('ConversationFlowService', () => {
       constraints: null,
       summary: 'Cliente quiere cotizar un CRM.',
     });
+    aiSalesService.generateDiscoveryReply.mockResolvedValue(
+      'Buenísimo, un CRM. Cuéntame, cuál es el problema principal que quieres resolver con esto?',
+    );
 
     const result = await service.planReply({
       conversationId: '573001112233',
@@ -73,8 +77,14 @@ describe('ConversationFlowService', () => {
         projectType: 'CRM',
       }),
     });
+    expect(aiSalesService.generateDiscoveryReply).toHaveBeenCalledWith(
+      expect.objectContaining({
+        missingField: 'businessProblem',
+        isFirstTouch: true,
+      }),
+    );
     expect(result).toEqual({
-      body: expect.stringContaining('Cual es el problema principal'),
+      body: expect.any(String),
       source: 'commercial-discovery',
     });
     expect(aiSalesOrchestrator.enqueueQualifiedConversation).not.toHaveBeenCalled();
