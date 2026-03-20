@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 05-04-PLAN.md
-last_updated: "2026-03-20T01:33:53.421Z"
-last_activity: 2026-03-20 — Completed Phase 05 Plan 05-04 (end-to-end CRM browser proof against the live local backend)
+stopped_at: Completed 02.1-01-PLAN.md
+last_updated: "2026-03-20T01:44:28.241Z"
+last_activity: 2026-03-20 — Completed Phase 02.1 Plan 02.1-01 (AI sales domain foundation: persistence, provider contract, and quote-template surface)
 progress:
   total_phases: 9
   completed_phases: 4
   total_plans: 19
-  completed_plans: 15
+  completed_plans: 16
   percent: 79
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-15)
 
 **Core value:** El bot nunca deja a un cliente sin respuesta y toda cotización pasa por validación del socio antes de enviarse — garantizando rentabilidad sin sacrificar velocidad de respuesta.
-**Current focus:** Phase 05.2 remaining frontend manual-reply verification now that Phase 05 browser verification is complete
+**Current focus:** Phase 02.1 AI sales-agent configuration is now in progress with Plan 01 complete; Plan 02 will build qualification handoff and first draft-generation orchestration on top of the new domain foundation
 
 ## Current Position
 
-Phase: 05.2 of 9 (Manual Reply from CRM)
-Plan: 1 of 2 in current phase
+Phase: 02.1 of 9 (AI Sales Agent Configuration)
+Plan: 2 of 3 in current phase
 Status: In progress
-Last activity: 2026-03-20 — Completed Phase 05 Plan 05-04 (end-to-end CRM browser proof against the live local backend)
+Last activity: 2026-03-20 — Completed Phase 02.1 Plan 02.1-01 (AI sales domain foundation: persistence, provider contract, and quote-template surface)
 
 Progress: [████████░░] 79%
 
@@ -36,9 +36,9 @@ Progress: [████████░░] 79%
 
 **Velocity:**
 
-- Total plans completed: 15
+- Total plans completed: 16
 - Average duration: 8 min
-- Total execution time: 118 min
+- Total execution time: 121 min
 
 **By Phase:**
 
@@ -49,11 +49,12 @@ Progress: [████████░░] 79%
 | 5. Frontend integration with current backend | 4 | 38 min | 10 min |
 | 05.1. Integración real de Kapso y flujo inbound end-to-end | 3 | 26 min | 9 min |
 | 05.2. Manual Reply from CRM | 1 | 14 min | 14 min |
+| 02.1. AI Sales Agent Configuration | 1 | 3 min | 3 min |
 
 **Recent Trend:**
 
-- Last 5 plans: 05-04 (14 min), 05.1-03 (19 min), 05.1-02 (4 min), 05.1-01 (3 min), 05-03 (5 min)
-- Trend: Phase 05 is now fully closed with browser proof; remaining frontend/backend integration work is concentrated in the 05.2 manual reply UI finish.
+- Last 5 plans: 02.1-01 (3 min), 05-04 (14 min), 05.1-03 (19 min), 05.1-02 (4 min), 05.1-01 (3 min)
+- Trend: Execution has reopened the Phase 02.1 branch with the AI sales foundation in place, while 05.2 manual reply UI work still remains unfinished.
 
 *Updated after each plan completion*
 | Phase 05 P02 | 5m | 2 tasks | 4 files |
@@ -63,6 +64,7 @@ Progress: [████████░░] 79%
 | Phase 05.1 P02 | 4min | 2 tasks | 4 files |
 | Phase 05.1 P03 | 19 min | 2 tasks | 4 files |
 | Phase 05.2 P01 | 14 min | 2 tasks | 8 files |
+| Phase 02.1 P01 | 3min | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -92,6 +94,9 @@ Recent decisions affecting current work:
 - [Phase 05.1]: Kapso local verification is satisfied by one documented signed smoke flow plus optional real tunnel delivery; no extra backend script was needed.
 - [Phase 05.1]: CRM freshness for inbound Kapso proof stays in the existing SWR hooks with 5-second revalidation instead of a UI rewrite or contract change.
 - [Phase 05.2]: Manual reply persistence stores the configured KAPSO_PHONE_NUMBER_ID as fromPhone when present and falls back to a crm marker without changing the Message schema.
+- [Phase 02.1]: AI sales state stays separate from Message so transcript history remains transport truth and review rules stay queryable.
+- [Phase 02.1]: DeepSeek access is localized behind AiProvider so later plans can swap prompt/orchestration behavior without provider coupling.
+- [Phase 02.1]: The owner quotation template remains an explicit pending contract instead of an invented format, so SALES-AI-03 is not overstated.
 
 ### Roadmap Evolution
 
@@ -109,6 +114,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-20T01:33:53.419Z
-Stopped at: Completed 05-04-PLAN.md
+Last session: 2026-03-20T01:44:28.239Z
+Stopped at: Completed 02.1-01-PLAN.md
 Resume file: None
