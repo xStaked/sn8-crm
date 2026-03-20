@@ -18,6 +18,7 @@ El bot nunca deja a un cliente sin respuesta y toda cotización pasa por validac
 
 - [ ] Bot de WhatsApp atiende mensajes entrantes automáticamente via Kapso.ai
 - [ ] Bot captura requerimientos del proyecto mediante conversación guiada
+- [ ] Agente IA comercial premium guía el discovery y prepara cotizaciones preliminares en formato definido por el socio
 - [ ] DeepSeek genera cotizaciones basadas en requerimientos capturados
 - [ ] Flujo de aprobación: bot propone cotización al socio → socio aprueba o corrige → bot ajusta/envía
 - [ ] CRM con historial de clientes y conversaciones
@@ -39,12 +40,14 @@ El bot nunca deja a un cliente sin respuesta y toda cotización pasa por validac
 - **Complejidad del pricing:** El precio de un proyecto varía enormemente según tecnología, alcance y rentabilidad (ej: un CRM básico vs. uno con pipeline de ventas pueden tener precios muy diferentes). El bot debe proponer, el socio valida rentabilidad
 - **Canal principal:** WhatsApp via Kapso.ai (API de mensajería)
 - **Escala inicial:** 1-5 agentes, < 50 conversaciones/día
+- **Expectativa comercial:** La IA debe cubrir la mayor parte posible del proceso de venta sin saltarse la aprobación humana de cotizaciones
 
 ## Constraints
 
 - **Tech Stack**: NestJS (backend) + Next.js (frontend CRM) + DeepSeek (IA) + Kapso.ai (WhatsApp) — no negociable
 - **Escala**: Pequeño equipo (2 socios + posibles asistentes), solución debe ser liviana y operable sin DevOps dedicado
 - **Pricing complexity**: El bot NO envía cotizaciones sin aprobación humana — es un hard requirement de negocio
+- **Experiencia comercial**: La IA debe comportarse como asesor comercial experto en desarrollo de software, con tono premium y enfoque consultivo
 
 ## Key Decisions
 
@@ -57,4 +60,4 @@ El bot nunca deja a un cliente sin respuesta y toda cotización pasa por validac
 | Arquitectura multi-canal desde el inicio | Instagram en v2, pero el diseño debe soportar múltiples canales | — Pending |
 
 ---
-*Last updated: 2026-03-15 after initialization*
+*Last updated: 2026-03-19 after adding AI sales agent phase context*

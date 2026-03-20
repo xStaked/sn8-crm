@@ -2,7 +2,7 @@
 
 ## Overview
 
-El sistema se construye en cinco fases principales ordenadas por dependencia estricta, con dos inserciones decimales para adelantar trabajo crítico sin renumerar todo el roadmap. La Fase 1 establece el backbone completo: autenticación, recepción de webhooks idempotente, cola asíncrona y el adaptador de canal abstracto. La Fase 2 construye el motor conversacional sobre esa base sin introducir IA — el FSM de conversación debe estar estable antes de añadir una fuente de fallos nueva. La Fase 3 cierra el loop de valor central: DeepSeek extrae requisitos, genera una cotización validada, y el flujo de aprobación humana envía la cotización al cliente solo cuando el socio lo aprueba explícitamente. La Fase 4 expone el CRM operativo completo en Next.js. La Fase 5 conecta ese frontend con el backend real actual para reemplazar mocks y dejar flujos funcionales end-to-end. La Fase 05.1 endurece la entrada real de Kapso para que los mensajes inbound persistan y reaparezcan en el CRM actual sin rediseñar la superficie frontend. Cada fase entrega un artefacto desplegable y verificable.
+El sistema se construye en cinco fases principales ordenadas por dependencia estricta, con tres inserciones decimales para adelantar trabajo crítico sin renumerar todo el roadmap. La Fase 1 establece el backbone completo: autenticación, recepción de webhooks idempotente, cola asíncrona y el adaptador de canal abstracto. La Fase 2 construye el motor conversacional sobre esa base sin introducir IA — el FSM de conversación debe estar estable antes de añadir una fuente de fallos nueva. La Fase 2.1 inserta el agente comercial experto: una IA consultiva/premium que guía la conversación de venta de software, captura el brief comercial y prepara una cotización en formato definido por el socio sin enviarla todavía al cliente. La Fase 3 cierra el loop de valor central: esa cotización se valida, persiste y entra en un flujo de aprobación humana donde solo llega al cliente cuando el socio lo aprueba explícitamente. La Fase 4 expone el CRM operativo completo en Next.js. La Fase 5 conecta ese frontend con el backend real actual para reemplazar mocks y dejar flujos funcionales end-to-end. La Fase 05.1 endurece la entrada real de Kapso para que los mensajes inbound persistan y reaparezcan en el CRM actual sin rediseñar la superficie frontend. Cada fase entrega un artefacto desplegable y verificable.
 
 ## Phases
 
@@ -15,6 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Foundation** - Backbone completo: auth, webhooks idempotentes, BullMQ, adaptador de canal, schema multi-canal
 - [x] **Phase 1.1: Frontend Foundation** (INSERTED) - Next.js app shell con login, protección de rutas y conexión a Phase 1 API
 - [ ] **Phase 2: Bot Conversation Engine** - FSM Redis-backed completa los estados GREETING → QUALIFYING → handoff sin IA
+- [ ] **Phase 2.1: AI Sales Agent Configuration** (INSERTED) - Agente IA experto en ventas de desarrollo de software guía la conversación, captura el brief comercial y prepara una cotización en formato definido por el socio para revisión humana
 - [ ] **Phase 3: AI Quotation + Approval Loop** - DeepSeek genera cotización validada, socio aprueba/rechaza, bot entrega al cliente
 - [ ] **Phase 4: CRM Dashboard** - Panel Next.js con inbox, pipeline, cola de aprobación y tiempo real
 - [ ] **Phase 5: Frontend integration with current backend** - Reemplazar datos mock del frontend por consumo real del backend actual y cerrar flujos end-to-end
@@ -68,9 +69,26 @@ Plans:
   4. Si el servidor se reinicia a mitad de conversación, el cliente puede continuar desde donde estaba (estado persiste en Redis)
 **Plans**: TBD
 
-### Phase 3: AI Quotation + Approval Loop
-**Goal**: Tras completar la calificación, DeepSeek genera una cotización estructurada y validada que el socio revisa y aprueba (o rechaza con correcciones) antes de que el cliente la reciba — nunca llega una cotización sin aprobación humana
+### Phase 2.1: AI Sales Agent Configuration (INSERTED)
+**Goal**: Tras completar la calificación base, un agente de IA con tono premium y consultivo asume la conversación comercial, profundiza el brief del proyecto de software, genera una cotización preliminar en el formato definido por el socio y se la consulta internamente hasta obtener aprobación explícita
 **Depends on**: Phase 2
+**Requirements**: SALES-AI-01, SALES-AI-02, SALES-AI-03, SALES-AI-04, SALES-AI-05
+**Success Criteria** (what must be TRUE):
+  1. El agente responde como asesor comercial experto en desarrollo de software y mantiene un tono premium/consultivo consistente durante toda la conversación
+  2. El agente captura un brief comercial estructurado suficiente para cotizar: tipo de proyecto, problema, alcance deseado, presupuesto, urgencia y restricciones clave
+  3. El agente genera una cotización preliminar usando el formato definido por el socio y deja claro al cliente que está siendo revisada antes de cualquier envío final
+  4. El socio recibe la cotización preliminar para revisión, puede pedir ajustes, y la IA la regenera incorporando correcciones antes de cualquier envío externo
+  5. Ninguna cotización preliminar ni final se envía al cliente sin aprobación explícita del socio
+**Plans**: 3 plans
+
+Plans:
+- [ ] 02.1-01-PLAN.md — AI sales domain foundation: durable brief/draft/review state, DeepSeek provider contract, and quotation-format configuration surface
+- [ ] 02.1-02-PLAN.md — Qualification handoff into AI orchestration: structured brief extraction, quote draft generation, and pending-review customer messaging
+- [ ] 02.1-03-PLAN.md — WhatsApp-first owner consultation, draft regeneration from feedback, and hard no-send guardrail before approval
+
+### Phase 3: AI Quotation + Approval Loop
+**Goal**: La cotización preliminar generada por la IA se valida, persiste y entra en un loop operativo de aprobación/rechazo para que el socio la gestione de forma auditable antes de que el cliente la reciba
+**Depends on**: Phase 2.1
 **Requirements**: AI-01, AI-02, AI-03, COT-01, COT-02, COT-03, APPR-01, APPR-02, APPR-03, APPR-04, APPR-05
 **Success Criteria** (what must be TRUE):
   1. Al completar el flujo de calificación, el cliente recibe mensaje de "procesando" y DeepSeek produce una cotización con descripción, alcance, precio estimado y tecnologías sugeridas
@@ -94,13 +112,14 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 1.1 → 2 → 3 → 4 → 5 → 5.1
+Phases execute in numeric order: 1 → 1.1 → 2 → 2.1 → 3 → 4 → 5 → 5.1
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 4/4 | Complete | 2026-03-18 |
 | 1.1. Frontend Foundation | 3/3 | Complete | 2026-03-18 |
 | 2. Bot Conversation Engine | 0/TBD | Not started | - |
+| 2.1. AI Sales Agent Configuration | 0/3 | Planned | - |
 | 3. AI Quotation + Approval Loop | 0/TBD | Not started | - |
 | 4. CRM Dashboard | 0/TBD | Not started | - |
 | 5. Frontend integration with current backend | 3/4 | In Progress | - |
