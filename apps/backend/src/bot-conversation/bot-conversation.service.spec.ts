@@ -2,6 +2,7 @@ import { ConversationFlowService } from '../ai-sales/conversation-flow.service';
 import type { NormalizedMessage } from '../channels/channel.adapter';
 import { BotConversationRepository } from './bot-conversation.repository';
 import { HumanHandoffService } from './human-handoff.service';
+import { IntentClassifierService } from './intent-classifier.service';
 import {
   BOT_CONVERSATION_TTL_SECONDS,
   BotConversationState,
@@ -13,6 +14,7 @@ describe('BotConversationService', () => {
   let repository: jest.Mocked<BotConversationRepository>;
   let conversationFlowService: { planReply: jest.Mock };
   let humanHandoffService: { notifyOwner: jest.Mock };
+  let intentClassifierService: { classifyGreetingIntent: jest.Mock };
   let service: BotConversationService;
 
   const snapshot: BotConversationSnapshot = {
@@ -52,10 +54,15 @@ describe('BotConversationService', () => {
       notifyOwner: jest.fn(),
     };
 
+    intentClassifierService = {
+      classifyGreetingIntent: jest.fn(),
+    };
+
     service = new BotConversationService(
       repository,
       conversationFlowService as unknown as ConversationFlowService,
       humanHandoffService as unknown as HumanHandoffService,
+      intentClassifierService as unknown as IntentClassifierService,
     );
   });
 
@@ -232,6 +239,81 @@ describe('BotConversationService', () => {
       conversationId: normalizedMessage.fromPhone,
       inboundMessageId: normalizedMessage.externalMessageId,
       inboundBody: normalizedMessage.body,
+    });
+  });
+
+  it('classifies free-text greeting messages into the quote path and delegates to AI sales', async () => {
+    repository.loadState.mockResolvedValue({
+      ...snapshot,
+      state: BotConversationState.GREETING,
+      offFlowCount: 2,
+      expiresAt: new Date('2099-03-24T15:00:00.000Z'),
+    });
+    intentClassifierService.classifyGreetingIntent.mockResolvedValue('quote_project');
+    conversationFlowService.planReply.mockResolvedValue({
+      body: 'Cuéntame qué quieres construir.',
+      source: 'commercial-discovery',
+    });
+    repository.saveState.mockResolvedValue({
+      ...snapshot,
+      state: BotConversationState.QUALIFYING,
+      offFlowCount: 0,
+      metadata: { delegatedToAiSales: true },
+    });
+
+    await expect(
+      service.handleInbound({
+        ...normalizedMessage,
+        body: 'Necesito una cotización para una automatización',
+      }),
+    ).resolves.toMatchObject({
+      nextState: BotConversationState.QUALIFYING,
+      outbound: {
+        kind: 'text',
+        body: 'Cuéntame qué quieres construir.',
+      },
+    });
+
+    expect(intentClassifierService.classifyGreetingIntent).toHaveBeenCalledWith(
+      'Necesito una cotización para una automatización',
+    );
+    expect(repository.saveState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: BotConversationState.QUALIFYING,
+        offFlowCount: 0,
+        metadata: { delegatedToAiSales: true },
+      }),
+      BOT_CONVERSATION_TTL_SECONDS,
+    );
+  });
+
+  it('biases ambiguous free-text greeting messages toward the quote path', async () => {
+    repository.loadState.mockResolvedValue({
+      ...snapshot,
+      state: BotConversationState.GREETING,
+      expiresAt: new Date('2099-03-24T15:00:00.000Z'),
+    });
+    intentClassifierService.classifyGreetingIntent.mockResolvedValue('quote_project');
+    conversationFlowService.planReply.mockResolvedValue({
+      body: 'Perfecto, empecemos por tu proyecto.',
+      source: 'commercial-discovery',
+    });
+    repository.saveState.mockResolvedValue({
+      ...snapshot,
+      state: BotConversationState.QUALIFYING,
+      offFlowCount: 0,
+      metadata: { delegatedToAiSales: true },
+    });
+
+    await service.handleInbound({
+      ...normalizedMessage,
+      body: 'Hola, quiero saber si me pueden ayudar',
+    });
+
+    expect(conversationFlowService.planReply).toHaveBeenCalledWith({
+      conversationId: normalizedMessage.fromPhone,
+      inboundMessageId: normalizedMessage.externalMessageId,
+      inboundBody: 'Hola, quiero saber si me pueden ayudar',
     });
   });
 

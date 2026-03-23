@@ -5,6 +5,7 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { BotConversationRepository } from './bot-conversation.repository';
 import { BotConversationService } from './bot-conversation.service';
 import { HumanHandoffService } from './human-handoff.service';
+import { IntentClassifierService } from './intent-classifier.service';
 
 @Module({
   imports: [
@@ -16,7 +17,13 @@ import { HumanHandoffService } from './human-handoff.service';
     BotConversationRepository,
     BotConversationService,
     HumanHandoffService,
+    IntentClassifierService,
   ],
-  exports: [BotConversationRepository, BotConversationService, HumanHandoffService],
+  exports: [
+    BotConversationRepository,
+    BotConversationService,
+    HumanHandoffService,
+    IntentClassifierService,
+  ],
 })
 export class BotConversationModule {}

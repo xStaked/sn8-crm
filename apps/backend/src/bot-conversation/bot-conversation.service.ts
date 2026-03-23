@@ -14,6 +14,10 @@ import {
   type BotConversationSnapshot,
   type SaveBotConversationStateInput,
 } from './bot-conversation.types';
+import {
+  IntentClassifierService,
+  type GreetingIntent,
+} from './intent-classifier.service';
 
 export const BOT_CONVERSATION_TTL_SECONDS = 24 * 60 * 60;
 
@@ -41,6 +45,7 @@ export class BotConversationService {
     private readonly repository: BotConversationRepository,
     private readonly conversationFlowService: ConversationFlowService,
     private readonly humanHandoffService: HumanHandoffService,
+    private readonly intentClassifierService: IntentClassifierService,
   ) {}
 
   async loadState(conversationId: string): Promise<BotConversationSnapshot | null> {
@@ -89,11 +94,19 @@ export class BotConversationService {
 
     const selection = normalized.interactiveReply?.id ?? null;
 
+    if (!selection && existingState.state === BotConversationState.GREETING) {
+      const greetingIntent =
+        await this.intentClassifierService.classifyGreetingIntent(normalized.body);
+
+      return this.routeGreetingIntent(normalized, greetingIntent);
+    }
+
     if (selection === 'INFO_SERVICES') {
       await this.transition({
         conversationId: normalized.fromPhone,
         state: BotConversationState.INFO_SERVICES,
         metadata: { topic: 'services_overview' },
+        offFlowCount: 0,
         lastInboundMessageId: normalized.externalMessageId,
       });
 
@@ -121,6 +134,7 @@ export class BotConversationService {
           requestedAt: new Date().toISOString(),
           ownerNotified: true,
         },
+        offFlowCount: 0,
         lastInboundMessageId: normalized.externalMessageId,
       });
 
@@ -149,6 +163,7 @@ export class BotConversationService {
         conversationId: normalized.fromPhone,
         state: BotConversationState.QUALIFYING,
         metadata: { delegatedToAiSales: true },
+        offFlowCount: 0,
         lastInboundMessageId: normalized.externalMessageId,
       });
 
@@ -167,6 +182,7 @@ export class BotConversationService {
         conversationId: normalized.fromPhone,
         state: BotConversationState.INFO_SERVICES,
         metadata: { topic: 'services_overview' },
+        offFlowCount: 0,
         lastInboundMessageId: normalized.externalMessageId,
       });
 
@@ -185,6 +201,7 @@ export class BotConversationService {
         conversationId: normalized.fromPhone,
         state: BotConversationState.HUMAN_HANDOFF,
         metadata: existingState.metadata,
+        offFlowCount: 0,
         lastInboundMessageId: normalized.externalMessageId,
       });
 
@@ -209,6 +226,7 @@ export class BotConversationService {
       conversationId: normalized.fromPhone,
       state: BotConversationState.GREETING,
       metadata: { greetingVariant: variant },
+      offFlowCount: 0,
       lastInboundMessageId: normalized.externalMessageId,
     });
 
@@ -219,6 +237,87 @@ export class BotConversationService {
         body: buildGreetingMessage(variant),
         buttons: PHASE_2_GREETING_BUTTONS,
         source: 'bot-greeting',
+      },
+    };
+  }
+
+  private async routeGreetingIntent(
+    normalized: NormalizedMessage,
+    intent: GreetingIntent,
+  ): Promise<BotConversationDecision> {
+    switch (intent) {
+      case 'learn_services':
+        await this.transition({
+          conversationId: normalized.fromPhone,
+          state: BotConversationState.INFO_SERVICES,
+          metadata: { topic: 'services_overview' },
+          offFlowCount: 0,
+          lastInboundMessageId: normalized.externalMessageId,
+        });
+
+        return {
+          nextState: BotConversationState.INFO_SERVICES,
+          outbound: {
+            kind: 'text',
+            body: buildInfoServicesMessage(),
+            source: 'bot-info-services',
+          },
+        };
+      case 'human_handoff':
+        await this.humanHandoffService.notifyOwner({
+          conversationId: normalized.fromPhone,
+          inboundMessageId: normalized.externalMessageId,
+          customerMessageBody: normalized.body,
+        });
+
+        await this.transition({
+          conversationId: normalized.fromPhone,
+          state: BotConversationState.HUMAN_HANDOFF,
+          metadata: {
+            requestedAt: new Date().toISOString(),
+            ownerNotified: true,
+          },
+          offFlowCount: 0,
+          lastInboundMessageId: normalized.externalMessageId,
+        });
+
+        return {
+          nextState: BotConversationState.HUMAN_HANDOFF,
+          outbound: {
+            kind: 'text',
+            body: buildHumanHandoffCustomerMessage(),
+            source: 'bot-human-handoff',
+          },
+        };
+      case 'quote_project':
+      default:
+        return this.delegateToQualifying(normalized);
+    }
+  }
+
+  private async delegateToQualifying(
+    normalized: NormalizedMessage,
+  ): Promise<BotConversationDecision> {
+    const replyPlan = await this.conversationFlowService.planReply({
+      conversationId: normalized.fromPhone,
+      inboundMessageId: normalized.externalMessageId,
+      inboundBody: normalized.body,
+    });
+
+    await this.transition({
+      conversationId: normalized.fromPhone,
+      state: BotConversationState.QUALIFYING,
+      metadata: { delegatedToAiSales: true },
+      offFlowCount: 0,
+      lastInboundMessageId: normalized.externalMessageId,
+    });
+
+    return {
+      nextState: BotConversationState.QUALIFYING,
+      outbound: {
+        kind: 'text',
+        body: replyPlan.body,
+        source: replyPlan.source,
       },
     };
   }
