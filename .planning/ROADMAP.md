@@ -71,7 +71,7 @@ Plans:
 
 Plans:
 - [x] 02-01-PLAN.md — Bot conversation foundation: Redis-backed FSM repository, Prisma backup state, and dedicated bot-conversation module
-- [ ] 02-02-PLAN.md — Greeting/menu routing, interactive reply-button support, and worker integration through BotConversationService
+- [x] 02-02-PLAN.md — Greeting/menu routing, interactive reply-button support, and worker integration through BotConversationService
 - [ ] 02-03-PLAN.md — QUALIFYING delegation to ConversationFlowService plus off-flow, media fallback, and escalation behavior
 - [ ] 02-04-PLAN.md — Recovery hardening: Redis reconstruction, 24-hour expiry semantics, and multi-turn worker/e2e verification
 
@@ -124,7 +124,7 @@ Phases execute in numeric order: 1 → 1.1 → 2 → 2.1 → 3 → 4 → 5 → 5
 |-------|----------------|--------|-----------|
 | 1. Foundation | 4/4 | Complete | 2026-03-18 |
 | 1.1. Frontend Foundation | 3/3 | Complete | 2026-03-18 |
-| 2. Bot Conversation Engine | 1/4 | In Progress | - |
+| 2. Bot Conversation Engine | 2/4 | In Progress | - |
 | 2.1. AI Sales Agent Configuration | 3/3 | Complete | 2026-03-20 |
 | 3. AI Quotation + Approval Loop | 0/TBD | Not started | - |
 | 4. CRM Dashboard | 0/TBD | Not started | - |

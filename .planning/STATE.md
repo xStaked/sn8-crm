@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 02-01-PLAN.md
-last_updated: "2026-03-23T15:32:52.513Z"
-last_activity: 2026-03-23 — Completed Phase 02 Plan 01 with Redis-backed bot conversation state, Prisma backup recovery, and a dedicated bot-conversation module
+stopped_at: Completed 02-02-PLAN.md
+last_updated: "2026-03-23T15:44:32.574Z"
+last_activity: 2026-03-23 — Completed Phase 02 Plan 02 with interactive greeting buttons, BotConversationService worker routing, and dedicated human handoff notifications
 progress:
   total_phases: 9
   completed_phases: 5
   total_plans: 23
-  completed_plans: 19
-  percent: 83
+  completed_plans: 20
+  percent: 87
 ---
 
 # Project State
@@ -21,24 +21,24 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-15)
 
 **Core value:** El bot nunca deja a un cliente sin respuesta y toda cotización pasa por validación del socio antes de enviarse — garantizando rentabilidad sin sacrificar velocidad de respuesta.
-**Current focus:** Phase 02 Bot Conversation Engine is now planned with a dedicated FSM/recovery track that wraps the existing AI-sales qualification flow without replacing it.
+**Current focus:** Phase 02 Bot Conversation Engine now has greeting/menu routing in front of AI-sales qualification; the next plan can focus on off-flow handling, media fallback, and escalation behavior.
 
 ## Current Position
 
 Phase: 02 of 9 (Bot Conversation Engine)
-Plan: 1 of 4 in current phase
+Plan: 2 of 4 in current phase
 Status: In Progress
-Last activity: 2026-03-23 — Completed Phase 02 Plan 01 with Redis-backed bot conversation state, Prisma backup recovery, and a dedicated bot-conversation module
+Last activity: 2026-03-23 — Completed Phase 02 Plan 02 with interactive greeting buttons, BotConversationService worker routing, and dedicated human handoff notifications
 
-Progress: [████████░░] 83%
+Progress: [█████████░] 87%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 19
+- Total plans completed: 20
 - Average duration: 7 min
-- Total execution time: 141 min
+- Total execution time: 150 min
 
 **By Phase:**
 
@@ -53,8 +53,8 @@ Progress: [████████░░] 83%
 
 **Recent Trend:**
 
-- Last 5 plans: 02-01 (4 min), 02.1-03 (8 min), 02.1-02 (8 min), 02.1-01 (3 min), 05-04 (14 min)
-- Trend: Phase 02 now has its routing-state persistence foundation, so the next plan can add greeting/menu behavior on top of `BotConversationService` instead of inventing storage semantics.
+- Last 5 plans: 02-02 (9 min), 02-01 (4 min), 02.1-03 (8 min), 02.1-02 (8 min), 02.1-01 (3 min)
+- Trend: Phase 02 now has both durable state and worker-facing greeting/menu routing, so the next plan can focus on off-flow, media, and escalation behavior instead of transport or persistence seams.
 
 *Updated after each plan completion*
 | Phase 05 P02 | 5m | 2 tasks | 4 files |
@@ -68,6 +68,7 @@ Progress: [████████░░] 83%
 | Phase 02.1-ai-sales-agent-configuration P02 | 8min | 3 tasks | 11 files |
 | Phase 02.1-ai-sales-agent-configuration P03 | 8min | 3 tasks | 13 files |
 | Phase 02 P01 | 4min | 2 tasks | 9 files |
+| Phase 02-bot-conversation-engine P02 | 9 min | 2 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -112,6 +113,7 @@ Recent decisions affecting current work:
 - [Phase 02]: Conversation routing state remains isolated from CommercialBrief and QuoteDraft via a dedicated ConversationState backup model.
 - [Phase 02]: Bot conversation storage uses Redis as the active 24-hour store and Prisma as the reconstruction source after cache loss.
 - [Phase 02]: Plan 02-01 stops at the BotConversationService boundary and leaves MessageProcessor rewiring for the next plan.
+- [Phase 02]: Phase 2 greeting transport uses reply buttons through a narrow channel contract instead of a generic interactive builder.
 
 ### Roadmap Evolution
 
@@ -129,6 +131,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-23T15:32:52.511Z
-Stopped at: Completed 02-01-PLAN.md
+Last session: 2026-03-23T15:44:18.145Z
+Stopped at: Completed 02-02-PLAN.md
 Resume file: None
