@@ -164,27 +164,10 @@ export class MessageProcessor extends WorkerHost {
       return false;
     }
 
-    if (this.isOwnerPhone(normalized.fromPhone)) {
-      return false;
-    }
-
     if (body.toUpperCase().startsWith('SN8 ')) {
       return false;
     }
 
     return true;
-  }
-
-  private isOwnerPhone(fromPhone: string): boolean {
-    const ownerPhone = this.config.get<string>('AI_SALES_OWNER_PHONE')?.trim();
-    if (!ownerPhone) {
-      return false;
-    }
-
-    return this.normalizePhone(fromPhone) === this.normalizePhone(ownerPhone);
-  }
-
-  private normalizePhone(value: string): string {
-    return value.replace(/\D/g, '');
   }
 }

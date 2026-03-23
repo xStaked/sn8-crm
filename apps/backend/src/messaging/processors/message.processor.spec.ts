@@ -228,6 +228,30 @@ describe('MessageProcessor', () => {
     expect(prisma.message.create).toHaveBeenCalledTimes(1);
   });
 
+  it('still auto-replies to normal messages even when they come from the configured owner phone', async () => {
+    channel.normalizeInbound.mockReturnValue({
+      ...normalizedMessage,
+      fromPhone: '573009998887',
+      body: 'respondeme bro',
+    });
+    prisma.message.create
+      .mockResolvedValueOnce({ id: 'db_1' })
+      .mockResolvedValueOnce({ id: 'db_2' });
+
+    await expect(processor.process({ data: { payload } } as any)).resolves.toBeUndefined();
+
+    expect(botConversationService.handleInbound).toHaveBeenCalledWith({
+      ...normalizedMessage,
+      fromPhone: '573009998887',
+      body: 'respondeme bro',
+    });
+    expect(messagingService.sendText).toHaveBeenCalledWith(
+      '573009998887',
+      'Respuesta dinamica del flujo comercial.',
+      'phone_number_id_123',
+    );
+  });
+
   it('lets inbound media reach the FSM fallback path instead of dropping it silently', async () => {
     channel.normalizeInbound.mockReturnValue({
       ...normalizedMessage,
