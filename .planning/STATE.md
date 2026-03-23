@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 02-03-PLAN.md
-last_updated: "2026-03-23T15:53:45.252Z"
-last_activity: 2026-03-23 — Completed Phase 02 Plan 03 with greeting intent routing, QUALIFYING delegation, off-flow retries, and media fallback escalation
+stopped_at: Completed 02-04-PLAN.md
+last_updated: "2026-03-23T16:20:37.000Z"
+last_activity: 2026-03-23 — Completed Phase 02 Plan 04 with Redis reconstruction, returning-contact expiry reset, and worker/e2e continuity proof
 progress:
   total_phases: 9
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 23
-  completed_plans: 21
-  percent: 91
+  completed_plans: 22
+  percent: 96
 ---
 
 # Project State
@@ -21,24 +21,24 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-15)
 
 **Core value:** El bot nunca deja a un cliente sin respuesta y toda cotización pasa por validación del socio antes de enviarse — garantizando rentabilidad sin sacrificar velocidad de respuesta.
-**Current focus:** Phase 02 Bot Conversation Engine now has greeting intent routing plus bounded off-flow/media recovery; the next plan can focus on Redis reconstruction, 24-hour expiry semantics, and worker/e2e hardening.
+**Current focus:** Phase 02 Bot Conversation Engine is now complete with restart-safe recovery and expiry proof; downstream work can assume the routing FSM survives Redis loss and 24-hour returns without replaying first-contact logic.
 
 ## Current Position
 
 Phase: 02 of 9 (Bot Conversation Engine)
-Plan: 3 of 4 in current phase
-Status: In Progress
-Last activity: 2026-03-23 — Completed Phase 02 Plan 03 with greeting intent routing, QUALIFYING delegation, off-flow retries, and media fallback escalation
+Plan: 4 of 4 in current phase
+Status: Complete
+Last activity: 2026-03-23 — Completed Phase 02 Plan 04 with Redis reconstruction, returning-contact expiry reset, and worker/e2e continuity proof
 
-Progress: [█████████░] 91%
+Progress: [██████████] 96%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 21
+- Total plans completed: 22
 - Average duration: 7 min
-- Total execution time: 156 min
+- Total execution time: 164 min
 
 **By Phase:**
 
@@ -46,6 +46,7 @@ Progress: [█████████░] 91%
 |-------|-------|-------|----------|
 | 1. Foundation | 4 | 27 min | 7 min |
 | 1.1. Frontend Foundation | 3 | 27 min | 9 min |
+| 2. Bot Conversation Engine | 4 | 27 min | 7 min |
 | 5. Frontend integration with current backend | 4 | 38 min | 10 min |
 | 05.1. Integración real de Kapso y flujo inbound end-to-end | 3 | 26 min | 9 min |
 | 05.2. Manual Reply from CRM | 1 | 14 min | 14 min |
@@ -53,8 +54,8 @@ Progress: [█████████░] 91%
 
 **Recent Trend:**
 
-- Last 5 plans: 02-03 (6 min), 02-02 (9 min), 02-01 (4 min), 02.1-03 (8 min), 02.1-02 (8 min)
-- Trend: Phase 02 now has greeting free-text routing plus deterministic fallback/escalation rules, so the next plan can focus on reconstruction and expiry hardening instead of first-response behavior.
+- Last 5 plans: 02-04 (8 min), 02-03 (6 min), 02-02 (9 min), 02-01 (4 min), 02.1-03 (8 min)
+- Trend: Phase 02 is now complete with deterministic recovery and expiry semantics, so later phases can reuse durable routing behavior instead of re-solving restart continuity.
 
 *Updated after each plan completion*
 | Phase 05 P02 | 5m | 2 tasks | 4 files |
@@ -70,6 +71,7 @@ Progress: [█████████░] 91%
 | Phase 02 P01 | 4min | 2 tasks | 9 files |
 | Phase 02-bot-conversation-engine P02 | 9 min | 2 tasks | 10 files |
 | Phase 02-bot-conversation-engine P03 | 6 min | 2 tasks | 9 files |
+| Phase 02-bot-conversation-engine P04 | 8 min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -118,6 +120,8 @@ Recent decisions affecting current work:
 - [Phase 02]: Greeting free text uses a constrained classifier with a safe default to quote_project so ambiguous leads continue into qualification.
 - [Phase 02]: Off-flow counting stays in BotConversationService, while MessageProcessor only ensures inbound media reaches the FSM instead of being dropped.
 - [Phase 02]: INFO_SERVICES remains an informational branch with explicit readiness cues that can re-enter QUALIFYING without reopening Phase 2.1 scope.
+- [Phase 02]: Expired Prisma backup snapshots remain available during recovery so returning leads receive the `Hola de nuevo` greeting instead of being treated as first contact after Redis loss.
+- [Phase 02]: Phase 2 continuity proof runs through MessageProcessor + BotConversationService + BotConversationRepository with in-memory Redis/Prisma doubles, keeping restart verification deterministic and infrastructure-free.
 
 ### Roadmap Evolution
 
@@ -135,6 +139,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-23T15:53:45.250Z
-Stopped at: Completed 02-03-PLAN.md
+Last session: 2026-03-23T16:20:37.000Z
+Stopped at: Completed 02-04-PLAN.md
 Resume file: None
