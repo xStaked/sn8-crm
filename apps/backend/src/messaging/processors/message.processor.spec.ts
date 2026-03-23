@@ -318,4 +318,83 @@ describe('MessageProcessor', () => {
       },
     });
   });
+
+  it('persists bot state changes across consecutive inbound turns', async () => {
+    const firstTurn = {
+      ...normalizedMessage,
+      externalMessageId: 'msg_turn_1',
+      body: 'Hola',
+    };
+    const secondTurn = {
+      ...normalizedMessage,
+      externalMessageId: 'msg_turn_2',
+      body: 'Quiero cotizar una automatizacion',
+      messageType: 'interactive',
+      interactiveReply: {
+        id: 'QUOTE_PROJECT',
+        title: 'Cotizar proyecto',
+      },
+    };
+
+    channel.normalizeInbound
+      .mockReturnValueOnce(firstTurn)
+      .mockReturnValueOnce(secondTurn);
+    prisma.message.create
+      .mockResolvedValueOnce({ id: 'db_1' })
+      .mockResolvedValueOnce({ id: 'db_2' })
+      .mockResolvedValueOnce({ id: 'db_3' })
+      .mockResolvedValueOnce({ id: 'db_4' });
+    messagingService.sendInteractiveButtons.mockResolvedValueOnce('out_turn_1');
+    messagingService.sendText.mockResolvedValueOnce('out_turn_2');
+    botConversationService.handleInbound
+      .mockResolvedValueOnce({
+        nextState: 'GREETING',
+        outbound: {
+          kind: 'interactive-buttons',
+          body: 'Hola de nuevo. Elige una opcion.',
+          buttons: [
+            { id: 'QUOTE_PROJECT', title: 'Cotizar proyecto' },
+            { id: 'INFO_SERVICES', title: 'Conocer servicios' },
+            { id: 'HUMAN_HANDOFF', title: 'Hablar con alguien' },
+          ],
+          source: 'bot-greeting',
+        },
+      })
+      .mockResolvedValueOnce({
+        nextState: 'QUALIFYING',
+        outbound: {
+          kind: 'text',
+          body: 'Cuéntame qué quieres construir.',
+          source: 'commercial-discovery',
+        },
+      });
+
+    await expect(processor.process({ data: { payload } } as any)).resolves.toBeUndefined();
+    await expect(processor.process({ data: { payload } } as any)).resolves.toBeUndefined();
+
+    expect(botConversationService.handleInbound).toHaveBeenNthCalledWith(1, firstTurn);
+    expect(botConversationService.handleInbound).toHaveBeenNthCalledWith(2, secondTurn);
+    expect(prisma.message.create).toHaveBeenNthCalledWith(4, {
+      data: {
+        externalMessageId: 'out_turn_2',
+        direction: 'outbound',
+        fromPhone: 'phone_number_id_123',
+        toPhone: '573001112233',
+        body: 'Cuéntame qué quieres construir.',
+        channel: 'whatsapp',
+        rawPayload: {
+          externalMessageId: 'out_turn_2',
+          direction: 'outbound',
+          fromPhone: 'phone_number_id_123',
+          toPhone: '573001112233',
+          body: 'Cuéntame qué quieres construir.',
+          source: 'commercial-discovery',
+          kind: 'text',
+          state: 'QUALIFYING',
+          buttons: undefined,
+          replyToExternalMessageId: 'msg_turn_2',
+        },
+      },
+    });
+  });
 });
