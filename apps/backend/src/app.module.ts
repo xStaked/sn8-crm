@@ -3,6 +3,7 @@ import { BullModule } from '@nestjs/bullmq';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AiSalesModule } from './ai-sales/ai-sales.module';
 import { AuthModule } from './auth/auth.module';
+import { BotConversationModule } from './bot-conversation/bot-conversation.module';
 import { ConversationsModule } from './conversations/conversations.module';
 import { MessagingModule } from './messaging/messaging.module';
 import { PrismaModule } from './prisma/prisma.module';
@@ -16,6 +17,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
     RedisModule,
     AuthModule,
     AiSalesModule,
+    BotConversationModule,
     BullModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (config: ConfigService) => {

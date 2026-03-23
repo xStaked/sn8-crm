@@ -1,5 +1,6 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { AiSalesModule } from '../ai-sales/ai-sales.module';
+import { BotConversationModule } from '../bot-conversation/bot-conversation.module';
 import { BullModule } from '@nestjs/bullmq';
 import { ChannelsModule } from '../channels/channels.module';
 import { PrismaModule } from '../prisma/prisma.module';
@@ -9,6 +10,7 @@ import { MessageProcessor } from './processors/message.processor';
 @Module({
   imports: [
     forwardRef(() => AiSalesModule),
+    forwardRef(() => BotConversationModule),
     ChannelsModule,
     PrismaModule,
     BullModule.registerQueue({ name: 'incoming-messages' }),
