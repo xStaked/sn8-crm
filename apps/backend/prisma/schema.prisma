@@ -48,6 +48,22 @@ model Message {
   createdAt         DateTime @default(now())
 }
 
+model ConversationState {
+  id                String   @id @default(cuid())
+  conversationId    String   @unique
+  state             String
+  metadata          Json?
+  offFlowCount      Int      @default(0)
+  lastInboundMessageId String?
+  lastTransitionAt  DateTime
+  expiresAt         DateTime
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([expiresAt])
+  @@index([state, lastTransitionAt])
+}
+
 model CommercialBrief {
   id               String                @id @default(cuid())
   conversationId   String                @unique
