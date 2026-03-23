@@ -43,6 +43,11 @@ export type BotConversationDecision = {
   outbound: BotConversationOutboundPlan;
 };
 
+type ResolvedConversationState = {
+  snapshot: BotConversationSnapshot | null;
+  expired: boolean;
+};
+
 @Injectable()
 export class BotConversationService {
   constructor(
@@ -53,12 +58,8 @@ export class BotConversationService {
   ) {}
 
   async loadState(conversationId: string): Promise<BotConversationSnapshot | null> {
-    const cachedState = await this.repository.loadState(conversationId);
-    if (cachedState) {
-      return cachedState;
-    }
-
-    return this.repository.rebuildState(conversationId);
+    const resolvedState = await this.resolveState(conversationId);
+    return resolvedState.expired ? null : resolvedState.snapshot;
   }
 
   async transition(
@@ -85,9 +86,9 @@ export class BotConversationService {
   }
 
   async handleInbound(normalized: NormalizedMessage): Promise<BotConversationDecision> {
-    const existingState = await this.loadState(normalized.fromPhone);
-    const isExpired =
-      !!existingState && existingState.expiresAt.getTime() <= Date.now();
+    const resolvedState = await this.resolveState(normalized.fromPhone);
+    const existingState = resolvedState.snapshot;
+    const isExpired = resolvedState.expired;
 
     if (!existingState || isExpired) {
       if (this.isNonTextMessage(normalized)) {
@@ -461,6 +462,31 @@ export class BotConversationService {
         .toLowerCase()
         .trim() ?? ''
     );
+  }
+
+  private async resolveState(
+    conversationId: string,
+  ): Promise<ResolvedConversationState> {
+    const cachedState = await this.repository.loadState(conversationId);
+    if (cachedState) {
+      return {
+        snapshot: cachedState,
+        expired: cachedState.expiresAt.getTime() <= Date.now(),
+      };
+    }
+
+    const rebuiltState = await this.repository.rebuildState(conversationId);
+    if (!rebuiltState) {
+      return {
+        snapshot: null,
+        expired: false,
+      };
+    }
+
+    return {
+      snapshot: rebuiltState,
+      expired: rebuiltState.expiresAt.getTime() <= Date.now(),
+    };
   }
 }
 

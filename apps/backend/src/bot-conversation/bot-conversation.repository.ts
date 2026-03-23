@@ -72,15 +72,16 @@ export class BotConversationRepository {
     }
 
     const snapshot = this.fromRecord(record);
+
+    if (snapshot.expiresAt.getTime() <= Date.now()) {
+      await this.redis.del(this.buildKey(conversationId));
+      return snapshot;
+    }
+
     const ttlSeconds = Math.max(
       1,
       Math.ceil((snapshot.expiresAt.getTime() - Date.now()) / 1000),
     );
-
-    if (snapshot.expiresAt.getTime() <= Date.now()) {
-      await this.redis.del(this.buildKey(conversationId));
-      return null;
-    }
 
     await this.redis.set(
       this.buildKey(snapshot.conversationId),

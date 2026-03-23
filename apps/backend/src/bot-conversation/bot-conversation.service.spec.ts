@@ -101,6 +101,17 @@ describe('BotConversationService', () => {
     expect(repository.rebuildState).toHaveBeenCalledWith(snapshot.conversationId);
   });
 
+  it('treats expired durable backup state as inactive when loading a conversation directly', async () => {
+    repository.loadState.mockResolvedValueOnce(null);
+    repository.rebuildState.mockResolvedValueOnce({
+      ...snapshot,
+      state: BotConversationState.QUALIFYING,
+      expiresAt: new Date('2026-03-22T15:00:00.000Z'),
+    });
+
+    await expect(service.loadState(snapshot.conversationId)).resolves.toBeNull();
+  });
+
   it('greets first-contact conversations with interactive buttons and stores GREETING state', async () => {
     repository.loadState.mockResolvedValue(null);
     repository.rebuildState.mockResolvedValue(null);
@@ -435,9 +446,12 @@ describe('BotConversationService', () => {
   });
 
   it('re-greets expired conversations with the returning-contact variant', async () => {
-    repository.loadState.mockResolvedValue({
+    repository.loadState.mockResolvedValue(null);
+    repository.rebuildState.mockResolvedValue({
       ...snapshot,
       state: BotConversationState.QUALIFYING,
+      offFlowCount: 2,
+      lastInboundMessageId: 'msg_previous',
       expiresAt: new Date('2026-03-22T15:00:00.000Z'),
     });
     repository.saveState.mockResolvedValue({
@@ -453,5 +467,16 @@ describe('BotConversationService', () => {
         body: expect.stringContaining('Hola de nuevo'),
       },
     });
+
+    expect(repository.saveState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        conversationId: normalizedMessage.fromPhone,
+        state: BotConversationState.GREETING,
+        metadata: { greetingVariant: 'returning_contact' },
+        offFlowCount: 0,
+        lastInboundMessageId: normalizedMessage.externalMessageId,
+      }),
+      BOT_CONVERSATION_TTL_SECONDS,
+    );
   });
 });
