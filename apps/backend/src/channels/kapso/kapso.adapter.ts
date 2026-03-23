@@ -1,5 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { ChannelAdapter, NormalizedMessage } from '../channel.adapter';
+import {
+  ChannelAdapter,
+  type InteractiveButton,
+  NormalizedMessage,
+} from '../channel.adapter';
 import { KapsoClient } from './kapso.client';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -8,6 +12,50 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0;
+}
+
+function toMessageType(value: unknown): NormalizedMessage['messageType'] {
+  if (!isNonEmptyString(value)) {
+    return 'unknown';
+  }
+
+  switch (value) {
+    case 'text':
+    case 'interactive':
+    case 'image':
+    case 'audio':
+    case 'video':
+    case 'document':
+    case 'sticker':
+    case 'location':
+    case 'contacts':
+      return value;
+    default:
+      return 'unknown';
+  }
+}
+
+function extractInteractiveReply(
+  message: Record<string, unknown>,
+): NormalizedMessage['interactiveReply'] {
+  const interactive = isRecord(message.interactive) ? message.interactive : undefined;
+  if (!interactive) {
+    return null;
+  }
+
+  const buttonReply = isRecord(interactive.button_reply) ? interactive.button_reply : undefined;
+  if (!buttonReply) {
+    return null;
+  }
+
+  const id = isNonEmptyString(buttonReply.id) ? buttonReply.id : null;
+  const title = isNonEmptyString(buttonReply.title) ? buttonReply.title : null;
+
+  if (!id || !title) {
+    return null;
+  }
+
+  return { id, title };
 }
 
 @Injectable()
@@ -30,6 +78,20 @@ export class KapsoAdapter extends ChannelAdapter {
     params: string[],
   ): Promise<void> {
     await this.kapso.sendTemplate(to, templateName, params);
+  }
+
+  async sendInteractiveButtons(
+    to: string,
+    body: string,
+    buttons: InteractiveButton[],
+    senderPhoneNumberId?: string,
+  ): Promise<string> {
+    return this.kapso.sendInteractiveButtons(
+      to,
+      body,
+      buttons,
+      senderPhoneNumberId,
+    );
   }
 
   normalizeInbound(rawPayload: unknown): NormalizedMessage {
@@ -64,7 +126,12 @@ export class KapsoAdapter extends ChannelAdapter {
                 : '');
 
             const text = isRecord(message.text) ? message.text : undefined;
-            const body = text && typeof text.body === 'string' ? text.body : null;
+            const interactiveReply = extractInteractiveReply(message);
+            const messageType = toMessageType(message.type);
+            const body =
+              (text && typeof text.body === 'string' ? text.body : undefined) ??
+              interactiveReply?.title ??
+              null;
 
             if (id && from) {
               return {
@@ -73,6 +140,8 @@ export class KapsoAdapter extends ChannelAdapter {
                 fromPhone: from,
                 toPhone,
                 body,
+                messageType,
+                interactiveReply,
                 channel: 'whatsapp',
                 rawPayload,
               };
@@ -102,6 +171,8 @@ export class KapsoAdapter extends ChannelAdapter {
             : isRecord(message.kapso) && typeof message.kapso.content === 'string'
               ? message.kapso.content
               : null;
+        const interactiveReply = extractInteractiveReply(message);
+        const messageType = toMessageType(message.type);
 
         if (id && from) {
           return {
@@ -109,7 +180,9 @@ export class KapsoAdapter extends ChannelAdapter {
             direction: 'inbound',
             fromPhone: from,
             toPhone,
-            body,
+            body: body ?? interactiveReply?.title ?? null,
+            messageType,
+            interactiveReply,
             channel: 'whatsapp',
             rawPayload,
           };
@@ -134,6 +207,8 @@ export class KapsoAdapter extends ChannelAdapter {
           : typeof message.body === 'string'
             ? message.body
             : null;
+      const interactiveReply = extractInteractiveReply(message);
+      const messageType = toMessageType(message.type);
 
       if (id && from) {
         return {
@@ -141,7 +216,9 @@ export class KapsoAdapter extends ChannelAdapter {
           direction: 'inbound',
           fromPhone: from,
           toPhone: to,
-          body,
+          body: body ?? interactiveReply?.title ?? null,
+          messageType,
+          interactiveReply,
           channel: 'whatsapp',
           rawPayload,
         };

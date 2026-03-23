@@ -59,6 +59,42 @@ describe('KapsoAdapter', () => {
     },
   };
 
+  const interactiveInboundPayload = {
+    object: 'whatsapp_business_account',
+    entry: [
+      {
+        id: 'entry_2',
+        changes: [
+          {
+            field: 'messages',
+            value: {
+              messaging_product: 'whatsapp',
+              metadata: {
+                display_phone_number: '573001112233',
+                phone_number_id: 'kapso-phone-id',
+              },
+              messages: [
+                {
+                  from: '573001234567',
+                  id: 'wamid.button.tap',
+                  timestamp: '1717001000',
+                  type: 'interactive',
+                  interactive: {
+                    type: 'button_reply',
+                    button_reply: {
+                      id: 'INFO_SERVICES',
+                      title: 'Conocer servicios',
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    ],
+  };
+
   it('delegates sendText() to KapsoClient.sendText()', async () => {
     const kapsoClient = {
       sendText: jest.fn(async () => 'wamid.test'),
@@ -107,6 +143,37 @@ describe('KapsoAdapter', () => {
     );
   });
 
+  it('delegates sendInteractiveButtons() to KapsoClient.sendInteractiveButtons()', async () => {
+    const kapsoClient = {
+      sendText: jest.fn(async () => 'wamid.test'),
+      sendTemplate: jest.fn(async () => undefined),
+      sendInteractiveButtons: jest.fn(async () => 'wamid.interactive'),
+    } as unknown as KapsoClient;
+
+    const adapter = new KapsoAdapter(kapsoClient);
+    await adapter.sendInteractiveButtons(
+      '+15551234567',
+      'Hola, soy SN8 Labs. ¿Cómo te ayudamos?',
+      [
+        { id: 'QUOTE_PROJECT', title: 'Cotizar proyecto' },
+        { id: 'INFO_SERVICES', title: 'Conocer servicios' },
+        { id: 'HUMAN_HANDOFF', title: 'Hablar con alguien' },
+      ],
+      'phone_number_id_123',
+    );
+
+    expect(kapsoClient.sendInteractiveButtons).toHaveBeenCalledWith(
+      '+15551234567',
+      'Hola, soy SN8 Labs. ¿Cómo te ayudamos?',
+      [
+        { id: 'QUOTE_PROJECT', title: 'Cotizar proyecto' },
+        { id: 'INFO_SERVICES', title: 'Conocer servicios' },
+        { id: 'HUMAN_HANDOFF', title: 'Hablar con alguien' },
+      ],
+      'phone_number_id_123',
+    );
+  });
+
   it('normalizes a nested Kapso inbound payload from later change entries', () => {
     const kapsoClient = {
       sendText: jest.fn(async () => 'wamid.test'),
@@ -121,6 +188,8 @@ describe('KapsoAdapter', () => {
       fromPhone: '573001234567',
       toPhone: '573001112233',
       body: 'Hola desde Kapso',
+      messageType: 'text',
+      interactiveReply: null,
       channel: 'whatsapp',
       rawPayload: nestedInboundPayload,
     });
@@ -140,8 +209,34 @@ describe('KapsoAdapter', () => {
       fromPhone: '573001234567',
       toPhone: '573001112233',
       body: null,
+      messageType: 'image',
+      interactiveReply: null,
       channel: 'whatsapp',
       rawPayload: flattenedInboundPayload,
+    });
+  });
+
+  it('normalizes an interactive button reply with routing metadata', () => {
+    const kapsoClient = {
+      sendText: jest.fn(async () => undefined),
+      sendTemplate: jest.fn(async () => undefined),
+    } as unknown as KapsoClient;
+
+    const adapter = new KapsoAdapter(kapsoClient);
+
+    expect(adapter.normalizeInbound(interactiveInboundPayload)).toEqual({
+      externalMessageId: 'wamid.button.tap',
+      direction: 'inbound',
+      fromPhone: '573001234567',
+      toPhone: '573001112233',
+      body: 'Conocer servicios',
+      messageType: 'interactive',
+      interactiveReply: {
+        id: 'INFO_SERVICES',
+        title: 'Conocer servicios',
+      },
+      channel: 'whatsapp',
+      rawPayload: interactiveInboundPayload,
     });
   });
 });

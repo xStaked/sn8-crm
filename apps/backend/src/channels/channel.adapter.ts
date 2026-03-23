@@ -1,6 +1,10 @@
 import type { NormalizedMessage } from './kapso/normalized-message.interface';
 
 export type { NormalizedMessage };
+export type InteractiveButton = {
+  id: string;
+  title: string;
+};
 
 /**
  * Stable outbound + normalization contract for messaging channels.
@@ -20,6 +24,13 @@ export abstract class ChannelAdapter {
     templateName: string,
     params: string[],
   ): Promise<void>;
+
+  abstract sendInteractiveButtons(
+    to: string,
+    body: string,
+    buttons: InteractiveButton[],
+    senderPhoneNumberId?: string,
+  ): Promise<string>;
 
   abstract normalizeInbound(rawPayload: unknown): NormalizedMessage;
 }

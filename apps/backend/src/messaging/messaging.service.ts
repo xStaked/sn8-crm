@@ -1,5 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { ChannelAdapter } from '../channels/channel.adapter';
+import {
+  ChannelAdapter,
+  type InteractiveButton,
+} from '../channels/channel.adapter';
 
 @Injectable()
 export class MessagingService {
@@ -19,5 +22,19 @@ export class MessagingService {
     params: string[],
   ): Promise<void> {
     await this.channel.sendTemplate(to, templateName, params);
+  }
+
+  async sendInteractiveButtons(
+    to: string,
+    body: string,
+    buttons: InteractiveButton[],
+    senderPhoneNumberId?: string,
+  ): Promise<string> {
+    return this.channel.sendInteractiveButtons(
+      to,
+      body,
+      buttons,
+      senderPhoneNumberId,
+    );
   }
 }

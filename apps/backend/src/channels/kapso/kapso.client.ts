@@ -1,6 +1,7 @@
 import { buildTemplateSendPayload, WhatsAppClient } from '@kapso/whatsapp-cloud-api';
 import { Injectable, Logger, UnprocessableEntityException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import type { InteractiveButton } from '../channel.adapter';
 
 type KapsoOutboundConfig = {
   apiKey: string;
@@ -140,5 +141,39 @@ export class KapsoClient {
     });
 
     await client.messages.sendTemplate({ phoneNumberId, to, template });
+  }
+
+  async sendInteractiveButtons(
+    to: string,
+    body: string,
+    buttons: InteractiveButton[],
+    senderPhoneNumberId?: string,
+  ): Promise<string> {
+    const { client, phoneNumberId } = this.assertConfigured(senderPhoneNumberId);
+
+    this.logger.log({
+      event: 'kapso_send_interactive_buttons_attempt',
+      to,
+      senderPhoneNumberId: phoneNumberId,
+      senderSource: senderPhoneNumberId?.trim() ? 'conversation-history' : 'config-fallback',
+      bodyPreview: body.slice(0, 120),
+      buttonIds: buttons.map((button) => button.id),
+    });
+
+    const response = await client.messages.sendInteractiveButtons({
+      phoneNumberId,
+      to,
+      bodyText: body,
+      buttons,
+    });
+
+    this.logger.log({
+      event: 'kapso_send_interactive_buttons_success',
+      to,
+      senderPhoneNumberId: phoneNumberId,
+      externalMessageId: response.messages[0]?.id ?? null,
+    });
+
+    return response.messages[0]?.id ?? '';
   }
 }
