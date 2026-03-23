@@ -32,7 +32,7 @@ Requirements para el lanzamiento inicial. Cada uno mapea a fases del roadmap.
 - [ ] **BOT-01**: El bot responde automáticamente a mensajes entrantes con saludo y menú de opciones
 - [ ] **BOT-02**: El bot guía al cliente a través de un flujo de calificación (nombre, tipo de proyecto, descripción, presupuesto aproximado)
 - [ ] **BOT-03**: El bot maneja mensajes inesperados o fuera de flujo con respuestas por defecto apropiadas
-- [ ] **BOT-04**: El estado de la conversación persiste entre mensajes (flujo no se reinicia con cada mensaje)
+- [x] **BOT-04**: El estado de la conversación persiste entre mensajes (flujo no se reinicia con cada mensaje)
 
 ### AI / Requisitos
 
@@ -150,7 +150,7 @@ Actualizado durante la creación del roadmap.
 | BOT-01 | Phase 2 | Pending |
 | BOT-02 | Phase 2 | Pending |
 | BOT-03 | Phase 2 | Pending |
-| BOT-04 | Phase 2 | Pending |
+| BOT-04 | Phase 2 | Complete |
 | SALES-AI-01 | Phase 2.1 | Complete |
 | SALES-AI-02 | Phase 2.1 | Complete |
 | SALES-AI-03 | Phase 2.1 | Complete |

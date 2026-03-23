@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 2 context gathered
-last_updated: "2026-03-23T15:04:36.585Z"
-last_activity: 2026-03-20 — Completed Phase 02.1 Plan 02.1-03 (owner consultation, draft regeneration, and approved-delivery guardrail)
+stopped_at: Completed 02-01-PLAN.md
+last_updated: "2026-03-23T15:32:52.513Z"
+last_activity: 2026-03-23 — Completed Phase 02 Plan 01 with Redis-backed bot conversation state, Prisma backup recovery, and a dedicated bot-conversation module
 progress:
   total_phases: 9
   completed_phases: 5
-  total_plans: 19
-  completed_plans: 18
-  percent: 95
+  total_plans: 23
+  completed_plans: 19
+  percent: 83
 ---
 
 # Project State
@@ -21,24 +21,24 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-15)
 
 **Core value:** El bot nunca deja a un cliente sin respuesta y toda cotización pasa por validación del socio antes de enviarse — garantizando rentabilidad sin sacrificar velocidad de respuesta.
-**Current focus:** Phase 02.1 AI sales-agent configuration is complete with WhatsApp-first owner consultation and explicit approval blocking; the next dependency chain can consume this state from Phase 3 and the remaining frontend/manual-reply work.
+**Current focus:** Phase 02 Bot Conversation Engine is now planned with a dedicated FSM/recovery track that wraps the existing AI-sales qualification flow without replacing it.
 
 ## Current Position
 
-Phase: 02.1 of 9 (AI Sales Agent Configuration)
-Plan: 3 of 3 in current phase
-Status: In progress
-Last activity: 2026-03-20 — Completed Phase 02.1 Plan 02.1-03 (owner consultation, draft regeneration, and approved-delivery guardrail)
+Phase: 02 of 9 (Bot Conversation Engine)
+Plan: 1 of 4 in current phase
+Status: In Progress
+Last activity: 2026-03-23 — Completed Phase 02 Plan 01 with Redis-backed bot conversation state, Prisma backup recovery, and a dedicated bot-conversation module
 
-Progress: [██████████] 95%
+Progress: [████████░░] 83%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 18
-- Average duration: 8 min
-- Total execution time: 137 min
+- Total plans completed: 19
+- Average duration: 7 min
+- Total execution time: 141 min
 
 **By Phase:**
 
@@ -53,8 +53,8 @@ Progress: [██████████] 95%
 
 **Recent Trend:**
 
-- Last 5 plans: 02.1-03 (8 min), 02.1-02 (8 min), 02.1-01 (3 min), 05-04 (14 min), 05.1-03 (19 min)
-- Trend: Phase 02.1 is now complete, giving the roadmap a durable owner-review/regeneration loop and a reusable approval guardrail ahead of formal delivery work.
+- Last 5 plans: 02-01 (4 min), 02.1-03 (8 min), 02.1-02 (8 min), 02.1-01 (3 min), 05-04 (14 min)
+- Trend: Phase 02 now has its routing-state persistence foundation, so the next plan can add greeting/menu behavior on top of `BotConversationService` instead of inventing storage semantics.
 
 *Updated after each plan completion*
 | Phase 05 P02 | 5m | 2 tasks | 4 files |
@@ -67,6 +67,7 @@ Progress: [██████████] 95%
 | Phase 02.1 P01 | 3min | 3 tasks | 10 files |
 | Phase 02.1-ai-sales-agent-configuration P02 | 8min | 3 tasks | 11 files |
 | Phase 02.1-ai-sales-agent-configuration P03 | 8min | 3 tasks | 13 files |
+| Phase 02 P01 | 4min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -104,6 +105,13 @@ Recent decisions affecting current work:
 - [Phase 02.1]: Owner review v1 runs through WhatsApp using AI_SALES_OWNER_PHONE instead of waiting for the CRM approval UI.
 - [Phase 02.1]: Owner commands use explicit text syntax (SN8 APPROVE|REVISE <conversationId> v<version>) so approval stays machine-readable and attributable.
 - [Phase 02.1]: Customer-facing quote release stays behind prepareApprovedCustomerDelivery so delivery remains blocked until the latest draft is explicitly approved.
+- [Phase 02]: Phase 2 is a routing/state layer that wraps the existing `ConversationFlowService`; it does not replace the AI-sales qualification engine already built in Phase 2.1.
+- [Phase 02]: Bot routing state uses Redis as the active store and a Prisma backup model for restart-safe reconstruction.
+- [Phase 02]: Greeting UX should use WhatsApp reply buttons for the 3 locked entry options if the Kapso integration can support them cleanly.
+- [Phase 02]: Free-text greeting intent classification and off-flow redirects may reuse bounded AI support, but Phase 2 does not expand quote-generation scope.
+- [Phase 02]: Conversation routing state remains isolated from CommercialBrief and QuoteDraft via a dedicated ConversationState backup model.
+- [Phase 02]: Bot conversation storage uses Redis as the active 24-hour store and Prisma as the reconstruction source after cache loss.
+- [Phase 02]: Plan 02-01 stops at the BotConversationService boundary and leaves MessageProcessor rewiring for the next plan.
 
 ### Roadmap Evolution
 
@@ -121,6 +129,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-23T15:04:36.583Z
-Stopped at: Phase 2 context gathered
-Resume file: .planning/phases/02-bot-conversation-engine/02-CONTEXT.md
+Last session: 2026-03-23T15:32:52.511Z
+Stopped at: Completed 02-01-PLAN.md
+Resume file: None
