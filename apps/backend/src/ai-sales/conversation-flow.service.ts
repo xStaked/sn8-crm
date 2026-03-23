@@ -32,6 +32,17 @@ type CommercialBriefWithLatestDraft = CommercialBrief & {
   quoteDrafts: QuoteDraft[];
 };
 
+type MergedCommercialBrief = {
+  customerName: string | null;
+  projectType: string | null;
+  businessProblem: string | null;
+  desiredScope: string | null;
+  budget: string | null;
+  urgency: string | null;
+  constraints: string | null;
+  summary: string | null;
+};
+
 @Injectable()
 export class ConversationFlowService {
   private readonly logger = new Logger(ConversationFlowService.name);
@@ -84,7 +95,7 @@ export class ConversationFlowService {
         transcript,
         currentBrief ?? undefined,
       );
-      const mergedBrief = {
+      const mergedBrief: MergedCommercialBrief = {
         customerName: extractedBrief.customerName ?? currentBrief?.customerName ?? null,
         projectType: extractedBrief.projectType ?? currentBrief?.projectType ?? null,
         businessProblem:
@@ -144,8 +155,7 @@ export class ConversationFlowService {
       );
 
       return {
-        body:
-          'Perfecto. Ya tengo lo minimo necesario para preparar tu cotizacion. Voy a consolidar el brief y dejar la propuesta en revision interna antes de compartirte el siguiente paso.',
+        body: this.buildReadyForQuoteReply(mergedBrief),
         source: 'commercial-ready-for-quote',
       };
     } catch (error) {
@@ -194,5 +204,27 @@ export class ConversationFlowService {
       default:
         return 'Ya tenemos tu brief y la propuesta esta en revision interna. Si quieres, puedes seguir agregando contexto y lo tendremos en cuenta antes de cerrarla.';
     }
+  }
+
+  private buildReadyForQuoteReply(brief: MergedCommercialBrief): string {
+    const projectLabel = brief.projectType?.trim() || 'tu proyecto';
+    const summaryParts = [
+      brief.businessProblem?.trim(),
+      brief.desiredScope?.trim(),
+      brief.budget?.trim() ? `presupuesto ${brief.budget.trim()}` : null,
+      brief.urgency?.trim() ? `tiempo ${brief.urgency.trim()}` : null,
+    ].filter((value): value is string => Boolean(value));
+
+    const summary =
+      brief.summary?.trim() ||
+      (summaryParts.length > 0 ? summaryParts.join('; ') : null);
+    const normalizedSummary = summary?.replace(/[.\s]+$/, '') ?? null;
+
+    const opening = `Perfecto. Con lo que tengo hasta ahora, voy a cotizar ${projectLabel}.`;
+    const context = normalizedSummary
+      ? ` Entendi esto como base: ${normalizedSummary}.`
+      : '';
+
+    return `${opening}${context} El siguiente paso es consolidar este brief y preparar una propuesta preliminar para revision interna. Si quieres, todavia puedes responder con mas detalle sobre alcance, presupuesto o prioridad y lo incorporo antes de cerrarla.`;
   }
 }

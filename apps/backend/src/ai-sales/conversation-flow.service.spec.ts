@@ -149,9 +149,72 @@ describe('ConversationFlowService', () => {
       'customer-message',
     );
     expect(result).toEqual({
-      body: expect.stringContaining('Ya tengo lo minimo necesario'),
+      body: expect.stringContaining('voy a cotizar CRM'),
       source: 'commercial-ready-for-quote',
     });
+    expect(result.body).toContain('CRM comercial para equipo de ventas.');
+    expect(result.body).toContain('todavia puedes responder con mas detalle');
+  });
+
+  it('gives contextual next-step feedback when the brief is complete but no draft exists yet', async () => {
+    prisma.commercialBrief.findUnique.mockResolvedValue({
+      id: 'brief_1',
+      conversationId: '573001112233',
+      status: 'ready_for_quote',
+      customerName: 'Sergio',
+      projectType: 'una aplicacion para iOS',
+      businessProblem: 'Vender y gestionar pedidos desde el celular.',
+      desiredScope: 'Login, catalogo, carrito y notificaciones.',
+      budget: 'USD 8k a 12k',
+      urgency: '8 semanas',
+      constraints: 'Debe salir primero en iPhone',
+      summary: 'Aplicacion iOS comercial con compra y notificaciones.',
+      sourceTranscript: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      quoteDrafts: [],
+    });
+    conversationsService.listConversationMessages.mockResolvedValue([
+      {
+        id: 'msg_2',
+        conversationId: '573001112233',
+        direction: 'inbound',
+        body: 'y que vas a cotizar?',
+        createdAt: '2026-03-23T16:34:01.000Z',
+      },
+    ]);
+    aiSalesService.extractCommercialBrief.mockResolvedValue({
+      customerName: 'Sergio',
+      projectType: 'una aplicacion para iOS',
+      businessProblem: 'Vender y gestionar pedidos desde el celular.',
+      desiredScope: 'Login, catalogo, carrito y notificaciones.',
+      budget: 'USD 8k a 12k',
+      urgency: '8 semanas',
+      constraints: 'Debe salir primero en iPhone',
+      summary: 'Aplicacion iOS comercial con compra y notificaciones.',
+    });
+
+    const result = await service.planReply({
+      conversationId: '573001112233',
+      inboundMessageId: 'msg_2',
+      inboundBody: 'y que vas a cotizar?',
+    });
+
+    expect(result.source).toBe('commercial-ready-for-quote');
+    expect(result.body).toContain('voy a cotizar una aplicacion para iOS');
+    expect(result.body).toContain(
+      'Aplicacion iOS comercial con compra y notificaciones.',
+    );
+    expect(result.body).toContain(
+      'El siguiente paso es consolidar este brief y preparar una propuesta preliminar',
+    );
+    expect(result.body).toContain(
+      'todavia puedes responder con mas detalle sobre alcance, presupuesto o prioridad',
+    );
+    expect(aiSalesOrchestrator.enqueueQualifiedConversation).toHaveBeenCalledWith(
+      '573001112233',
+      'customer-message',
+    );
   });
 
   it('returns review status when a draft already exists', async () => {
