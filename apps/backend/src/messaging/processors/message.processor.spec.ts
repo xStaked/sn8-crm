@@ -228,6 +228,38 @@ describe('MessageProcessor', () => {
     expect(prisma.message.create).toHaveBeenCalledTimes(1);
   });
 
+  it('lets inbound media reach the FSM fallback path instead of dropping it silently', async () => {
+    channel.normalizeInbound.mockReturnValue({
+      ...normalizedMessage,
+      body: null,
+      messageType: 'image',
+    });
+    prisma.message.create
+      .mockResolvedValueOnce({ id: 'db_1' })
+      .mockResolvedValueOnce({ id: 'db_2' });
+    botConversationService.handleInbound.mockResolvedValue({
+      nextState: 'QUALIFYING',
+      outbound: {
+        kind: 'text',
+        body: 'Por ahora solo procesamos mensajes de texto. Cuéntame por escrito qué necesitas.',
+        source: 'bot-media-fallback',
+      },
+    });
+
+    await expect(processor.process({ data: { payload } } as any)).resolves.toBeUndefined();
+
+    expect(botConversationService.handleInbound).toHaveBeenCalledWith({
+      ...normalizedMessage,
+      body: null,
+      messageType: 'image',
+    });
+    expect(messagingService.sendText).toHaveBeenCalledWith(
+      '573001112233',
+      'Por ahora solo procesamos mensajes de texto. Cuéntame por escrito qué necesitas.',
+      'phone_number_id_123',
+    );
+  });
+
   it('sends interactive button replies when the bot-conversation service requests them', async () => {
     channel.normalizeInbound.mockReturnValue(normalizedMessage);
     prisma.message.create

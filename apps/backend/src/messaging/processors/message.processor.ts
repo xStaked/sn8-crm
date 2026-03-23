@@ -152,6 +152,7 @@ export class MessageProcessor extends WorkerHost {
     direction: string;
     fromPhone: string;
     body: string | null;
+    messageType: string;
     externalMessageId: string;
   }): boolean {
     if (normalized.direction !== 'inbound') {
@@ -159,7 +160,7 @@ export class MessageProcessor extends WorkerHost {
     }
 
     const body = normalized.body?.trim() ?? '';
-    if (!body) {
+    if (!body && normalized.messageType === 'text') {
       return false;
     }
 

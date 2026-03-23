@@ -317,6 +317,123 @@ describe('BotConversationService', () => {
     });
   });
 
+  it('increments off-flow count and sends bounded guidance for unrelated INFO_SERVICES replies', async () => {
+    repository.loadState.mockResolvedValue({
+      ...snapshot,
+      state: BotConversationState.INFO_SERVICES,
+      offFlowCount: 0,
+      expiresAt: new Date('2099-03-24T15:00:00.000Z'),
+    });
+    repository.saveState.mockResolvedValue({
+      ...snapshot,
+      state: BotConversationState.INFO_SERVICES,
+      offFlowCount: 1,
+      metadata: { topic: 'services_overview' },
+    });
+
+    await expect(
+      service.handleInbound({
+        ...normalizedMessage,
+        body: 'jajaja',
+      }),
+    ).resolves.toMatchObject({
+      nextState: BotConversationState.INFO_SERVICES,
+      outbound: {
+        kind: 'text',
+        body: expect.stringContaining('jajaja'),
+      },
+    });
+
+    expect(repository.saveState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: BotConversationState.INFO_SERVICES,
+        offFlowCount: 1,
+      }),
+      BOT_CONVERSATION_TTL_SECONDS,
+    );
+  });
+
+  it('escalates to HUMAN_HANDOFF after the third consecutive off-flow attempt', async () => {
+    repository.loadState.mockResolvedValue({
+      ...snapshot,
+      state: BotConversationState.INFO_SERVICES,
+      offFlowCount: 2,
+      expiresAt: new Date('2099-03-24T15:00:00.000Z'),
+    });
+    repository.saveState.mockResolvedValue({
+      ...snapshot,
+      state: BotConversationState.HUMAN_HANDOFF,
+      offFlowCount: 3,
+      metadata: { ownerNotified: true },
+    });
+
+    await expect(
+      service.handleInbound({
+        ...normalizedMessage,
+        body: 'no entiendo',
+      }),
+    ).resolves.toMatchObject({
+      nextState: BotConversationState.HUMAN_HANDOFF,
+      outbound: {
+        kind: 'text',
+        body: expect.stringContaining('asesor'),
+      },
+    });
+
+    expect(humanHandoffService.notifyOwner).toHaveBeenCalledWith(
+      expect.objectContaining({
+        conversationId: normalizedMessage.fromPhone,
+        inboundMessageId: normalizedMessage.externalMessageId,
+        customerMessageBody: 'no entiendo',
+      }),
+    );
+    expect(repository.saveState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: BotConversationState.HUMAN_HANDOFF,
+        offFlowCount: 3,
+      }),
+      BOT_CONVERSATION_TTL_SECONDS,
+    );
+  });
+
+  it('replies to media in QUALIFYING with text-only guidance and keeps the flow active', async () => {
+    repository.loadState.mockResolvedValue({
+      ...snapshot,
+      state: BotConversationState.QUALIFYING,
+      offFlowCount: 0,
+      expiresAt: new Date('2099-03-24T15:00:00.000Z'),
+    });
+    repository.saveState.mockResolvedValue({
+      ...snapshot,
+      state: BotConversationState.QUALIFYING,
+      offFlowCount: 1,
+      metadata: { delegatedToAiSales: true },
+    });
+
+    await expect(
+      service.handleInbound({
+        ...normalizedMessage,
+        body: null,
+        messageType: 'image',
+      }),
+    ).resolves.toMatchObject({
+      nextState: BotConversationState.QUALIFYING,
+      outbound: {
+        kind: 'text',
+        body: expect.stringContaining('solo procesamos mensajes de texto'),
+      },
+    });
+
+    expect(conversationFlowService.planReply).not.toHaveBeenCalled();
+    expect(repository.saveState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: BotConversationState.QUALIFYING,
+        offFlowCount: 1,
+      }),
+      BOT_CONVERSATION_TTL_SECONDS,
+    );
+  });
+
   it('re-greets expired conversations with the returning-contact variant', async () => {
     repository.loadState.mockResolvedValue({
       ...snapshot,

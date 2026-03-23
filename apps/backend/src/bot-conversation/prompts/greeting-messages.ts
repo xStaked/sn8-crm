@@ -16,10 +16,6 @@ export function buildGreetingMessage(
   return 'Hola, soy el asistente comercial de SN8 Labs. Estoy aqui para ayudarte a cotizar tu proyecto, conocer nuestros servicios o ponerte en contacto con un asesor.';
 }
 
-export function buildInfoServicesMessage(): string {
-  return 'En SN8 Labs ayudamos a empresas a lanzar software a medida, automatizaciones y productos con IA sin perder foco comercial. Si quieres, puedo orientarte sobre el servicio adecuado o pasarte directo a cotizacion.';
-}
-
 export function buildHumanHandoffCustomerMessage(): string {
   return 'Perfecto. Ya avise a un asesor de nuestro equipo para que continue contigo por este mismo canal en cuanto quede disponible.';
 }
