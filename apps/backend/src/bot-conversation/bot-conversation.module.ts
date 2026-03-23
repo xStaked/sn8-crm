@@ -1,12 +1,22 @@
 import { Module, forwardRef } from '@nestjs/common';
+import { AiSalesModule } from '../ai-sales/ai-sales.module';
 import { MessagingModule } from '../messaging/messaging.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { BotConversationRepository } from './bot-conversation.repository';
 import { BotConversationService } from './bot-conversation.service';
+import { HumanHandoffService } from './human-handoff.service';
 
 @Module({
-  imports: [PrismaModule, forwardRef(() => MessagingModule)],
-  providers: [BotConversationRepository, BotConversationService],
-  exports: [BotConversationRepository, BotConversationService],
+  imports: [
+    PrismaModule,
+    forwardRef(() => MessagingModule),
+    forwardRef(() => AiSalesModule),
+  ],
+  providers: [
+    BotConversationRepository,
+    BotConversationService,
+    HumanHandoffService,
+  ],
+  exports: [BotConversationRepository, BotConversationService, HumanHandoffService],
 })
 export class BotConversationModule {}

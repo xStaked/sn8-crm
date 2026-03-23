@@ -2,8 +2,8 @@ import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Inject, Logger, forwardRef } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Job } from 'bullmq';
-import { ConversationFlowService } from '../../ai-sales/conversation-flow.service';
 import { ChannelAdapter } from '../../channels/channel.adapter';
+import { BotConversationService } from '../../bot-conversation/bot-conversation.service';
 import { MessagingService } from '../messaging.service';
 import { PrismaService } from '../../prisma/prisma.service';
 
@@ -16,8 +16,8 @@ export class MessageProcessor extends WorkerHost {
     private readonly channel: ChannelAdapter,
     private readonly messagingService: MessagingService,
     private readonly config: ConfigService,
-    @Inject(forwardRef(() => ConversationFlowService))
-    private readonly conversationFlowService: ConversationFlowService,
+    @Inject(forwardRef(() => BotConversationService))
+    private readonly botConversationService: BotConversationService,
   ) {
     super();
   }
@@ -95,19 +95,23 @@ export class MessageProcessor extends WorkerHost {
       return;
     }
 
-    const replyPlan = await this.conversationFlowService.planReply({
-      conversationId: normalized.fromPhone,
-      inboundMessageId: normalized.externalMessageId,
-      inboundBody: normalized.body,
-    });
-    const replyBody = replyPlan.body;
     const senderPhoneNumberId =
       this.config.get<string>('KAPSO_PHONE_NUMBER_ID')?.trim() || undefined;
-    const externalMessageId = await this.messagingService.sendText(
-      normalized.fromPhone,
-      replyBody,
-      senderPhoneNumberId,
-    );
+    const decision = await this.botConversationService.handleInbound(normalized);
+    const replyBody = decision.outbound.body;
+    const externalMessageId =
+      decision.outbound.kind === 'interactive-buttons'
+        ? await this.messagingService.sendInteractiveButtons(
+            normalized.fromPhone,
+            replyBody,
+            decision.outbound.buttons,
+            senderPhoneNumberId,
+          )
+        : await this.messagingService.sendText(
+            normalized.fromPhone,
+            replyBody,
+            senderPhoneNumberId,
+          );
 
     await this.prisma.message.create({
       data: {
@@ -123,7 +127,13 @@ export class MessageProcessor extends WorkerHost {
           fromPhone: senderPhoneNumberId ?? 'bot',
           toPhone: normalized.fromPhone,
           body: replyBody,
-          source: replyPlan.source,
+          source: decision.outbound.source,
+          kind: decision.outbound.kind,
+          state: decision.nextState,
+          buttons:
+            decision.outbound.kind === 'interactive-buttons'
+              ? decision.outbound.buttons
+              : undefined,
           replyToExternalMessageId: normalized.externalMessageId,
         },
       },

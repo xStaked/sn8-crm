@@ -8,14 +8,16 @@ describe('MessageProcessor', () => {
     fromPhone: '573001112233',
     toPhone: '573004445566',
     body: 'hola',
+    messageType: 'text',
+    interactiveReply: null,
     channel: 'whatsapp',
     rawPayload: payload,
   };
 
   let prisma: { message: { create: jest.Mock } };
   let channel: { normalizeInbound: jest.Mock };
-  let messagingService: { sendText: jest.Mock };
-  let conversationFlowService: { planReply: jest.Mock };
+  let messagingService: { sendText: jest.Mock; sendInteractiveButtons: jest.Mock };
+  let botConversationService: { handleInbound: jest.Mock };
   let config: { get: jest.Mock };
   let processor: MessageProcessor;
 
@@ -32,12 +34,17 @@ describe('MessageProcessor', () => {
 
     messagingService = {
       sendText: jest.fn().mockResolvedValue('out_1'),
+      sendInteractiveButtons: jest.fn().mockResolvedValue('out_interactive_1'),
     };
 
-    conversationFlowService = {
-      planReply: jest.fn().mockResolvedValue({
-        body: 'Respuesta dinamica del flujo comercial.',
-        source: 'commercial-discovery',
+    botConversationService = {
+      handleInbound: jest.fn().mockResolvedValue({
+        nextState: 'QUALIFYING',
+        outbound: {
+          kind: 'text',
+          body: 'Respuesta dinamica del flujo comercial.',
+          source: 'commercial-discovery',
+        },
       }),
     };
 
@@ -61,7 +68,7 @@ describe('MessageProcessor', () => {
       channel as any,
       messagingService as any,
       config as any,
-      conversationFlowService as any,
+      botConversationService as any,
     );
   });
 
@@ -85,11 +92,7 @@ describe('MessageProcessor', () => {
         rawPayload: payload,
       },
     });
-    expect(conversationFlowService.planReply).toHaveBeenCalledWith({
-      conversationId: '573001112233',
-      inboundMessageId: 'msg_1',
-      inboundBody: 'hola',
-    });
+    expect(botConversationService.handleInbound).toHaveBeenCalledWith(normalizedMessage);
     expect(messagingService.sendText).toHaveBeenCalledWith(
       '573001112233',
       'Respuesta dinamica del flujo comercial.',
@@ -110,6 +113,8 @@ describe('MessageProcessor', () => {
           toPhone: '573001112233',
           body: 'Respuesta dinamica del flujo comercial.',
           source: 'commercial-discovery',
+          kind: 'text',
+          state: 'QUALIFYING',
           replyToExternalMessageId: 'msg_1',
         },
       },
@@ -188,6 +193,9 @@ describe('MessageProcessor', () => {
           toPhone: '573001112233',
           body: 'Respuesta dinamica del flujo comercial.',
           source: 'commercial-discovery',
+          kind: 'text',
+          state: 'QUALIFYING',
+          buttons: undefined,
           replyToExternalMessageId: 'msg_1',
         },
       },
@@ -215,8 +223,67 @@ describe('MessageProcessor', () => {
 
     await expect(processor.process({ data: { payload } } as any)).resolves.toBeUndefined();
 
-    expect(conversationFlowService.planReply).not.toHaveBeenCalled();
+    expect(botConversationService.handleInbound).not.toHaveBeenCalled();
     expect(messagingService.sendText).not.toHaveBeenCalled();
     expect(prisma.message.create).toHaveBeenCalledTimes(1);
+  });
+
+  it('sends interactive button replies when the bot-conversation service requests them', async () => {
+    channel.normalizeInbound.mockReturnValue(normalizedMessage);
+    prisma.message.create
+      .mockResolvedValueOnce({ id: 'db_1' })
+      .mockResolvedValueOnce({ id: 'db_2' });
+    botConversationService.handleInbound.mockResolvedValue({
+      nextState: 'GREETING',
+      outbound: {
+        kind: 'interactive-buttons',
+        body: 'Hola de nuevo. Elige una opcion.',
+        buttons: [
+          { id: 'QUOTE_PROJECT', title: 'Cotizar proyecto' },
+          { id: 'INFO_SERVICES', title: 'Conocer servicios' },
+          { id: 'HUMAN_HANDOFF', title: 'Hablar con alguien' },
+        ],
+        source: 'bot-greeting',
+      },
+    });
+
+    await expect(processor.process({ data: { payload } } as any)).resolves.toBeUndefined();
+
+    expect(messagingService.sendInteractiveButtons).toHaveBeenCalledWith(
+      '573001112233',
+      'Hola de nuevo. Elige una opcion.',
+      [
+        { id: 'QUOTE_PROJECT', title: 'Cotizar proyecto' },
+        { id: 'INFO_SERVICES', title: 'Conocer servicios' },
+        { id: 'HUMAN_HANDOFF', title: 'Hablar con alguien' },
+      ],
+      'phone_number_id_123',
+    );
+    expect(prisma.message.create).toHaveBeenNthCalledWith(2, {
+      data: {
+        externalMessageId: 'out_interactive_1',
+        direction: 'outbound',
+        fromPhone: 'phone_number_id_123',
+        toPhone: '573001112233',
+        body: 'Hola de nuevo. Elige una opcion.',
+        channel: 'whatsapp',
+        rawPayload: {
+          externalMessageId: 'out_interactive_1',
+          direction: 'outbound',
+          fromPhone: 'phone_number_id_123',
+          toPhone: '573001112233',
+          body: 'Hola de nuevo. Elige una opcion.',
+          source: 'bot-greeting',
+          kind: 'interactive-buttons',
+          state: 'GREETING',
+          buttons: [
+            { id: 'QUOTE_PROJECT', title: 'Cotizar proyecto' },
+            { id: 'INFO_SERVICES', title: 'Conocer servicios' },
+            { id: 'HUMAN_HANDOFF', title: 'Hablar con alguien' },
+          ],
+          replyToExternalMessageId: 'msg_1',
+        },
+      },
+    });
   });
 });
