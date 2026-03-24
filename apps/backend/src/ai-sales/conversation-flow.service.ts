@@ -43,6 +43,20 @@ type MergedCommercialBrief = {
   summary: string | null;
 };
 
+type ExtractedMissingField =
+  | RequiredBriefField
+  | 'customerName';
+
+const MISSING_FIELD_HINTS: Record<ExtractedMissingField, RegExp[]> = {
+  customerName: [/nombre/i, /como prefieres que te llame/i],
+  projectType: [/tipo de proyecto/i, /tipo de solucion/i, /project type/i],
+  businessProblem: [/problema/i, /objetivo principal/i, /que quieres resolver/i],
+  desiredScope: [/alcance/i, /mvp/i, /primera version/i, /funciones clave/i],
+  budget: [/presupuesto/i, /budget/i, /rango/i],
+  urgency: [/urgencia/i, /fecha objetivo/i, /timeline/i, /tiempo/i],
+  constraints: [/restricciones/i, /integraciones/i, /tecnologia/i, /constraint/i],
+};
+
 @Injectable()
 export class ConversationFlowService {
   private readonly logger = new Logger(ConversationFlowService.name);
@@ -96,18 +110,39 @@ export class ConversationFlowService {
         currentBrief ?? undefined,
       );
       const mergedBrief: MergedCommercialBrief = {
-        customerName: extractedBrief.customerName ?? currentBrief?.customerName ?? null,
-        projectType: extractedBrief.projectType ?? currentBrief?.projectType ?? null,
-        businessProblem:
-          extractedBrief.businessProblem ?? currentBrief?.businessProblem ?? null,
-        desiredScope: extractedBrief.desiredScope ?? currentBrief?.desiredScope ?? null,
-        budget: extractedBrief.budget ?? currentBrief?.budget ?? null,
-        urgency: extractedBrief.urgency ?? currentBrief?.urgency ?? null,
-        constraints: extractedBrief.constraints ?? currentBrief?.constraints ?? null,
-        summary: extractedBrief.summary ?? currentBrief?.summary ?? null,
+        customerName: this.pickMeaningfulValue(
+          extractedBrief.customerName,
+          currentBrief?.customerName,
+        ),
+        projectType: this.pickMeaningfulValue(
+          extractedBrief.projectType,
+          currentBrief?.projectType,
+        ),
+        businessProblem: this.pickMeaningfulValue(
+          extractedBrief.businessProblem,
+          currentBrief?.businessProblem,
+        ),
+        desiredScope: this.pickMeaningfulValue(
+          extractedBrief.desiredScope,
+          currentBrief?.desiredScope,
+        ),
+        budget: this.normalizeBudgetValue(extractedBrief.budget ?? currentBrief?.budget ?? null),
+        urgency: this.pickMeaningfulValue(
+          extractedBrief.urgency,
+          currentBrief?.urgency,
+        ),
+        constraints: this.pickMeaningfulValue(
+          extractedBrief.constraints,
+          currentBrief?.constraints,
+        ),
+        summary: this.pickMeaningfulValue(extractedBrief.summary, currentBrief?.summary),
       };
+      const extractedMissing = this.resolveExtractedMissingFields(
+        extractedBrief.missingInformation,
+      );
       const missingFields = REQUIRED_BRIEF_FIELDS.filter(
-        (field) => !mergedBrief[field]?.trim(),
+        (field) =>
+          !mergedBrief[field]?.trim() || extractedMissing.has(field),
       );
 
       await this.prisma.commercialBrief.upsert({
@@ -215,10 +250,9 @@ export class ConversationFlowService {
       brief.urgency?.trim() ? `tiempo ${brief.urgency.trim()}` : null,
     ].filter((value): value is string => Boolean(value));
 
-    const summary =
-      brief.summary?.trim() ||
-      (summaryParts.length > 0 ? summaryParts.join('; ') : null);
-    const normalizedSummary = summary?.replace(/[.\s]+$/, '') ?? null;
+    const normalizedSummary =
+      (summaryParts.length > 0 ? summaryParts.join('; ') : null)?.replace(/[.\s]+$/, '') ??
+      null;
 
     const opening = `Perfecto. Con lo que tengo hasta ahora, voy a cotizar ${projectLabel}.`;
     const context = normalizedSummary
@@ -226,5 +260,67 @@ export class ConversationFlowService {
       : '';
 
     return `${opening}${context} El siguiente paso es consolidar este brief y preparar una propuesta preliminar para revision interna. Si quieres, todavia puedes responder con mas detalle sobre alcance, presupuesto o prioridad y lo incorporo antes de cerrarla.`;
+  }
+
+  private pickMeaningfulValue(
+    primary: string | null | undefined,
+    fallback: string | null | undefined,
+  ): string | null {
+    const primaryValue = this.sanitizeBriefValue(primary);
+    if (primaryValue) {
+      return primaryValue;
+    }
+
+    return this.sanitizeBriefValue(fallback);
+  }
+
+  private sanitizeBriefValue(value: string | null | undefined): string | null {
+    const normalized = value?.trim();
+    if (!normalized) {
+      return null;
+    }
+
+    if (this.looksLikeMissingPlaceholder(normalized)) {
+      return null;
+    }
+
+    return normalized;
+  }
+
+  private normalizeBudgetValue(value: string | null | undefined): string | null {
+    const normalized = value?.trim();
+    if (!normalized) {
+      return null;
+    }
+
+    if (/(no importa|abierto|flexible|sin tope|lo vemos)/i.test(normalized)) {
+      return 'presupuesto abierto';
+    }
+
+    return this.looksLikeMissingPlaceholder(normalized) ? null : normalized;
+  }
+
+  private looksLikeMissingPlaceholder(value: string): boolean {
+    return /(falta|faltan|missing|pendiente|por definir|por confirmar|sin definir|no especificado|no proporcionado|desconocido|informacion adicional|información adicional|se requiere|hace falta)/i.test(
+      value,
+    );
+  }
+
+  private resolveExtractedMissingFields(
+    missingInformation: string[] | undefined,
+  ): Set<ExtractedMissingField> {
+    const resolved = new Set<ExtractedMissingField>();
+
+    for (const item of missingInformation ?? []) {
+      for (const [field, patterns] of Object.entries(MISSING_FIELD_HINTS) as Array<
+        [ExtractedMissingField, RegExp[]]
+      >) {
+        if (patterns.some((pattern) => pattern.test(item))) {
+          resolved.add(field);
+        }
+      }
+    }
+
+    return resolved;
   }
 }
