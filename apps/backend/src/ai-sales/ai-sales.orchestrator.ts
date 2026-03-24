@@ -101,18 +101,32 @@ export class AiSalesOrchestrator {
       currentBrief ?? undefined,
     );
     const mergedBrief = {
-      customerName: extractedBrief.customerName ?? currentBrief?.customerName ?? null,
-      projectType: extractedBrief.projectType ?? currentBrief?.projectType ?? null,
-      businessProblem:
-        extractedBrief.businessProblem ?? currentBrief?.businessProblem ?? null,
-      desiredScope: extractedBrief.desiredScope ?? currentBrief?.desiredScope ?? null,
-      budget: extractedBrief.budget ?? currentBrief?.budget ?? null,
-      urgency: extractedBrief.urgency ?? currentBrief?.urgency ?? null,
-      constraints: extractedBrief.constraints ?? currentBrief?.constraints ?? null,
-      summary: extractedBrief.summary ?? currentBrief?.summary ?? null,
+      customerName: this.pickMeaningfulValue(
+        extractedBrief.customerName,
+        currentBrief?.customerName,
+      ),
+      projectType: this.pickMeaningfulValue(
+        extractedBrief.projectType,
+        currentBrief?.projectType,
+      ),
+      businessProblem: this.pickMeaningfulValue(
+        extractedBrief.businessProblem,
+        currentBrief?.businessProblem,
+      ),
+      desiredScope: this.pickMeaningfulValue(
+        extractedBrief.desiredScope,
+        currentBrief?.desiredScope,
+      ),
+      budget: this.mergeBudgetValue(extractedBrief.budget, currentBrief?.budget),
+      urgency: this.pickMeaningfulValue(extractedBrief.urgency, currentBrief?.urgency),
+      constraints: this.pickMeaningfulValue(
+        extractedBrief.constraints,
+        currentBrief?.constraints,
+      ),
+      summary: this.pickMeaningfulValue(extractedBrief.summary, currentBrief?.summary),
     };
     const missingFields = REQUIRED_BRIEF_FIELDS.filter(
-      (field) => !mergedBrief[field]?.trim(),
+      (field) => !this.hasMeaningfulBriefValue(mergedBrief[field]),
     );
 
     const brief = await this.prisma.commercialBrief.upsert({
@@ -201,5 +215,60 @@ export class AiSalesOrchestrator {
         },
       },
     });
+  }
+
+  private pickMeaningfulValue(
+    primary: string | null | undefined,
+    fallback: string | null | undefined,
+  ): string | null {
+    const primaryValue = this.sanitizeBriefValue(primary);
+    if (primaryValue) {
+      return primaryValue;
+    }
+
+    return this.sanitizeBriefValue(fallback);
+  }
+
+  private sanitizeBriefValue(value: string | null | undefined): string | null {
+    const normalized = value?.trim();
+    if (!normalized) {
+      return null;
+    }
+
+    if (this.looksLikeMissingPlaceholder(normalized)) {
+      return null;
+    }
+
+    return normalized;
+  }
+
+  private normalizeBudgetValue(value: string | null | undefined): string | null {
+    const normalized = value?.trim();
+    if (!normalized) {
+      return null;
+    }
+
+    if (/(no importa|abierto|flexible|sin tope|lo vemos)/i.test(normalized)) {
+      return 'presupuesto abierto';
+    }
+
+    return this.looksLikeMissingPlaceholder(normalized) ? null : normalized;
+  }
+
+  private mergeBudgetValue(
+    primary: string | null | undefined,
+    fallback: string | null | undefined,
+  ): string | null {
+    return this.normalizeBudgetValue(primary) ?? this.normalizeBudgetValue(fallback);
+  }
+
+  private hasMeaningfulBriefValue(value: string | null | undefined): boolean {
+    return this.sanitizeBriefValue(value) !== null;
+  }
+
+  private looksLikeMissingPlaceholder(value: string): boolean {
+    return /(falta|faltan|missing|pendiente|por definir|por confirmar|sin definir|no especificado|no proporcionado|desconocido|informacion adicional|información adicional|se requiere|hace falta)/i.test(
+      value,
+    );
   }
 }

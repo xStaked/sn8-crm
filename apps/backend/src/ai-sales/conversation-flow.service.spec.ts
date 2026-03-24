@@ -297,6 +297,70 @@ describe('ConversationFlowService', () => {
     expect(aiSalesOrchestrator.enqueueQualifiedConversation).not.toHaveBeenCalled();
   });
 
+  it('does not ask again for a field already stored in the brief when missingInformation repeats it', async () => {
+    prisma.commercialBrief.findUnique.mockResolvedValue({
+      id: 'brief_1',
+      conversationId: '573001112233',
+      status: 'collecting',
+      customerName: 'Sergio',
+      projectType: 'CRM con IA',
+      businessProblem: 'Calificar leads automaticamente.',
+      desiredScope: 'Conexion con WhatsApp y scoring inicial.',
+      budget: '300 USD',
+      urgency: '1 mes',
+      constraints: 'Uso interno para 2 personas.',
+      summary: 'CRM interno con IA para leads.',
+      sourceTranscript: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      quoteDrafts: [],
+    });
+    conversationsService.listConversationMessages.mockResolvedValue([
+      {
+        id: 'msg_4',
+        conversationId: '573001112233',
+        direction: 'inbound',
+        body: 'realiza la cotizacion',
+        createdAt: '2026-03-23T22:29:46.000Z',
+      },
+    ]);
+    aiSalesService.extractCommercialBrief.mockResolvedValue({
+      customerName: 'Sergio',
+      projectType: 'CRM con IA',
+      businessProblem: 'Calificar leads automaticamente.',
+      desiredScope: 'Conexion con WhatsApp y scoring inicial.',
+      budget: '300 USD',
+      urgency: '1 mes',
+      constraints: 'Uso interno para 2 personas.',
+      summary: 'CRM interno con IA para leads.',
+      missingInformation: ['presupuesto del proyecto'],
+    });
+
+    const result = await service.planReply({
+      conversationId: '573001112233',
+      inboundMessageId: 'msg_4',
+      inboundBody: 'realiza la cotizacion',
+    });
+
+    expect(prisma.commercialBrief.upsert).toHaveBeenCalledWith({
+      where: { conversationId: '573001112233' },
+      create: expect.objectContaining({
+        status: 'ready_for_quote',
+        budget: '300 USD',
+      }),
+      update: expect.objectContaining({
+        status: 'ready_for_quote',
+        budget: '300 USD',
+      }),
+    });
+    expect(aiSalesService.generateDiscoveryReply).not.toHaveBeenCalled();
+    expect(aiSalesOrchestrator.enqueueQualifiedConversation).toHaveBeenCalledWith(
+      '573001112233',
+      'customer-message',
+    );
+    expect(result.source).toBe('commercial-ready-for-quote');
+  });
+
   it('returns review status when a draft already exists', async () => {
     prisma.commercialBrief.findUnique.mockResolvedValue({
       id: 'brief_1',

@@ -126,7 +126,7 @@ export class ConversationFlowService {
           extractedBrief.desiredScope,
           currentBrief?.desiredScope,
         ),
-        budget: this.normalizeBudgetValue(extractedBrief.budget ?? currentBrief?.budget ?? null),
+        budget: this.mergeBudgetValue(extractedBrief.budget, currentBrief?.budget),
         urgency: this.pickMeaningfulValue(
           extractedBrief.urgency,
           currentBrief?.urgency,
@@ -142,7 +142,8 @@ export class ConversationFlowService {
       );
       const missingFields = REQUIRED_BRIEF_FIELDS.filter(
         (field) =>
-          !mergedBrief[field]?.trim() || extractedMissing.has(field),
+          !this.hasMeaningfulBriefValue(mergedBrief[field]) ||
+          (extractedMissing.has(field) && !this.hasMeaningfulBriefValue(currentBrief?.[field])),
       );
 
       await this.prisma.commercialBrief.upsert({
@@ -287,6 +288,10 @@ export class ConversationFlowService {
     return normalized;
   }
 
+  private hasMeaningfulBriefValue(value: string | null | undefined): boolean {
+    return this.sanitizeBriefValue(value) !== null;
+  }
+
   private normalizeBudgetValue(value: string | null | undefined): string | null {
     const normalized = value?.trim();
     if (!normalized) {
@@ -298,6 +303,13 @@ export class ConversationFlowService {
     }
 
     return this.looksLikeMissingPlaceholder(normalized) ? null : normalized;
+  }
+
+  private mergeBudgetValue(
+    primary: string | null | undefined,
+    fallback: string | null | undefined,
+  ): string | null {
+    return this.normalizeBudgetValue(primary) ?? this.normalizeBudgetValue(fallback);
   }
 
   private looksLikeMissingPlaceholder(value: string): boolean {
