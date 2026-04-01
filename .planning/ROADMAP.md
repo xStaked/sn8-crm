@@ -186,12 +186,12 @@ Plans:
 **Requirements**: COT-04, QUOTE-PDF-01, QUOTE-PDF-02, QUOTE-PDF-03
 **Depends on:** Phase 05.3
 **Planning note:** Ejecutar primero `05.3.1-01-PLAN.md` para fijar el contrato del PDF comercial a partir del artefacto de referencia antes de implementar el renderer
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 - [x] 05.3.1-01-PLAN.md — Backend PDF rendering foundation, per-draft document persistence, and version-locked cache generation
 - [x] 05.3.1-02-PLAN.md — Authenticated conversation-scoped PDF metadata/download endpoints with additive contract coverage
-- [ ] 05.3.1-03-PLAN.md — CRM quote review card integration for opening/downloading the commercial PDF without changing approval flow
+- [x] 05.3.1-03-PLAN.md — CRM quote review card integration for opening/downloading the commercial PDF without changing approval flow
 
 ### Phase 05.1: Integración real de Kapso y flujo inbound end-to-end (INSERTED)
 

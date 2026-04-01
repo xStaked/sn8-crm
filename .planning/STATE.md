@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Ready to execute
-stopped_at: Completed 05.3.1-02-PLAN.md
-last_updated: "2026-04-01T23:49:54.728Z"
+status: Phase complete — ready for verification
+stopped_at: Completed 05.3.1-03-PLAN.md
+last_updated: "2026-04-01T23:54:27.170Z"
 progress:
   total_phases: 11
-  completed_phases: 7
+  completed_phases: 8
   total_plans: 29
-  completed_plans: 27
+  completed_plans: 28
 ---
 
 # Project State
@@ -68,6 +68,7 @@ Plan: 3 of 3
 | Phase 02-bot-conversation-engine P04 | 8 min | 2 tasks | 5 files |
 | Phase 05.3 P03 | 12min | 2 tasks | 5 files |
 | Phase 05.3.1-implementar-generaci-n-de-cotizaciones-en-pdf-con-formato-comercial-real-y-flujo-compatible-con-aprobaci-n-desde-crm P02 | 5min | 2 tasks | 7 files |
+| Phase 05.3.1-implementar-generaci-n-de-cotizaciones-en-pdf-con-formato-comercial-real-y-flujo-compatible-con-aprobaci-n-desde-crm P03 | 2min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -124,6 +125,8 @@ Recent decisions affecting current work:
 - [Phase 05.3.1]: React PDF is loaded dynamically so the NestJS CommonJS backend can consume an ESM renderer without changing the approval boundary.
 - [Phase 05.3.1]: El DTO quote-review expone metadata PDF sin forzar generacion; solo la ruta /quote-review/pdf materializa o reutiliza el artefacto.
 - [Phase 05.3.1]: La descarga PDF permanece bajo /conversations/:conversationId para conservar el boundary actual del CRM y el version-lock del draft activo.
+- [Phase 05.3.1-implementar-generaci-n-de-cotizaciones-en-pdf-con-formato-comercial-real-y-flujo-compatible-con-aprobaci-n-desde-crm]: The quote-review hook contract stays unchanged; the frontend only widens the DTO shape with additive pdf metadata.
+- [Phase 05.3.1-implementar-generaci-n-de-cotizaciones-en-pdf-con-formato-comercial-real-y-flujo-compatible-con-aprobaci-n-desde-crm]: The PDF button opens the backend document through authenticated fetch-to-blob because the CRM session token lives in localStorage rather than a cookie-backed anchor flow.
 
 ### Roadmap Evolution
 
@@ -151,6 +154,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-01T23:49:54.725Z
-Stopped at: Completed 05.3.1-02-PLAN.md
+Last session: 2026-04-01T23:54:27.168Z
+Stopped at: Completed 05.3.1-03-PLAN.md
 Resume file: None
