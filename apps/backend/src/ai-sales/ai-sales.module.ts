@@ -16,7 +16,7 @@ import { OwnerReviewService } from './owner-review.service';
 @Module({
   imports: [
     PrismaModule,
-    ConversationsModule,
+    forwardRef(() => ConversationsModule),
     forwardRef(() => MessagingModule),
     BullModule.registerQueue({ name: AI_SALES_QUEUE }),
   ],

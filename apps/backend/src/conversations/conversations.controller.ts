@@ -15,6 +15,7 @@ import {
   ConversationMessageDto,
   ConversationSummaryDto,
 } from './dto/conversation-response.dto';
+import { ConversationQuoteReviewDto } from './dto/quote-review-response.dto';
 import { SendMessageDto } from './dto/send-message.dto';
 import { ConversationsService } from './conversations.service';
 
@@ -54,6 +55,25 @@ export class ConversationsController {
   @UseGuards(JwtAuthGuard)
   listConversationMessages(@Param('conversationId') conversationId: string) {
     return this.conversationsService.listConversationMessages(conversationId);
+  }
+
+  @ApiOperation({ summary: 'Obtener el quote en revision de una conversacion' })
+  @ApiParam({
+    name: 'conversationId',
+    example: '573001112233',
+    description: 'Telefono normalizado usado como id estable de la conversacion.',
+  })
+  @ApiOkResponse({
+    description: 'Preview del draft mas reciente dentro del flujo de revision comercial.',
+    type: ConversationQuoteReviewDto,
+  })
+  @ApiNotFoundResponse({
+    description: 'La conversacion no existe o no tiene quote dentro del flujo de revision.',
+  })
+  @Get('conversations/:conversationId/quote-review')
+  @UseGuards(JwtAuthGuard)
+  getConversationQuoteReview(@Param('conversationId') conversationId: string) {
+    return this.conversationsService.getConversationQuoteReview(conversationId);
   }
 
   @ApiOperation({ summary: 'Enviar mensaje manual a una conversacion' })
