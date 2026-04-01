@@ -1,8 +1,10 @@
+import { NotFoundException, ValidationPipe } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import * as argon2 from 'argon2';
 import cookieParser from 'cookie-parser';
 import request from 'supertest';
+import { OwnerReviewService } from '../src/ai-sales/owner-review.service';
 import { AuthModule } from '../src/auth/auth.module';
 import { ConversationsController } from '../src/conversations/conversations.controller';
 import { ConversationsService } from '../src/conversations/conversations.service';
@@ -58,6 +60,10 @@ describe('Conversations (e2e)', () => {
   let durableQuoteDrafts: QuoteDraftFixture[];
   let messageProcessor: MessageProcessor;
   let app: any;
+  let ownerReviewServiceMock: {
+    approveDraftFromCrm: jest.Mock;
+    requestChangesFromCrm: jest.Mock;
+  };
 
   const baseMessages: MessageFixture[] = [
     {
@@ -243,6 +249,54 @@ describe('Conversations (e2e)', () => {
       },
     };
 
+    ownerReviewServiceMock = {
+      approveDraftFromCrm: jest.fn(
+        async ({
+          conversationId,
+          version,
+        }: {
+          conversationId: string;
+          version: number;
+        }) => {
+          const draft = durableQuoteDrafts.find(
+            (candidate) =>
+              candidate.conversationId === conversationId && candidate.version === version,
+          );
+
+          if (!draft) {
+            throw new Error('active draft not found');
+          }
+
+          draft.reviewStatus = 'delivered_to_customer';
+          draft.approvedAt = new Date('2026-04-01T19:00:00.000Z');
+          draft.deliveredToCustomerAt = new Date('2026-04-01T19:05:00.000Z');
+        },
+      ),
+      requestChangesFromCrm: jest.fn(
+        async ({
+          conversationId,
+          version,
+          feedback,
+        }: {
+          conversationId: string;
+          version: number;
+          feedback: string;
+        }) => {
+          const draft = durableQuoteDrafts.find(
+            (candidate) =>
+              candidate.conversationId === conversationId && candidate.version === version,
+          );
+
+          if (!draft) {
+            throw new Error('active draft not found');
+          }
+
+          draft.reviewStatus = 'changes_requested';
+          draft.ownerFeedbackSummary = feedback;
+        },
+      ),
+    };
+
     const moduleRef = await Test.createTestingModule({
       imports: [
         ConfigModule.forRoot({ isGlobal: true }),
@@ -256,6 +310,10 @@ describe('Conversations (e2e)', () => {
           provide: MessagingService,
           useValue: { sendText: jest.fn() },
         },
+        {
+          provide: OwnerReviewService,
+          useValue: ownerReviewServiceMock,
+        },
       ],
     })
       .overrideProvider(PrismaService)
@@ -264,6 +322,7 @@ describe('Conversations (e2e)', () => {
 
     app = moduleRef.createNestApplication();
     app.use(cookieParser());
+    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
     await app.init();
 
     const channel = {
@@ -354,6 +413,14 @@ describe('Conversations (e2e)', () => {
     await request(app.getHttpServer())
       .get(`/conversations/${primaryConversationId}/quote-review`)
       .expect(401);
+    await request(app.getHttpServer())
+      .post(`/conversations/${primaryConversationId}/quote-review/approve`)
+      .send({ version: 2 })
+      .expect(401);
+    await request(app.getHttpServer())
+      .post(`/conversations/${primaryConversationId}/quote-review/request-changes`)
+      .send({ version: 2, feedback: 'Ajusta hitos' })
+      .expect(401);
   });
 
   it('returns authenticated conversation summaries using stable ids', async () => {
@@ -415,6 +482,53 @@ describe('Conversations (e2e)', () => {
         urgency: 'High',
       },
     });
+  });
+
+  it('approves the active draft through the conversations route and returns deliveredToCustomerAt', async () => {
+    const cookie = await loginAndGetCookie();
+
+    const response = await request(app.getHttpServer())
+      .post(`/conversations/${primaryConversationId}/quote-review/approve`)
+      .set('Cookie', cookie)
+      .send({ version: 2 })
+      .expect(201);
+
+    expect(ownerReviewServiceMock.approveDraftFromCrm).toHaveBeenCalledWith({
+      action: 'approve',
+      conversationId: primaryConversationId,
+      version: 2,
+      reviewerPhone: seededEmail,
+    });
+    expect(response.body).toMatchObject({
+      conversationId: primaryConversationId,
+      reviewStatus: 'delivered_to_customer',
+      deliveredToCustomerAt: '2026-04-01T19:05:00.000Z',
+    });
+  });
+
+  it('requires feedback when requesting quote changes', async () => {
+    const cookie = await loginAndGetCookie();
+
+    await request(app.getHttpServer())
+      .post(`/conversations/${primaryConversationId}/quote-review/request-changes`)
+      .set('Cookie', cookie)
+      .send({ version: 2, feedback: '' })
+      .expect(400);
+  });
+
+  it('returns 404 when quote approval targets a stale or missing version', async () => {
+    const cookie = await loginAndGetCookie();
+    ownerReviewServiceMock.approveDraftFromCrm.mockRejectedValueOnce(
+      new NotFoundException(
+        'Quote draft 573001112233 v999 is not the active review version.',
+      ),
+    );
+
+    await request(app.getHttpServer())
+      .post(`/conversations/${primaryConversationId}/quote-review/approve`)
+      .set('Cookie', cookie)
+      .send({ version: 999 })
+      .expect(404);
   });
 
   it('returns chronological history for a selected conversation id from the list', async () => {

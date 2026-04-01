@@ -1,5 +1,6 @@
 import { NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { OwnerReviewService } from '../ai-sales/owner-review.service';
 import { MessagingService } from '../messaging/messaging.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConversationsService } from './conversations.service';
@@ -18,6 +19,10 @@ describe('ConversationsService', () => {
   };
   let messagingService: { sendText: jest.Mock };
   let config: { get: jest.Mock };
+  let ownerReviewService: {
+    approveDraftFromCrm: jest.Mock;
+    requestChangesFromCrm: jest.Mock;
+  };
   let service: ConversationsService;
 
   beforeEach(() => {
@@ -41,10 +46,16 @@ describe('ConversationsService', () => {
       get: jest.fn(),
     };
 
+    ownerReviewService = {
+      approveDraftFromCrm: jest.fn(),
+      requestChangesFromCrm: jest.fn(),
+    };
+
     service = new ConversationsService(
       prisma as unknown as PrismaService,
       messagingService as unknown as MessagingService,
       config as unknown as ConfigService,
+      ownerReviewService as unknown as OwnerReviewService,
     );
   });
 
@@ -408,5 +419,96 @@ describe('ConversationsService', () => {
     await expect(service.getConversationQuoteReview('573001112233')).rejects.toThrow(
       new NotFoundException('Conversation 573001112233 has no quote review draft.'),
     );
+  });
+
+  it('delegates CRM quote approvals through OwnerReviewService and returns refreshed detail', async () => {
+    prisma.message.findFirst.mockResolvedValue({
+      id: 'msg_inbound',
+      direction: 'inbound',
+      fromPhone: '573001112233',
+      toPhone: '573009998877',
+    });
+    prisma.quoteDraft.findFirst.mockResolvedValue({
+      id: 'draft_3',
+      conversationId: '573001112233',
+      version: 3,
+      reviewStatus: 'delivered_to_customer',
+      renderedQuote: 'Quote body',
+      draftPayload: { summary: 'Executive summary' },
+      ownerFeedbackSummary: null,
+      approvedAt: new Date('2026-04-01T19:00:00.000Z'),
+      deliveredToCustomerAt: new Date('2026-04-01T19:05:00.000Z'),
+      commercialBrief: {
+        customerName: 'ACME SAS',
+        summary: 'Need a CRM',
+        projectType: 'CRM',
+        budget: 'USD 10k',
+        urgency: 'High',
+      },
+    });
+
+    const response = await service.approveConversationQuote(
+      ' 573001112233 ',
+      { version: 3 },
+      'socio@example.com',
+    );
+
+    expect(ownerReviewService.approveDraftFromCrm).toHaveBeenCalledWith({
+      action: 'approve',
+      conversationId: '573001112233',
+      version: 3,
+      reviewerPhone: 'socio@example.com',
+    });
+    expect(response).toMatchObject({
+      conversationId: '573001112233',
+      reviewStatus: 'delivered_to_customer',
+      deliveredToCustomerAt: '2026-04-01T19:05:00.000Z',
+    });
+  });
+
+  it('delegates CRM change requests through OwnerReviewService and trims feedback', async () => {
+    prisma.message.findFirst.mockResolvedValue({
+      id: 'msg_inbound',
+      direction: 'inbound',
+      fromPhone: '573001112233',
+      toPhone: '573009998877',
+    });
+    prisma.quoteDraft.findFirst.mockResolvedValue({
+      id: 'draft_3',
+      conversationId: '573001112233',
+      version: 3,
+      reviewStatus: 'changes_requested',
+      renderedQuote: 'Quote body',
+      draftPayload: { summary: 'Executive summary' },
+      ownerFeedbackSummary: 'Ajusta hitos',
+      approvedAt: null,
+      deliveredToCustomerAt: null,
+      commercialBrief: {
+        customerName: 'ACME SAS',
+        summary: 'Need a CRM',
+        projectType: 'CRM',
+        budget: 'USD 10k',
+        urgency: 'High',
+      },
+    });
+
+    const response = await service.requestConversationQuoteChanges(
+      '573001112233',
+      { version: 3, feedback: '  Ajusta hitos  ' },
+      'socio@example.com',
+    );
+
+    expect(ownerReviewService.requestChangesFromCrm).toHaveBeenCalledWith({
+      action: 'revise',
+      conversationId: '573001112233',
+      version: 3,
+      reviewerPhone: 'socio@example.com',
+      feedback: 'Ajusta hitos',
+    });
+    expect(response).toMatchObject({
+      conversationId: '573001112233',
+      reviewStatus: 'changes_requested',
+      ownerFeedbackSummary: 'Ajusta hitos',
+    });
   });
 });

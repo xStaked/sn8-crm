@@ -1,11 +1,15 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { OwnerReviewAction } from '../ai-sales/dto/owner-review-command.dto';
+import { OwnerReviewService } from '../ai-sales/owner-review.service';
 import { MessagingService } from '../messaging/messaging.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { ApproveQuoteDto } from './dto/approve-quote.dto';
 import {
   ConversationQuoteReviewDto,
   PendingQuoteSummaryDto,
 } from './dto/quote-review-response.dto';
+import { RequestQuoteChangesDto } from './dto/request-quote-changes.dto';
 
 type ConversationDirection = 'inbound' | 'outbound';
 
@@ -75,6 +79,7 @@ export class ConversationsService {
     private readonly prisma: PrismaService,
     private readonly messagingService: MessagingService,
     private readonly config: ConfigService,
+    private readonly ownerReviewService: OwnerReviewService,
   ) {}
 
   async listConversations(): Promise<ConversationSummary[]> {
@@ -170,6 +175,43 @@ export class ConversationsService {
         urgency: draft.commercialBrief.urgency,
       },
     };
+  }
+
+  async approveConversationQuote(
+    conversationId: string,
+    dto: ApproveQuoteDto,
+    reviewerIdentity: string,
+  ): Promise<ConversationQuoteReviewDto> {
+    const normalizedConversationId = this.normalizeParticipantPhone(conversationId);
+    await this.assertConversationExists(normalizedConversationId);
+
+    await this.ownerReviewService.approveDraftFromCrm({
+      action: OwnerReviewAction.APPROVE,
+      conversationId: normalizedConversationId,
+      version: dto.version,
+      reviewerPhone: reviewerIdentity,
+    });
+
+    return this.getConversationQuoteReview(normalizedConversationId);
+  }
+
+  async requestConversationQuoteChanges(
+    conversationId: string,
+    dto: RequestQuoteChangesDto,
+    reviewerIdentity: string,
+  ): Promise<ConversationQuoteReviewDto> {
+    const normalizedConversationId = this.normalizeParticipantPhone(conversationId);
+    await this.assertConversationExists(normalizedConversationId);
+
+    await this.ownerReviewService.requestChangesFromCrm({
+      action: OwnerReviewAction.REVISE,
+      conversationId: normalizedConversationId,
+      version: dto.version,
+      reviewerPhone: reviewerIdentity,
+      feedback: dto.feedback.trim(),
+    });
+
+    return this.getConversationQuoteReview(normalizedConversationId);
   }
 
   async sendMessage(
