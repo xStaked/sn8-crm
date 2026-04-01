@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Ready to execute
-stopped_at: Completed 05.3-03-PLAN.md
-last_updated: "2026-04-01T23:42:50.387Z"
+stopped_at: Completed 05.3.1-02-PLAN.md
+last_updated: "2026-04-01T23:49:54.728Z"
 progress:
   total_phases: 11
   completed_phases: 7
   total_plans: 29
-  completed_plans: 26
+  completed_plans: 27
 ---
 
 # Project State
@@ -24,7 +24,7 @@ See: .planning/PROJECT.md (updated 2026-03-15)
 ## Current Position
 
 Phase: 05.3.1 (implementar-generaci-n-de-cotizaciones-en-pdf-con-formato-comercial-real-y-flujo-compatible-con-aprobaci-n-desde-crm) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 
 ## Performance Metrics
 
@@ -67,6 +67,7 @@ Plan: 2 of 3
 | Phase 02-bot-conversation-engine P03 | 6 min | 2 tasks | 9 files |
 | Phase 02-bot-conversation-engine P04 | 8 min | 2 tasks | 5 files |
 | Phase 05.3 P03 | 12min | 2 tasks | 5 files |
+| Phase 05.3.1-implementar-generaci-n-de-cotizaciones-en-pdf-con-formato-comercial-real-y-flujo-compatible-con-aprobaci-n-desde-crm P02 | 5min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -121,6 +122,8 @@ Recent decisions affecting current work:
 - [Phase 05.3]: CRM-origin review actions use the authenticated user email as reviewer identity while keeping WhatsApp owner commands unchanged.
 - [Phase 05.3]: Quote approval actions mutate both the selected quote-review cache and the conversations list cache so inbox and detail stay consistent after approve/request-changes.
 - [Phase 05.3.1]: React PDF is loaded dynamically so the NestJS CommonJS backend can consume an ESM renderer without changing the approval boundary.
+- [Phase 05.3.1]: El DTO quote-review expone metadata PDF sin forzar generacion; solo la ruta /quote-review/pdf materializa o reutiliza el artefacto.
+- [Phase 05.3.1]: La descarga PDF permanece bajo /conversations/:conversationId para conservar el boundary actual del CRM y el version-lock del draft activo.
 
 ### Roadmap Evolution
 
@@ -148,6 +151,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-01T21:14:36.962Z
-Stopped at: Completed 05.3-03-PLAN.md
+Last session: 2026-04-01T23:49:54.725Z
+Stopped at: Completed 05.3.1-02-PLAN.md
 Resume file: None

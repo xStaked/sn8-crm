@@ -72,7 +72,7 @@ Requirements para el lanzamiento inicial. Cada uno mapea a fases del roadmap.
 
 ### Quote PDF from CRM
 
-- [ ] **QUOTE-PDF-01**: El panel de detalle del CRM permite abrir o descargar un PDF comercial generado a partir del draft activo de cotización
+- [x] **QUOTE-PDF-01**: El panel de detalle del CRM permite abrir o descargar un PDF comercial generado a partir del draft activo de cotización
 - [x] **QUOTE-PDF-02**: El PDF queda fijado a la `version` del `QuoteDraft`, se cachea por draft y una nueva regeneración crea un artefacto nuevo sin reutilizar el anterior
 - [x] **QUOTE-PDF-03**: La generación y lectura del PDF no envían nada al cliente ni alteran el boundary actual; solo `OwnerReviewService` puede seguir disparando la entrega externa tras aprobación explícita
 
@@ -181,7 +181,7 @@ Actualizado durante la creación del roadmap.
 | APPR-03 | Phase 3 | Pending |
 | APPR-04 | Phase 3 | Pending |
 | APPR-05 | Phase 3 | Pending |
-| QUOTE-PDF-01 | Phase 05.3.1 | Pending |
+| QUOTE-PDF-01 | Phase 05.3.1 | Complete |
 | QUOTE-PDF-02 | Phase 05.3.1 | Complete |
 | QUOTE-PDF-03 | Phase 05.3.1 | Complete |
 | CRM-01 | Phase 4 | Pending |
