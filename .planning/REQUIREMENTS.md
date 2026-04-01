@@ -62,6 +62,13 @@ Requirements para el lanzamiento inicial. Cada uno mapea a fases del roadmap.
 - [ ] **APPR-04**: Si se rechaza, el bot re-genera la cotización incorporando las correcciones del socio
 - [ ] **APPR-05**: El bot envía la cotización al cliente solo después de que el socio la aprueba explícitamente
 
+### Quote Approval from CRM
+
+- [x] **QUOTE-CRM-01**: El inbox del CRM expone metadata aditiva `pendingQuote` para que el socio identifique conversaciones con cotizaciones pendientes sin depender de WhatsApp
+- [x] **QUOTE-CRM-02**: El panel de detalle del CRM permite abrir una vista previa suficiente de la cotización pendiente usando contratos autenticados del backend actual
+- [x] **QUOTE-CRM-03**: El socio puede aprobar o solicitar cambios de una cotización desde el CRM web, incluyendo comentarios obligatorios al pedir revisión
+- [x] **QUOTE-CRM-04**: Al aprobar desde el CRM, el sistema reutiliza el flujo existente de entrega al cliente y deja trazabilidad auditable de la entrega en el mismo CRM
+
 ### CRM Dashboard
 
 - [ ] **CRM-01**: El socio puede ver un inbox con todas las conversaciones activas de WhatsApp
@@ -179,6 +186,10 @@ Actualizado durante la creación del roadmap.
 | REPLY-01 | Phase 05.2 | Pending |
 | REPLY-02 | Phase 05.2 | Complete |
 | REPLY-03 | Phase 05.2 | Pending |
+| QUOTE-CRM-01 | Phase 05.3 | Complete |
+| QUOTE-CRM-02 | Phase 05.3 | Complete |
+| QUOTE-CRM-03 | Phase 05.3 | Complete |
+| QUOTE-CRM-04 | Phase 05.3 | Complete |
 | KAPSO-E2E-01 | Phase 05.1 | Complete |
 | KAPSO-E2E-02 | Phase 05.1 | Complete |
 | KAPSO-E2E-03 | Phase 05.1 | Complete |
@@ -186,10 +197,10 @@ Actualizado durante la creación del roadmap.
 | KAPSO-E2E-05 | Phase 05.1 | Complete |
 
 **Coverage:**
-- v1 requirements: 46 total
-- Mapped to phases: 46
+- v1 requirements: 50 total
+- Mapped to phases: 50
 - Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-03-15*
-*Last updated: 2026-03-19 after adding Phase 2.1 AI sales agent requirements*
+*Last updated: 2026-04-01 after adding Phase 05.3 CRM quote approval traceability*

@@ -12,20 +12,24 @@ El bot nunca deja a un cliente sin respuesta y toda cotización pasa por validac
 
 ### Validated
 
-(None yet — ship to validate)
+- [x] El agente IA comercial premium guía el discovery y prepara cotizaciones preliminares en formato definido por el socio
+- [x] El flujo de aprobación humana mantiene la cotización bloqueada hasta revisión explícita del socio
+- [x] El CRM conectado al backend real permite autenticar, listar conversaciones y ver el historial real
+- [x] El socio puede revisar, aprobar o solicitar cambios de una cotización pendiente directamente desde el CRM web y la aprobación dispara la entrega automática al cliente
 
 ### Active
 
 - [ ] Bot de WhatsApp atiende mensajes entrantes automáticamente via Kapso.ai
 - [ ] Bot captura requerimientos del proyecto mediante conversación guiada
-- [ ] Agente IA comercial premium guía el discovery y prepara cotizaciones preliminares en formato definido por el socio
 - [ ] DeepSeek genera cotizaciones basadas en requerimientos capturados
-- [ ] Flujo de aprobación: bot propone cotización al socio → socio aprueba o corrige → bot ajusta/envía
 - [ ] CRM con historial de clientes y conversaciones
 - [ ] Pipeline de ventas (lead → cotizado → cerrado / perdido)
-- [ ] Generación y envío de cotizaciones formales desde el CRM
 - [ ] Asignación de conversaciones a agentes (socios)
 - [ ] Integración futura con Instagram (arquitectura preparada)
+
+## Current State
+
+Phase 05.3 complete: el CRM web ya muestra cotizaciones pendientes, permite previsualizar la propuesta, aprobarla o pedir cambios, y al aprobar dispara la entrega automática al cliente usando el backend real actual.
 
 ### Out of Scope
 
@@ -60,4 +64,4 @@ El bot nunca deja a un cliente sin respuesta y toda cotización pasa por validac
 | Arquitectura multi-canal desde el inicio | Instagram en v2, pero el diseño debe soportar múltiples canales | — Pending |
 
 ---
-*Last updated: 2026-03-19 after adding AI sales agent phase context*
+*Last updated: 2026-04-01 after completing Phase 05.3 quote approval from CRM*
