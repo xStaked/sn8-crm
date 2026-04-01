@@ -27,6 +27,10 @@ enum QuoteReviewStatus {
   delivered_to_customer
 }
 
+enum QuoteDraftDocumentKind {
+  commercial_pdf
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -100,11 +104,27 @@ model QuoteDraft {
   createdAt             DateTime          @default(now())
   updatedAt             DateTime          @updatedAt
   commercialBrief       CommercialBrief   @relation(fields: [commercialBriefId], references: [id], onDelete: Cascade)
+  document              QuoteDraftDocument?
   reviewEvents          QuoteReviewEvent[]
 
   @@unique([conversationId, version])
   @@index([commercialBriefId, version])
   @@index([conversationId, reviewStatus, createdAt])
+}
+
+model QuoteDraftDocument {
+  id             String                @id @default(cuid())
+  quoteDraftId   String                @unique
+  kind           QuoteDraftDocumentKind @default(commercial_pdf)
+  fileName       String
+  mimeType       String
+  checksumSha256 String
+  sizeBytes      Int
+  content        Bytes
+  generatedAt    DateTime              @default(now())
+  quoteDraft     QuoteDraft            @relation(fields: [quoteDraftId], references: [id], onDelete: Cascade)
+
+  @@index([kind, generatedAt])
 }
 
 model QuoteReviewEvent {

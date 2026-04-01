@@ -23,6 +23,7 @@
     "@nestjs/platform-express": "^11.1.17",
     "@nestjs/swagger": "^11.2.6",
     "@prisma/client": "^6.19.2",
+    "@react-pdf/renderer": "^4.3.2",
     "argon2": "^0.44.0",
     "bullmq": "^5.71.0",
     "class-transformer": "^0.5.1",
