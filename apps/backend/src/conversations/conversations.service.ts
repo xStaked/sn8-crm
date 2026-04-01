@@ -1,5 +1,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import type { QuoteReviewStatus } from '@prisma/client';
 import { OwnerReviewAction } from '../ai-sales/dto/owner-review-command.dto';
 import { OwnerReviewService } from '../ai-sales/owner-review.service';
 import { MessagingService } from '../messaging/messaging.service';
@@ -22,6 +23,11 @@ type MessageRow = {
   createdAt: Date;
   rawPayload?: unknown;
 };
+
+type MessageIdentityRow = Pick<
+  MessageRow,
+  'id' | 'direction' | 'fromPhone' | 'toPhone'
+>;
 
 type ConversationSummary = {
   id: string;
@@ -65,7 +71,13 @@ const reviewRelevantStatuses = [
 const actionableReviewStatuses = [
   'pending_owner_review',
   'ready_for_recheck',
-] as const;
+] as const satisfies readonly QuoteReviewStatus[];
+
+function isActionableReviewStatus(
+  status: QuoteReviewStatus,
+): status is (typeof actionableReviewStatuses)[number] {
+  return (actionableReviewStatuses as readonly QuoteReviewStatus[]).includes(status);
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object';
@@ -272,7 +284,7 @@ export class ConversationsService {
     };
   }
 
-  private getStableConversationId(message: MessageRow): string {
+  private getStableConversationId(message: MessageIdentityRow): string {
     const participantPhone =
       this.normalizeDirection(message.direction) === 'outbound'
         ? message.toPhone
@@ -322,7 +334,7 @@ export class ConversationsService {
         continue;
       }
 
-      if (!actionableReviewStatuses.includes(draft.reviewStatus)) {
+      if (!isActionableReviewStatus(draft.reviewStatus)) {
         continue;
       }
 
