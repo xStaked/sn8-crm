@@ -2,6 +2,10 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { MessagingService } from '../messaging/messaging.service';
 import { PrismaService } from '../prisma/prisma.service';
+import {
+  ConversationQuoteReviewDto,
+  PendingQuoteSummaryDto,
+} from './dto/quote-review-response.dto';
 
 type ConversationDirection = 'inbound' | 'outbound';
 
@@ -21,6 +25,7 @@ type ConversationSummary = {
   lastMessage: string;
   lastMessageAt: string;
   unreadCount: number;
+  pendingQuote: PendingQuoteSummaryDto | null;
 };
 
 type ConversationMessage = {
@@ -44,6 +49,19 @@ const messageProjectionWithRawPayload = {
   ...messageProjection,
   rawPayload: true,
 } as const;
+
+const reviewRelevantStatuses = [
+  'pending_owner_review',
+  'ready_for_recheck',
+  'changes_requested',
+  'approved',
+  'delivered_to_customer',
+] as const;
+
+const actionableReviewStatuses = [
+  'pending_owner_review',
+  'ready_for_recheck',
+] as const;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object';
@@ -80,10 +98,18 @@ export class ConversationsService {
         lastMessage: message.body ?? '',
         lastMessageAt: message.createdAt.toISOString(),
         unreadCount: 0,
+        pendingQuote: null,
       });
     }
 
-    return Array.from(summaries.values());
+    const conversationIds = Array.from(summaries.keys());
+    const pendingQuotesByConversationId =
+      await this.getActionableQuoteSummariesByConversationIds(conversationIds);
+
+    return Array.from(summaries.values()).map((summary) => ({
+      ...summary,
+      pendingQuote: pendingQuotesByConversationId.get(summary.id) ?? null,
+    }));
   }
 
   async listConversationMessages(conversationId: string): Promise<ConversationMessage[]> {
@@ -110,6 +136,40 @@ export class ConversationsService {
     }
 
     return history;
+  }
+
+  async getConversationQuoteReview(
+    conversationId: string,
+  ): Promise<ConversationQuoteReviewDto> {
+    const normalizedConversationId = this.normalizeParticipantPhone(conversationId);
+    await this.assertConversationExists(normalizedConversationId);
+
+    const draft = await this.findLatestReviewRelevantDraft(normalizedConversationId);
+
+    if (!draft) {
+      throw new NotFoundException(
+        `Conversation ${normalizedConversationId} has no quote review draft.`,
+      );
+    }
+
+    return {
+      conversationId: draft.conversationId,
+      quoteDraftId: draft.id,
+      version: draft.version,
+      reviewStatus: draft.reviewStatus,
+      renderedQuote: draft.renderedQuote,
+      draftSummary: this.getDraftSummary(draft.draftPayload),
+      ownerFeedbackSummary: draft.ownerFeedbackSummary,
+      approvedAt: draft.approvedAt?.toISOString() ?? null,
+      deliveredToCustomerAt: draft.deliveredToCustomerAt?.toISOString() ?? null,
+      commercialBrief: {
+        customerName: draft.commercialBrief.customerName,
+        summary: draft.commercialBrief.summary,
+        projectType: draft.commercialBrief.projectType,
+        budget: draft.commercialBrief.budget,
+        urgency: draft.commercialBrief.urgency,
+      },
+    };
   }
 
   async sendMessage(
@@ -177,6 +237,94 @@ export class ConversationsService {
         : message.fromPhone;
 
     return this.normalizeParticipantPhone(participantPhone);
+  }
+
+  private async assertConversationExists(conversationId: string): Promise<void> {
+    const existingMessage = await this.prisma.message.findFirst({
+      where: {
+        OR: [{ fromPhone: conversationId }, { toPhone: conversationId }],
+      },
+      select: { id: true, direction: true, fromPhone: true, toPhone: true },
+    });
+
+    if (!existingMessage || this.getStableConversationId(existingMessage) !== conversationId) {
+      throw new NotFoundException(`Conversation ${conversationId} was not found.`);
+    }
+  }
+
+  private async getActionableQuoteSummariesByConversationIds(
+    conversationIds: string[],
+  ): Promise<Map<string, PendingQuoteSummaryDto>> {
+    if (conversationIds.length === 0) {
+      return new Map();
+    }
+
+    const drafts = await this.prisma.quoteDraft.findMany({
+      where: {
+        conversationId: { in: conversationIds },
+        reviewStatus: { in: [...reviewRelevantStatuses] },
+      },
+      orderBy: [{ conversationId: 'asc' }, { version: 'desc' }, { updatedAt: 'desc' }],
+      select: {
+        id: true,
+        conversationId: true,
+        version: true,
+        reviewStatus: true,
+      },
+    });
+
+    const summaries = new Map<string, PendingQuoteSummaryDto>();
+
+    for (const draft of drafts) {
+      if (summaries.has(draft.conversationId)) {
+        continue;
+      }
+
+      if (!actionableReviewStatuses.includes(draft.reviewStatus)) {
+        continue;
+      }
+
+      summaries.set(draft.conversationId, {
+        conversationId: draft.conversationId,
+        quoteDraftId: draft.id,
+        version: draft.version,
+        reviewStatus: draft.reviewStatus,
+      });
+    }
+
+    return summaries;
+  }
+
+  private async findLatestReviewRelevantDraft(conversationId: string) {
+    return this.prisma.quoteDraft.findFirst({
+      where: {
+        conversationId,
+        reviewStatus: { in: [...reviewRelevantStatuses] },
+      },
+      orderBy: [{ version: 'desc' }, { updatedAt: 'desc' }],
+      include: {
+        commercialBrief: {
+          select: {
+            customerName: true,
+            summary: true,
+            projectType: true,
+            budget: true,
+            urgency: true,
+          },
+        },
+      },
+    });
+  }
+
+  private getDraftSummary(draftPayload: unknown): string | null {
+    if (!isRecord(draftPayload)) {
+      return null;
+    }
+
+    const summary =
+      typeof draftPayload.summary === 'string' ? draftPayload.summary.trim() : '';
+
+    return summary || null;
   }
 
   private async resolveSenderPhoneNumberId(

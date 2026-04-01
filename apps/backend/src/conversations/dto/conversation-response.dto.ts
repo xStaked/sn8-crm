@@ -1,4 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { PendingQuoteSummaryDto } from './quote-review-response.dto';
 
 export class ConversationSummaryDto {
   @ApiProperty({ example: '573001112233' })
@@ -18,6 +19,14 @@ export class ConversationSummaryDto {
 
   @ApiProperty({ example: 0 })
   unreadCount: number;
+
+  @ApiPropertyOptional({
+    type: PendingQuoteSummaryDto,
+    nullable: true,
+    description:
+      'Resumen aditivo del draft de cotizacion que sigue pendiente de revision en CRM.',
+  })
+  pendingQuote: PendingQuoteSummaryDto | null;
 }
 
 export class ConversationMessageDto {

@@ -1,10 +1,21 @@
+import { NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { MessagingService } from '../messaging/messaging.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConversationsService } from './conversations.service';
 
 describe('ConversationsService', () => {
-  let prisma: { message: { findMany: jest.Mock; create: jest.Mock } };
+  let prisma: {
+    message: {
+      findMany: jest.Mock;
+      findFirst: jest.Mock;
+      create: jest.Mock;
+    };
+    quoteDraft: {
+      findMany: jest.Mock;
+      findFirst: jest.Mock;
+    };
+  };
   let messagingService: { sendText: jest.Mock };
   let config: { get: jest.Mock };
   let service: ConversationsService;
@@ -13,7 +24,12 @@ describe('ConversationsService', () => {
     prisma = {
       message: {
         findMany: jest.fn(),
+        findFirst: jest.fn(),
         create: jest.fn(),
+      },
+      quoteDraft: {
+        findMany: jest.fn(),
+        findFirst: jest.fn(),
       },
     };
 
@@ -51,6 +67,7 @@ describe('ConversationsService', () => {
         createdAt: new Date('2026-03-18T10:00:00.000Z'),
       },
     ]);
+    prisma.quoteDraft.findMany.mockResolvedValue([]);
 
     await expect(service.listConversations()).resolves.toEqual([
       {
@@ -59,6 +76,7 @@ describe('ConversationsService', () => {
         lastMessage: 'seguimiento',
         lastMessageAt: '2026-03-18T12:00:00.000Z',
         unreadCount: 0,
+        pendingQuote: null,
       },
     ]);
   });
@@ -82,6 +100,7 @@ describe('ConversationsService', () => {
         createdAt: new Date('2026-03-18T12:00:00.000Z'),
       },
     ]);
+    prisma.quoteDraft.findMany.mockResolvedValue([]);
 
     const conversations = await service.listConversations();
 
@@ -91,6 +110,7 @@ describe('ConversationsService', () => {
       contactName: '573001112233',
       lastMessage: 'te respondo',
       unreadCount: 0,
+      pendingQuote: null,
     });
   });
 
@@ -121,6 +141,7 @@ describe('ConversationsService', () => {
         createdAt: new Date('2026-03-18T11:00:00.000Z'),
       },
     ]);
+    prisma.quoteDraft.findMany.mockResolvedValue([]);
 
     const [summary] = await service.listConversations();
     const history = await service.listConversationMessages(` ${summary.id} `);
@@ -289,6 +310,103 @@ describe('ConversationsService', () => {
       '573001112233',
       'respuesta fallback',
       'configured_phone_number_id',
+    );
+  });
+
+  it('adds pending quote metadata without changing the conversation id contract', async () => {
+    prisma.message.findMany.mockResolvedValue([
+      {
+        id: 'msg_inbound',
+        direction: 'inbound',
+        fromPhone: '573001112233',
+        toPhone: '573009998877',
+        body: 'hola',
+        createdAt: new Date('2026-03-18T12:00:00.000Z'),
+      },
+    ]);
+    prisma.quoteDraft.findMany.mockResolvedValue([
+      {
+        id: 'draft_2',
+        conversationId: '573001112233',
+        version: 2,
+        reviewStatus: 'ready_for_recheck',
+      },
+    ]);
+
+    await expect(service.listConversations()).resolves.toEqual([
+      {
+        id: '573001112233',
+        contactName: '573001112233',
+        lastMessage: 'hola',
+        lastMessageAt: '2026-03-18T12:00:00.000Z',
+        unreadCount: 0,
+        pendingQuote: {
+          conversationId: '573001112233',
+          quoteDraftId: 'draft_2',
+          version: 2,
+          reviewStatus: 'ready_for_recheck',
+        },
+      },
+    ]);
+  });
+
+  it('returns the latest review-ready quote preview for a conversation', async () => {
+    prisma.message.findFirst.mockResolvedValue({
+      id: 'msg_inbound',
+      direction: 'inbound',
+      fromPhone: '573001112233',
+      toPhone: '573009998877',
+    });
+    prisma.quoteDraft.findFirst.mockResolvedValue({
+      id: 'draft_3',
+      conversationId: '573001112233',
+      version: 3,
+      reviewStatus: 'approved',
+      renderedQuote: 'Quote body',
+      draftPayload: { summary: 'Executive summary' },
+      ownerFeedbackSummary: 'Update the milestones',
+      approvedAt: new Date('2026-04-01T19:00:00.000Z'),
+      deliveredToCustomerAt: new Date('2026-04-01T19:05:00.000Z'),
+      commercialBrief: {
+        customerName: 'ACME SAS',
+        summary: 'Need a CRM',
+        projectType: 'CRM',
+        budget: 'USD 10k',
+        urgency: 'High',
+      },
+    });
+
+    await expect(service.getConversationQuoteReview(' 573001112233 ')).resolves.toEqual({
+      conversationId: '573001112233',
+      quoteDraftId: 'draft_3',
+      version: 3,
+      reviewStatus: 'approved',
+      renderedQuote: 'Quote body',
+      draftSummary: 'Executive summary',
+      ownerFeedbackSummary: 'Update the milestones',
+      approvedAt: '2026-04-01T19:00:00.000Z',
+      deliveredToCustomerAt: '2026-04-01T19:05:00.000Z',
+      commercialBrief: {
+        customerName: 'ACME SAS',
+        summary: 'Need a CRM',
+        projectType: 'CRM',
+        budget: 'USD 10k',
+        urgency: 'High',
+      },
+    });
+  });
+
+  it('throws when the conversation exists but has no review draft', async () => {
+    prisma.message.findFirst.mockResolvedValue({
+      id: 'msg_inbound',
+      direction: 'inbound',
+      fromPhone: '573001112233',
+      toPhone: '573009998877',
+    });
+    prisma.quoteDraft.findFirst.mockResolvedValue(null);
+
+    await expect(service.getConversationQuoteReview('573001112233')).rejects.toThrow(
+      new NotFoundException('Conversation 573001112233 has no quote review draft.'),
     );
   });
 });
