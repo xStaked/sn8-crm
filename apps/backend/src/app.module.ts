@@ -7,6 +7,7 @@ import { BotConversationModule } from './bot-conversation/bot-conversation.modul
 import { ConversationsModule } from './conversations/conversations.module';
 import { MessagingModule } from './messaging/messaging.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { QuoteDocumentsModule } from './quote-documents/quote-documents.module';
 import { RedisModule } from './redis/redis.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 
@@ -36,6 +37,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
       inject: [ConfigService],
     }),
     MessagingModule,
+    QuoteDocumentsModule,
     ConversationsModule,
     WebhooksModule,
   ],
