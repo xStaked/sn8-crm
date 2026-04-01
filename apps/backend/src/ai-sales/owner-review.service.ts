@@ -81,6 +81,20 @@ export class OwnerReviewService {
     }
 
     const ownerPhone = this.getOwnerPhone();
+    if (!ownerPhone) {
+      this.logger.warn({
+        event: 'owner_review_whatsapp_notification_skipped',
+        quoteDraftId: draft.id,
+        conversationId: draft.conversationId,
+        version: draft.version,
+        reviewStatus: draft.reviewStatus,
+        reason: 'missing_ai_sales_owner_phone',
+        message:
+          'Quote draft remains pending owner review in CRM; legacy WhatsApp notification was skipped because AI_SALES_OWNER_PHONE is not configured.',
+      });
+      return;
+    }
+
     const senderPhoneNumberId =
       this.config.get<string>('KAPSO_PHONE_NUMBER_ID')?.trim() || undefined;
     const body = this.buildOwnerReviewMessage(draft);
@@ -622,14 +636,7 @@ export class OwnerReviewService {
   }
 
   private getOwnerPhone(): string {
-    const ownerPhone = this.config.get<string>('AI_SALES_OWNER_PHONE')?.trim();
-    if (!ownerPhone) {
-      throw new Error(
-        'Owner review flow requires AI_SALES_OWNER_PHONE to be configured.',
-      );
-    }
-
-    return ownerPhone;
+    return this.config.get<string>('AI_SALES_OWNER_PHONE')?.trim() ?? '';
   }
 
   private isOwnerPhone(phone: string): boolean {

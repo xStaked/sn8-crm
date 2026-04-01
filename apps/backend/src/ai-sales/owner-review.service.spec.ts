@@ -1,4 +1,4 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { OwnerReviewService } from './owner-review.service';
 
@@ -104,6 +104,48 @@ describe('OwnerReviewService', () => {
             version: 2,
           }),
         }),
+      }),
+    );
+  });
+
+  it('skips the legacy owner WhatsApp notification when AI_SALES_OWNER_PHONE is missing', async () => {
+    jest.spyOn(config, 'get').mockImplementation((key: string) => {
+      if (key === 'AI_SALES_OWNER_PHONE') {
+        return undefined as never;
+      }
+
+      if (key === 'KAPSO_PHONE_NUMBER_ID') {
+        return 'kapso-phone-id' as never;
+      }
+
+      return undefined as never;
+    });
+    const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+    prisma.quoteDraft.findUnique.mockResolvedValue({
+      id: 'draft_1',
+      conversationId: '+573001234567',
+      version: 2,
+      reviewStatus: 'pending_owner_review',
+      draftPayload: { summary: 'Cotizacion preliminar para app B2B.' },
+      renderedQuote: 'Alcance preliminar y supuestos.',
+      commercialBrief: {
+        id: 'brief_1',
+        conversationId: '+573001234567',
+        customerName: 'Acme',
+        summary: 'Lead con urgencia alta y alcance confirmado.',
+      },
+    });
+
+    await expect(service.requestOwnerReview('draft_1')).resolves.toBeUndefined();
+
+    expect(messagingService.sendText).not.toHaveBeenCalled();
+    expect(prisma.message.create).not.toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: 'owner_review_whatsapp_notification_skipped',
+        quoteDraftId: 'draft_1',
+        conversationId: '+573001234567',
+        reason: 'missing_ai_sales_owner_phone',
       }),
     );
   });

@@ -6,7 +6,7 @@ import {
 
 @Injectable()
 export class MessagingService {
-  constructor(private readonly channel: ChannelAdapter) {}
+  constructor(private readonly channel: ChannelAdapter) { }
 
   async sendText(
     to: string,

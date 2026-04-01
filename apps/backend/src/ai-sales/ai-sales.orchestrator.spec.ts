@@ -126,6 +126,61 @@ describe('AiSalesOrchestrator', () => {
       transcript: expect.stringContaining('realiza la cotizacion'),
       commercialBriefId: 'brief_1',
     });
+    expect(ownerReviewService.requestOwnerReview).toHaveBeenCalledWith('draft_1');
+    expect(messagingService.sendText).toHaveBeenCalledWith(
+      '573001112233',
+      expect.stringContaining('queda en revision interna con el socio'),
+      undefined,
+    );
     expect(result.processingStage).toBe('draft_ready_for_review');
+  });
+
+  it('returns a pending review draft state even when the owner notification path is optional', async () => {
+    prisma.commercialBrief.findUnique.mockResolvedValue(null);
+    conversationsService.listConversationMessages.mockResolvedValue([
+      {
+        id: 'msg_1',
+        conversationId: '573204051366',
+        direction: 'inbound',
+        body: 'Necesito una cotizacion',
+        createdAt: '2026-04-01T20:00:00.000Z',
+      },
+    ]);
+    aiSalesService.extractCommercialBrief.mockResolvedValue({
+      customerName: 'Cliente',
+      projectType: 'CRM',
+      businessProblem: 'Seguimiento comercial',
+      desiredScope: 'Cotizacion inicial',
+      budget: '1000 USD',
+      urgency: 'Alta',
+      constraints: 'Sin integraciones externas',
+      summary: 'Listo para cotizar',
+    });
+    prisma.commercialBrief.upsert.mockResolvedValue({
+      id: 'brief_2',
+      status: 'quote_in_review',
+    });
+    aiSalesService.createQuoteDraftFromTranscript.mockResolvedValue({
+      id: 'draft_optional_1',
+      version: 1,
+      reviewStatus: 'pending_owner_review',
+    });
+    ownerReviewService.requestOwnerReview.mockResolvedValue(undefined);
+    messagingService.sendText.mockResolvedValue('out_2');
+    prisma.message.create.mockResolvedValue({ id: 'msg_out_2' });
+
+    const result = await orchestrator.processQualifiedConversation('573204051366');
+
+    expect(aiSalesService.createQuoteDraftFromTranscript).toHaveBeenCalled();
+    expect(ownerReviewService.requestOwnerReview).toHaveBeenCalledWith(
+      'draft_optional_1',
+    );
+    expect(result).toMatchObject({
+      conversationId: '573204051366',
+      quoteDraftId: 'draft_optional_1',
+      quoteDraftVersion: 1,
+      quoteReviewStatus: 'pending_owner_review',
+      processingStage: 'draft_ready_for_review',
+    });
   });
 });
