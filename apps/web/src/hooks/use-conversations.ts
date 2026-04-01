@@ -19,6 +19,7 @@ const DEV_FALLBACK_CONVERSATIONS: Conversation[] =
           lastMessage: "Me interesa el proyecto de la pagina web...",
           lastMessageAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
           unreadCount: 2,
+          pendingQuote: null,
         },
         {
           id: "dev-2",
@@ -26,6 +27,7 @@ const DEV_FALLBACK_CONVERSATIONS: Conversation[] =
           lastMessage: "Perfecto, quedamos para el jueves.",
           lastMessageAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
           unreadCount: 0,
+          pendingQuote: null,
         },
       ]
     : [];
@@ -65,7 +67,7 @@ export function useConversations() {
     }
   }, [error, router]);
 
-  const conversations = data ?? DEV_FALLBACK_CONVERSATIONS;
+  const conversations: Conversation[] = data ?? DEV_FALLBACK_CONVERSATIONS;
   const state: ConversationListState = isLoading
     ? "loading"
     : isApiError(error) && error.status === 401
