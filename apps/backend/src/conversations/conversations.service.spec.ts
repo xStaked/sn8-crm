@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { OwnerReviewService } from '../ai-sales/owner-review.service';
 import { MessagingService } from '../messaging/messaging.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { QuotePdfService } from '../quote-documents/quote-pdf.service';
 import { ConversationsService } from './conversations.service';
 
 describe('ConversationsService', () => {
@@ -23,6 +24,7 @@ describe('ConversationsService', () => {
     approveDraftFromCrm: jest.Mock;
     requestChangesFromCrm: jest.Mock;
   };
+  let quotePdfService: { getOrCreateDraftPdf: jest.Mock };
   let service: ConversationsService;
 
   beforeEach(() => {
@@ -51,11 +53,16 @@ describe('ConversationsService', () => {
       requestChangesFromCrm: jest.fn(),
     };
 
+    quotePdfService = {
+      getOrCreateDraftPdf: jest.fn(),
+    };
+
     service = new ConversationsService(
       prisma as unknown as PrismaService,
       messagingService as unknown as MessagingService,
       config as unknown as ConfigService,
       ownerReviewService as unknown as OwnerReviewService,
+      quotePdfService as unknown as QuotePdfService,
     );
   });
 
@@ -378,6 +385,11 @@ describe('ConversationsService', () => {
       ownerFeedbackSummary: 'Update the milestones',
       approvedAt: new Date('2026-04-01T19:00:00.000Z'),
       deliveredToCustomerAt: new Date('2026-04-01T19:05:00.000Z'),
+      document: {
+        fileName: 'cotizacion-sn8-v3.pdf',
+        sizeBytes: 182304,
+        generatedAt: new Date('2026-04-01T18:58:00.000Z'),
+      },
       commercialBrief: {
         customerName: 'ACME SAS',
         summary: 'Need a CRM',
@@ -404,7 +416,134 @@ describe('ConversationsService', () => {
         budget: 'USD 10k',
         urgency: 'High',
       },
+      pdf: {
+        available: true,
+        fileName: 'cotizacion-sn8-v3.pdf',
+        generatedAt: '2026-04-01T18:58:00.000Z',
+        sizeBytes: 182304,
+        version: 3,
+      },
     });
+  });
+
+  it('returns unavailable pdf metadata when the review draft has no stored document', async () => {
+    prisma.message.findFirst.mockResolvedValue({
+      id: 'msg_inbound',
+      direction: 'inbound',
+      fromPhone: '573001112233',
+      toPhone: '573009998877',
+    });
+    prisma.quoteDraft.findFirst.mockResolvedValue({
+      id: 'draft_4',
+      conversationId: '573001112233',
+      version: 4,
+      reviewStatus: 'ready_for_recheck',
+      renderedQuote: 'Quote body',
+      draftPayload: { summary: 'Executive summary' },
+      ownerFeedbackSummary: null,
+      approvedAt: null,
+      deliveredToCustomerAt: null,
+      document: null,
+      commercialBrief: {
+        customerName: 'ACME SAS',
+        summary: 'Need a CRM',
+        projectType: 'CRM',
+        budget: 'USD 10k',
+        urgency: 'High',
+      },
+    });
+
+    await expect(service.getConversationQuoteReview('573001112233')).resolves.toMatchObject({
+      quoteDraftId: 'draft_4',
+      pdf: {
+        available: false,
+        fileName: null,
+        generatedAt: null,
+        sizeBytes: null,
+        version: 4,
+      },
+    });
+  });
+
+  it('retrieves the pdf for the latest review-relevant draft version', async () => {
+    prisma.message.findFirst.mockResolvedValue({
+      id: 'msg_inbound',
+      direction: 'inbound',
+      fromPhone: '573001112233',
+      toPhone: '573009998877',
+    });
+    prisma.quoteDraft.findFirst.mockResolvedValue({
+      id: 'draft_5',
+      conversationId: '573001112233',
+      version: 5,
+      reviewStatus: 'approved',
+      renderedQuote: 'Quote body',
+      draftPayload: { summary: 'Executive summary' },
+      ownerFeedbackSummary: null,
+      approvedAt: new Date('2026-04-01T19:00:00.000Z'),
+      deliveredToCustomerAt: null,
+      document: null,
+      commercialBrief: {
+        customerName: 'ACME SAS',
+        summary: 'Need a CRM',
+        projectType: 'CRM',
+        budget: 'USD 10k',
+        urgency: 'High',
+      },
+    });
+    quotePdfService.getOrCreateDraftPdf.mockResolvedValue({
+      fileName: 'cotizacion-sn8-v5.pdf',
+      mimeType: 'application/pdf',
+      sizeBytes: 190000,
+      generatedAt: new Date('2026-04-01T19:10:00.000Z'),
+      content: Buffer.from('pdf bytes'),
+    });
+
+    await expect(service.getConversationQuoteReviewPdf(' 573001112233 ')).resolves.toEqual({
+      conversationId: '573001112233',
+      quoteDraftId: 'draft_5',
+      version: 5,
+      fileName: 'cotizacion-sn8-v5.pdf',
+      mimeType: 'application/pdf',
+      sizeBytes: 190000,
+      generatedAt: '2026-04-01T19:10:00.000Z',
+      content: Buffer.from('pdf bytes'),
+    });
+
+    expect(prisma.quoteDraft.findFirst).toHaveBeenCalledWith({
+      where: {
+        conversationId: '573001112233',
+        reviewStatus: {
+          in: [
+            'pending_owner_review',
+            'ready_for_recheck',
+            'changes_requested',
+            'approved',
+            'delivered_to_customer',
+          ],
+        },
+      },
+      orderBy: [{ version: 'desc' }, { updatedAt: 'desc' }],
+      include: {
+        commercialBrief: {
+          select: {
+            customerName: true,
+            summary: true,
+            projectType: true,
+            budget: true,
+            urgency: true,
+          },
+        },
+        document: {
+          select: {
+            fileName: true,
+            sizeBytes: true,
+            generatedAt: true,
+          },
+        },
+      },
+    });
+    expect(quotePdfService.getOrCreateDraftPdf).toHaveBeenCalledWith('draft_5');
   });
 
   it('throws when the conversation exists but has no review draft', async () => {
@@ -438,6 +577,7 @@ describe('ConversationsService', () => {
       ownerFeedbackSummary: null,
       approvedAt: new Date('2026-04-01T19:00:00.000Z'),
       deliveredToCustomerAt: new Date('2026-04-01T19:05:00.000Z'),
+      document: null,
       commercialBrief: {
         customerName: 'ACME SAS',
         summary: 'Need a CRM',
@@ -483,6 +623,7 @@ describe('ConversationsService', () => {
       ownerFeedbackSummary: 'Ajusta hitos',
       approvedAt: null,
       deliveredToCustomerAt: null,
+      document: null,
       commercialBrief: {
         customerName: 'ACME SAS',
         summary: 'Need a CRM',

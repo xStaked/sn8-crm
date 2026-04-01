@@ -5,6 +5,7 @@ import { OwnerReviewAction } from '../ai-sales/dto/owner-review-command.dto';
 import { OwnerReviewService } from '../ai-sales/owner-review.service';
 import { MessagingService } from '../messaging/messaging.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { QuotePdfService } from '../quote-documents/quote-pdf.service';
 import { ApproveQuoteDto } from './dto/approve-quote.dto';
 import {
   ConversationQuoteReviewDto,
@@ -44,6 +45,17 @@ type ConversationMessage = {
   direction: ConversationDirection;
   body: string | null;
   createdAt: string;
+};
+
+type ConversationQuoteReviewPdfFile = {
+  conversationId: string;
+  quoteDraftId: string;
+  version: number;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  generatedAt: string;
+  content: Buffer;
 };
 
 const messageProjection = {
@@ -92,6 +104,7 @@ export class ConversationsService {
     private readonly messagingService: MessagingService,
     private readonly config: ConfigService,
     private readonly ownerReviewService: OwnerReviewService,
+    private readonly quotePdfService: QuotePdfService,
   ) {}
 
   async listConversations(): Promise<ConversationSummary[]> {
@@ -186,6 +199,41 @@ export class ConversationsService {
         budget: draft.commercialBrief.budget,
         urgency: draft.commercialBrief.urgency,
       },
+      pdf: {
+        available: !!draft.document,
+        fileName: draft.document?.fileName ?? null,
+        generatedAt: draft.document?.generatedAt.toISOString() ?? null,
+        sizeBytes: draft.document?.sizeBytes ?? null,
+        version: draft.version,
+      },
+    };
+  }
+
+  async getConversationQuoteReviewPdf(
+    conversationId: string,
+  ): Promise<ConversationQuoteReviewPdfFile> {
+    const normalizedConversationId = this.normalizeParticipantPhone(conversationId);
+    await this.assertConversationExists(normalizedConversationId);
+
+    const draft = await this.findLatestReviewRelevantDraft(normalizedConversationId);
+
+    if (!draft) {
+      throw new NotFoundException(
+        `Conversation ${normalizedConversationId} has no quote review draft.`,
+      );
+    }
+
+    const pdf = await this.quotePdfService.getOrCreateDraftPdf(draft.id);
+
+    return {
+      conversationId: draft.conversationId,
+      quoteDraftId: draft.id,
+      version: draft.version,
+      fileName: pdf.fileName,
+      mimeType: pdf.mimeType,
+      sizeBytes: pdf.sizeBytes,
+      generatedAt: pdf.generatedAt.toISOString(),
+      content: Buffer.from(pdf.content),
     };
   }
 
@@ -364,6 +412,13 @@ export class ConversationsService {
             projectType: true,
             budget: true,
             urgency: true,
+          },
+        },
+        document: {
+          select: {
+            fileName: true,
+            sizeBytes: true,
+            generatedAt: true,
           },
         },
       },

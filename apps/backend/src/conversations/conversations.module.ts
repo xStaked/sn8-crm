@@ -3,6 +3,7 @@ import { AiSalesModule } from '../ai-sales/ai-sales.module';
 import { AuthModule } from '../auth/auth.module';
 import { MessagingModule } from '../messaging/messaging.module';
 import { PrismaModule } from '../prisma/prisma.module';
+import { QuoteDocumentsModule } from '../quote-documents/quote-documents.module';
 import { ConversationsController } from './conversations.controller';
 import { ConversationsService } from './conversations.service';
 
@@ -10,6 +11,7 @@ import { ConversationsService } from './conversations.service';
   imports: [
     AuthModule,
     PrismaModule,
+    QuoteDocumentsModule,
     forwardRef(() => MessagingModule),
     forwardRef(() => AiSalesModule),
   ],

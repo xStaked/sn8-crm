@@ -43,6 +43,27 @@ export class ConversationQuoteReviewBriefDto {
   urgency: string | null;
 }
 
+export class ConversationQuoteReviewPdfDto {
+  @ApiProperty({ example: true })
+  available: boolean;
+
+  @ApiProperty({ example: 'cotizacion-sn8-v3.pdf', nullable: true })
+  fileName: string | null;
+
+  @ApiProperty({
+    example: '2026-04-01T19:00:00.000Z',
+    format: 'date-time',
+    nullable: true,
+  })
+  generatedAt: string | null;
+
+  @ApiProperty({ example: 182304, nullable: true })
+  sizeBytes: number | null;
+
+  @ApiProperty({ example: 3 })
+  version: number;
+}
+
 export class ConversationQuoteReviewDto {
   @ApiProperty({ example: '573001112233' })
   conversationId: string;
@@ -99,4 +120,7 @@ export class ConversationQuoteReviewDto {
 
   @ApiProperty({ type: ConversationQuoteReviewBriefDto })
   commercialBrief: ConversationQuoteReviewBriefDto;
+
+  @ApiProperty({ type: ConversationQuoteReviewPdfDto })
+  pdf: ConversationQuoteReviewPdfDto;
 }
