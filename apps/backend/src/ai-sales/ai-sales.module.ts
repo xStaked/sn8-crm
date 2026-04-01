@@ -10,7 +10,6 @@ import { DeepSeekClient } from './deepseek/deepseek.client';
 import { AI_SALES_QUEUE } from './dto/ai-sales-state.dto';
 import { AiSalesService } from './ai-sales.service';
 import { ConversationFlowService } from './conversation-flow.service';
-import { OwnerReviewProcessor } from './owner-review.processor';
 import { OwnerReviewService } from './owner-review.service';
 
 @Module({
@@ -27,7 +26,6 @@ import { OwnerReviewService } from './owner-review.service';
     ConversationFlowService,
     OwnerReviewService,
     AiSalesProcessor,
-    OwnerReviewProcessor,
     {
       provide: AI_PROVIDER,
       useExisting: DeepSeekClient,

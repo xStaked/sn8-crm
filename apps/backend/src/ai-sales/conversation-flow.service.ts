@@ -106,7 +106,7 @@ export class ConversationFlowService {
         'customer-message',
       );
       return {
-        body: 'Ya tenemos tu información completa. Estamos consolidando la propuesta y te avisamos en cuanto esté lista para revisión interna.',
+        body: 'Ya tenemos tu información completa. Estamos preparando la propuesta preliminar y te avisamos cuando ya esté lista para revisión interna.',
         source: 'commercial-review-status',
       };
     }
@@ -279,7 +279,7 @@ export class ConversationFlowService {
       ? ` Entendi esto como base: ${normalizedSummary}.`
       : '';
 
-    return `${opening}${context} El siguiente paso es consolidar este brief y preparar una propuesta preliminar para revision interna. Si quieres, todavia puedes responder con mas detalle sobre alcance, presupuesto o prioridad y lo incorporo antes de cerrarla.`;
+    return `${opening}${context} El siguiente paso es consolidar este brief y preparar una propuesta preliminar. Cuando ya quede lista, pasara a revision interna antes de compartir cualquier cotizacion final. Si quieres, todavia puedes responder con mas detalle sobre alcance, presupuesto o prioridad y lo incorporo antes de cerrarla.`;
   }
 
   private pickMeaningfulValue(
