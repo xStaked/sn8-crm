@@ -2,14 +2,22 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { CheckCircle2, ClipboardCheck, MessageSquare, PencilLine, Send } from "lucide-react";
+import {
+  CheckCircle2,
+  ClipboardCheck,
+  ExternalLink,
+  FileText,
+  MessageSquare,
+  PencilLine,
+  Send,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useConversationMessages } from "@/hooks/use-conversation-messages";
 import { useConversationQuoteReview } from "@/hooks/use-conversation-quote-review";
 import { useConversations } from "@/hooks/use-conversations";
-import { apiFetchJson, isApiError } from "@/lib/api";
+import { apiFetch, apiFetchJson, isApiError } from "@/lib/api";
 import type {
   ConversationMessageDto,
   ConversationQuoteReview,
@@ -21,6 +29,18 @@ function formatTimestamp(isoString: string) {
     dateStyle: "medium",
     timeStyle: "short",
   });
+}
+
+function formatBytes(sizeBytes: number) {
+  if (sizeBytes < 1024) {
+    return `${sizeBytes} B`;
+  }
+
+  if (sizeBytes < 1024 * 1024) {
+    return `${(sizeBytes / 1024).toFixed(1)} KB`;
+  }
+
+  return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function getReviewStatusLabel(status: ConversationQuoteReview["reviewStatus"]) {
@@ -79,18 +99,22 @@ function QuoteReviewCard({
   requestChangesFeedback,
   reviewError,
   reviewSubmitting,
+  pdfOpening,
   onRequestChangesFeedbackChange,
   onToggleRequestChanges,
   onApprove,
+  onOpenPdf,
 }: {
   quoteReview: ConversationQuoteReview;
   requestChangesMode: boolean;
   requestChangesFeedback: string;
   reviewError: string | null;
   reviewSubmitting: boolean;
+  pdfOpening: boolean;
   onRequestChangesFeedbackChange: (value: string) => void;
   onToggleRequestChanges: () => void;
   onApprove: () => void;
+  onOpenPdf: () => void;
 }) {
   const briefFields = [
     {
@@ -116,6 +140,18 @@ function QuoteReviewCard({
   ].filter((field) => Boolean(field.value));
 
   const actionable = isQuoteReviewActionable(quoteReview.reviewStatus);
+  const pdfVersion = quoteReview.pdf.version ?? quoteReview.version;
+  const pdfMetadata = [
+    `Version PDF v${pdfVersion}`,
+    quoteReview.pdf.generatedAt
+      ? `Generado ${formatTimestamp(quoteReview.pdf.generatedAt)}`
+      : quoteReview.pdf.available
+        ? "PDF disponible"
+        : "Se genera al abrirlo",
+    typeof quoteReview.pdf.sizeBytes === "number"
+      ? formatBytes(quoteReview.pdf.sizeBytes)
+      : null,
+  ].filter(Boolean);
 
   return (
     <div className="border-b border-border px-6 py-5">
@@ -147,6 +183,16 @@ function QuoteReviewCard({
           <div className="flex flex-wrap items-center gap-2">
             <Button
               type="button"
+              variant="outline"
+              onClick={onOpenPdf}
+              disabled={pdfOpening || reviewSubmitting}
+              className="min-h-11"
+            >
+              <ExternalLink className="mr-2 h-4 w-4" />
+              {pdfOpening ? "Abriendo PDF..." : "Abrir PDF"}
+            </Button>
+            <Button
+              type="button"
               onClick={onApprove}
               disabled={!actionable || reviewSubmitting}
               className="min-h-11"
@@ -164,6 +210,40 @@ function QuoteReviewCard({
               <PencilLine className="mr-2 h-4 w-4" />
               Solicitar revisión
             </Button>
+          </div>
+        </div>
+
+        <div className="mt-5 rounded-xl border border-border/80 bg-background/70 px-4 py-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <FileText className="h-4 w-4 text-muted-foreground" />
+                <p className="text-sm font-medium text-foreground">
+                  Documento comercial PDF
+                </p>
+                <Badge
+                  variant="secondary"
+                  className={
+                    quoteReview.pdf.available
+                      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200"
+                      : "border-border bg-muted text-muted-foreground"
+                  }
+                >
+                  {quoteReview.pdf.available ? "Disponible" : "Generación al abrir"}
+                </Badge>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {quoteReview.pdf.fileName ??
+                  `cotizacion-${quoteReview.conversationId}-v${pdfVersion}.pdf`}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {pdfMetadata.join(" • ")}
+              </p>
+            </div>
+            <p className="max-w-sm text-xs leading-5 text-muted-foreground sm:text-right">
+              Abre exactamente el documento comercial asociado al draft actual para
+              validarlo antes de aprobar o pedir cambios.
+            </p>
           </div>
         </div>
 
@@ -292,6 +372,7 @@ export function DetailPanel() {
   const [requestChangesFeedback, setRequestChangesFeedback] = useState("");
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
+  const [pdfOpening, setPdfOpening] = useState(false);
 
   useEffect(() => {
     setRequestChangesMode(false);
@@ -356,6 +437,57 @@ export function DetailPanel() {
       }
     } finally {
       setReviewSubmitting(false);
+    }
+  }
+
+  async function handleOpenPdf() {
+    if (!selectedId || !quoteReview || pdfOpening) {
+      return;
+    }
+
+    const pdfUrl = `/conversations/${encodeURIComponent(selectedId)}/quote-review/pdf`;
+
+    setPdfOpening(true);
+    setReviewError(null);
+
+    try {
+      const response = await apiFetch(pdfUrl, {
+        method: "GET",
+        headers: {
+          Accept: "application/pdf",
+        },
+      });
+
+      if (response.status === 401) {
+        window.location.assign("/login");
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(`PDF request failed with status ${response.status}`);
+      }
+
+      const pdfBlob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(pdfBlob);
+      const openedWindow = window.open(blobUrl, "_blank", "noopener,noreferrer");
+
+      if (!openedWindow) {
+        const anchor = document.createElement("a");
+        anchor.href = blobUrl;
+        anchor.download =
+          quoteReview.pdf.fileName ??
+          `cotizacion-${selectedId}-v${quoteReview.version}.pdf`;
+        anchor.rel = "noopener noreferrer";
+        anchor.click();
+      }
+
+      window.setTimeout(() => {
+        window.URL.revokeObjectURL(blobUrl);
+      }, 60_000);
+    } catch {
+      setReviewError("No se pudo abrir el PDF comercial. Intenta nuevamente.");
+    } finally {
+      setPdfOpening(false);
     }
   }
 
@@ -447,6 +579,7 @@ export function DetailPanel() {
           requestChangesFeedback={requestChangesFeedback}
           reviewError={reviewError}
           reviewSubmitting={reviewSubmitting}
+          pdfOpening={pdfOpening}
           onRequestChangesFeedbackChange={(value) => {
             setRequestChangesFeedback(value);
             if (reviewError) {
@@ -458,6 +591,9 @@ export function DetailPanel() {
           }}
           onApprove={() => {
             void handleApproveQuote();
+          }}
+          onOpenPdf={() => {
+            void handleOpenPdf();
           }}
         />
       ) : quoteReviewState === "error" ? (
