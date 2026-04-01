@@ -66,6 +66,13 @@ export type ConversationQuoteReview = {
     budget: string | null;
     urgency: string | null;
   };
+  pdf: {
+    available: boolean;
+    fileName: string | null;
+    generatedAt: string | null;
+    sizeBytes: number | null;
+    version: number;
+  };
 };
 
 export type ConversationQuoteReviewDto = ConversationQuoteReview;
