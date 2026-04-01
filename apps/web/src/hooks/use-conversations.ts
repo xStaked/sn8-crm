@@ -39,7 +39,7 @@ const fetcher = (path: string) => apiFetchJson<ConversationSummaryDto[]>(path);
 
 export function useConversations() {
   const router = useRouter();
-  const { data, error, isLoading } = useSWR<ConversationSummaryDto[]>(
+  const { data, error, isLoading, mutate } = useSWR<ConversationSummaryDto[]>(
     CONVERSATIONS_ENDPOINT,
     fetcher,
     {
@@ -83,5 +83,6 @@ export function useConversations() {
     error,
     isLoading,
     state,
+    mutate,
   };
 }

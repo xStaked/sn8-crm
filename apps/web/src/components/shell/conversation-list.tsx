@@ -63,22 +63,46 @@ function ConversationRow({
       </Avatar>
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
-          <span className="truncate text-sm font-medium text-foreground">
-            {conversation.contactName}
-          </span>
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="truncate text-sm font-medium text-foreground">
+              {conversation.contactName}
+            </span>
+            {conversation.pendingQuote ? (
+              <Badge
+                variant="secondary"
+                className="shrink-0 border border-amber-500/30 bg-amber-500/10 text-[10px] font-medium uppercase tracking-[0.12em] text-amber-200"
+              >
+                Quote pendiente
+              </Badge>
+            ) : null}
+          </div>
           <span className="shrink-0 text-xs text-muted-foreground">
             {formatRelativeTime(conversation.lastMessageAt)}
           </span>
         </div>
-        <div className="mt-0.5 flex items-center justify-between gap-2">
-          <p className="truncate text-xs text-muted-foreground">
-            {conversation.lastMessage}
-          </p>
-          {conversation.unreadCount > 0 ? (
-            <Badge className="min-w-[20px] rounded-full px-1.5 text-[10px]">
-              {conversation.unreadCount}
-            </Badge>
-          ) : null}
+        <div className="mt-0.5 flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-xs text-muted-foreground">
+              {conversation.lastMessage}
+            </p>
+            {conversation.pendingQuote ? (
+              <p className="mt-1 text-[11px] font-medium text-amber-200">
+                Revision pendiente v{conversation.pendingQuote.version}
+              </p>
+            ) : null}
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            {conversation.pendingQuote ? (
+              <span className="rounded-full border border-border/80 px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+                {conversation.pendingQuote.reviewStatus.replaceAll("_", " ")}
+              </span>
+            ) : null}
+            {conversation.unreadCount > 0 ? (
+              <Badge className="min-w-[20px] rounded-full px-1.5 text-[10px]">
+                {conversation.unreadCount}
+              </Badge>
+            ) : null}
+          </div>
         </div>
       </div>
     </button>
