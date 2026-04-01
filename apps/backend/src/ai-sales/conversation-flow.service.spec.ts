@@ -161,7 +161,7 @@ describe('ConversationFlowService', () => {
     expect(result.body).toContain('todavia puedes responder con mas detalle');
   });
 
-  it('gives contextual next-step feedback when the brief is complete but no draft exists yet', async () => {
+  it('returns a processing message when the brief is already ready_for_quote and the user sends another message', async () => {
     prisma.commercialBrief.findUnique.mockResolvedValue({
       id: 'brief_1',
       conversationId: '573001112233',
@@ -179,49 +179,23 @@ describe('ConversationFlowService', () => {
       updatedAt: new Date(),
       quoteDrafts: [],
     });
-    conversationsService.listConversationMessages.mockResolvedValue([
-      {
-        id: 'msg_2',
-        conversationId: '573001112233',
-        direction: 'inbound',
-        body: 'y que vas a cotizar?',
-        createdAt: '2026-03-23T16:34:01.000Z',
-      },
-    ]);
-    aiSalesService.extractCommercialBrief.mockResolvedValue({
-      customerName: 'Sergio',
-      projectType: 'una aplicacion para iOS',
-      businessProblem: 'Vender y gestionar pedidos desde el celular.',
-      desiredScope: 'Login, catalogo, carrito y notificaciones.',
-      budget: 'USD 8k a 12k',
-      urgency: '8 semanas',
-      constraints: 'Debe salir primero en iPhone',
-      summary: 'Aplicacion iOS comercial con compra y notificaciones.',
-      missingInformation: [],
-    });
 
     const result = await service.planReply({
       conversationId: '573001112233',
       inboundMessageId: 'msg_2',
-      inboundBody: 'y que vas a cotizar?',
+      inboundBody: 'dame la cotizacion',
     });
 
-    expect(result.source).toBe('commercial-ready-for-quote');
-    expect(result.body).toContain('voy a cotizar una aplicacion para iOS');
-    expect(result.body).toContain('Vender y gestionar pedidos desde el celular.');
-    expect(result.body).toContain('Login, catalogo, carrito y notificaciones.');
-    expect(result.body).toContain('presupuesto USD 8k a 12k');
-    expect(result.body).toContain('tiempo 8 semanas');
-    expect(result.body).toContain(
-      'El siguiente paso es consolidar este brief y preparar una propuesta preliminar',
-    );
-    expect(result.body).toContain(
-      'todavia puedes responder con mas detalle sobre alcance, presupuesto o prioridad',
-    );
+    expect(result.source).toBe('commercial-review-status');
+    expect(result.body).toContain('Ya tenemos tu información completa');
+    // Should re-enqueue in case the async job failed silently
     expect(aiSalesOrchestrator.enqueueQualifiedConversation).toHaveBeenCalledWith(
       '573001112233',
       'customer-message',
     );
+    // Must NOT re-run extraction — that's the loop we fixed
+    expect(aiSalesService.extractCommercialBrief).not.toHaveBeenCalled();
+    expect(conversationsService.listConversationMessages).not.toHaveBeenCalled();
   });
 
   it('keeps the brief in discovery when the extractor summary contains placeholder missing-info language', async () => {

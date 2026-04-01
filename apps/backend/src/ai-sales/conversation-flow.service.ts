@@ -74,7 +74,7 @@ export class ConversationFlowService {
     inboundBody: string | null;
   }): Promise<ReplyPlan> {
     const normalizedConversationId = input.conversationId.trim();
-    const currentBrief = await this.prisma.commercialBrief.findUnique({
+    let currentBrief = await this.prisma.commercialBrief.findUnique({
       where: { conversationId: normalizedConversationId },
       include: {
         quoteDrafts: {
@@ -88,6 +88,25 @@ export class ConversationFlowService {
     if (latestDraft && latestDraft.reviewStatus !== 'delivered_to_customer') {
       return {
         body: this.buildReviewStatusReply(latestDraft.reviewStatus),
+        source: 'commercial-review-status',
+      };
+    }
+
+    // If user explicitly requests a new/different project, reset the existing brief
+    if (currentBrief && this.detectsNewProjectIntent(input.inboundBody)) {
+      await this.prisma.commercialBrief.delete({
+        where: { conversationId: normalizedConversationId },
+      });
+      currentBrief = null;
+    } else if (currentBrief?.status === 'ready_for_quote') {
+      // Brief is complete and already enqueued — re-enqueue in case job failed silently,
+      // but don't repeat the same "voy a cotizar" message
+      await this.aiSalesOrchestrator.enqueueQualifiedConversation(
+        normalizedConversationId,
+        'customer-message',
+      );
+      return {
+        body: 'Ya tenemos tu información completa. Estamos consolidando la propuesta y te avisamos en cuanto esté lista para revisión interna.',
         source: 'commercial-review-status',
       };
     }
@@ -316,6 +335,11 @@ export class ConversationFlowService {
     return /(falta|faltan|missing|pendiente|por definir|por confirmar|sin definir|no especificado|no proporcionado|desconocido|informacion adicional|información adicional|se requiere|hace falta)/i.test(
       value,
     );
+  }
+
+  private detectsNewProjectIntent(body: string | null): boolean {
+    if (!body) return false;
+    return /(otro proyecto|nueva? cotizaci[oó]n|nuevo proyecto|empezar de nuevo|empezar de cero|cotizar otro|diferente proyecto)/i.test(body);
   }
 
   private resolveExtractedMissingFields(
