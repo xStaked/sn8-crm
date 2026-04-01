@@ -28,6 +28,8 @@ type ReviewCommandSource = {
   messageId?: string;
 };
 
+type ReviewActionSource = 'whatsapp' | 'crm';
+
 export type ApprovedCustomerDeliveryPayload = {
   conversationId: string;
   quoteDraftId: string;
@@ -173,6 +175,25 @@ export class OwnerReviewService {
   }
 
   async approveDraft(command: OwnerReviewCommandDto): Promise<void> {
+    await this.approveDraftWithSource(command, 'whatsapp');
+  }
+
+  async approveDraftFromCrm(command: OwnerReviewCommandDto): Promise<void> {
+    await this.approveDraftWithSource(command, 'crm');
+  }
+
+  async requestChanges(command: OwnerReviewCommandDto): Promise<void> {
+    await this.requestChangesWithSource(command, 'whatsapp');
+  }
+
+  async requestChangesFromCrm(command: OwnerReviewCommandDto): Promise<void> {
+    await this.requestChangesWithSource(command, 'crm');
+  }
+
+  private async approveDraftWithSource(
+    command: OwnerReviewCommandDto,
+    source: ReviewActionSource,
+  ): Promise<void> {
     const latestDraft = await this.getLatestDraftForCommand(command);
 
     await this.prisma.$transaction(async (tx) => {
@@ -192,7 +213,7 @@ export class OwnerReviewService {
           conversationId: latestDraft.conversationId,
           iteration: iteration + 1,
           reviewStatus: 'approved',
-          feedback: `Approved by ${command.reviewerPhone ?? 'owner'} via WhatsApp command.`,
+          feedback: this.buildApprovalFeedback(command, source),
           resolvedAt: new Date(),
         },
       });
@@ -220,7 +241,10 @@ export class OwnerReviewService {
     );
     await this.prisma.quoteDraft.update({
       where: { id: delivery.quoteDraftId },
-      data: { reviewStatus: 'delivered_to_customer' },
+      data: {
+        reviewStatus: 'delivered_to_customer',
+        deliveredToCustomerAt: new Date(),
+      },
     });
     await this.prisma.message.create({
       data: {
@@ -244,7 +268,10 @@ export class OwnerReviewService {
     });
   }
 
-  async requestChanges(command: OwnerReviewCommandDto): Promise<void> {
+  private async requestChangesWithSource(
+    command: OwnerReviewCommandDto,
+    source: ReviewActionSource,
+  ): Promise<void> {
     const latestDraft = await this.getLatestDraftForCommand(command);
     const reviewEvent = await this.prisma.$transaction(async (tx) => {
       const iteration = (latestDraft.reviewEvents[0]?.iteration ?? 0) + 1;
@@ -268,7 +295,7 @@ export class OwnerReviewService {
           conversationId: latestDraft.conversationId,
           iteration,
           reviewStatus: 'changes_requested',
-          feedback: command.feedback!,
+          feedback: this.buildRevisionFeedback(command, source),
         },
       });
     });
@@ -281,7 +308,7 @@ export class OwnerReviewService {
     } satisfies ProcessOwnerRevisionJob;
 
     await this.aiSalesQueue.add(AI_SALES_PROCESS_OWNER_REVISION_JOB, job, {
-      jobId: `owner-revision_${latestDraft.id}_${reviewEvent.id}`,
+      jobId: `owner-revision:${latestDraft.id}:${reviewEvent.id}`,
       removeOnComplete: 100,
       removeOnFail: 100,
     });
@@ -608,5 +635,28 @@ export class OwnerReviewService {
   private isOwnerPhone(phone: string): boolean {
     const configuredOwner = this.config.get<string>('AI_SALES_OWNER_PHONE')?.trim();
     return Boolean(configuredOwner && configuredOwner === phone.trim());
+  }
+
+  private buildApprovalFeedback(
+    command: OwnerReviewCommandDto,
+    source: ReviewActionSource,
+  ): string {
+    return `Approved by ${command.reviewerPhone ?? 'owner'} ${this.describeReviewSource(source)}.`;
+  }
+
+  private buildRevisionFeedback(
+    command: OwnerReviewCommandDto,
+    source: ReviewActionSource,
+  ): string {
+    const feedback = command.feedback?.trim();
+    if (!feedback) {
+      return `Changes requested ${this.describeReviewSource(source)}.`;
+    }
+
+    return `${feedback} (${this.describeReviewSource(source)})`;
+  }
+
+  private describeReviewSource(source: ReviewActionSource): string {
+    return source === 'crm' ? 'via CRM' : 'via WhatsApp command';
   }
 }

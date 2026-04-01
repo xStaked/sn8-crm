@@ -141,7 +141,7 @@ describe('OwnerReviewService', () => {
       });
     messagingService.sendText.mockResolvedValue('out_delivery_123');
 
-    await service.approveDraft({
+    await service.approveDraftFromCrm({
       action: 'approve' as any,
       conversationId: '+573001234567',
       version: 2,
@@ -163,6 +163,7 @@ describe('OwnerReviewService', () => {
           quoteDraftId: 'draft_2',
           iteration: 4,
           reviewStatus: 'approved',
+          feedback: 'Approved by +573009998877 via CRM.',
         }),
       }),
     );
@@ -180,7 +181,10 @@ describe('OwnerReviewService', () => {
     expect(prisma.quoteDraft.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: 'draft_2' },
-        data: { reviewStatus: 'delivered_to_customer' },
+        data: {
+          reviewStatus: 'delivered_to_customer',
+          deliveredToCustomerAt: expect.any(Date),
+        },
       }),
     );
     expect(prisma.message.create).toHaveBeenCalledWith(
@@ -295,10 +299,10 @@ describe('OwnerReviewService', () => {
       conversationId: '+573001234567',
       iteration: 4,
       reviewStatus: 'changes_requested',
-      feedback: 'Ajustar alcance y aclarar pricing.',
+      feedback: 'Ajustar alcance y aclarar pricing. (via CRM)',
     });
 
-    await service.requestChanges({
+    await service.requestChangesFromCrm({
       action: 'revise' as any,
       conversationId: '+573001234567',
       version: 2,
@@ -324,6 +328,47 @@ describe('OwnerReviewService', () => {
       }),
       expect.objectContaining({
         jobId: 'owner-revision:draft_2:evt_2',
+      }),
+    );
+  });
+
+  it('keeps WhatsApp-originated change requests tagged as WhatsApp commands', async () => {
+    prisma.quoteDraft.findFirst.mockResolvedValue({
+      id: 'draft_2',
+      commercialBriefId: 'brief_1',
+      conversationId: '+573001234567',
+      version: 2,
+      reviewStatus: 'pending_owner_review',
+      reviewEvents: [{ id: 'evt_1', iteration: 3 }],
+      commercialBrief: {
+        id: 'brief_1',
+        conversationId: '+573001234567',
+        customerName: 'Acme',
+        summary: 'Resumen',
+      },
+    });
+    prisma.quoteReviewEvent.create.mockResolvedValue({
+      id: 'evt_2',
+      quoteDraftId: 'draft_2',
+      conversationId: '+573001234567',
+      iteration: 4,
+      reviewStatus: 'changes_requested',
+      feedback: 'Ajustar pricing. (via WhatsApp command)',
+    });
+
+    await service.requestChanges({
+      action: 'revise' as any,
+      conversationId: '+573001234567',
+      version: 2,
+      reviewerPhone: '+573009998877',
+      feedback: 'Ajustar pricing.',
+    });
+
+    expect(prisma.quoteReviewEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          feedback: 'Ajustar pricing. (via WhatsApp command)',
+        }),
       }),
     );
   });
