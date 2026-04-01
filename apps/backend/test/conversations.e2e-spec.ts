@@ -12,6 +12,7 @@ import { MessagingService } from '../src/messaging/messaging.service';
 import { MessageProcessor } from '../src/messaging/processors/message.processor';
 import { PrismaModule } from '../src/prisma/prisma.module';
 import { PrismaService } from '../src/prisma/prisma.service';
+import { QuotePdfService } from '../src/quote-documents/quote-pdf.service';
 
 type MessageFixture = {
   id: string;
@@ -41,6 +42,13 @@ type QuoteDraftFixture = {
   approvedAt: Date | null;
   deliveredToCustomerAt: Date | null;
   updatedAt: Date;
+  document: {
+    fileName: string;
+    mimeType: string;
+    sizeBytes: number;
+    generatedAt: Date;
+    content: Buffer;
+  } | null;
   commercialBrief: {
     customerName: string | null;
     summary: string | null;
@@ -63,6 +71,9 @@ describe('Conversations (e2e)', () => {
   let ownerReviewServiceMock: {
     approveDraftFromCrm: jest.Mock;
     requestChangesFromCrm: jest.Mock;
+  };
+  let quotePdfServiceMock: {
+    getOrCreateDraftPdf: jest.Mock;
   };
 
   const baseMessages: MessageFixture[] = [
@@ -103,6 +114,32 @@ describe('Conversations (e2e)', () => {
 
   const baseQuoteDrafts: QuoteDraftFixture[] = [
     {
+      id: 'draft_primary_v1',
+      conversationId: primaryConversationId,
+      version: 1,
+      reviewStatus: 'approved',
+      renderedQuote: 'Older quote for ACME',
+      draftPayload: { summary: 'Stale summary for ACME' },
+      ownerFeedbackSummary: null,
+      approvedAt: new Date('2026-03-18T12:30:00.000Z'),
+      deliveredToCustomerAt: null,
+      updatedAt: new Date('2026-03-18T12:35:00.000Z'),
+      document: {
+        fileName: 'cotizacion-sn8-v1.pdf',
+        mimeType: 'application/pdf',
+        sizeBytes: 175000,
+        generatedAt: new Date('2026-03-18T12:34:00.000Z'),
+        content: Buffer.from('%PDF-stale-v1'),
+      },
+      commercialBrief: {
+        customerName: 'ACME SAS',
+        summary: 'Need a CRM',
+        projectType: 'CRM',
+        budget: 'USD 10k',
+        urgency: 'High',
+      },
+    },
+    {
       id: 'draft_primary_v2',
       conversationId: primaryConversationId,
       version: 2,
@@ -113,6 +150,7 @@ describe('Conversations (e2e)', () => {
       approvedAt: null,
       deliveredToCustomerAt: null,
       updatedAt: new Date('2026-03-18T13:05:00.000Z'),
+      document: null,
       commercialBrief: {
         customerName: 'ACME SAS',
         summary: 'Need a CRM',
@@ -297,6 +335,28 @@ describe('Conversations (e2e)', () => {
       ),
     };
 
+    quotePdfServiceMock = {
+      getOrCreateDraftPdf: jest.fn(async (quoteDraftId: string) => {
+        const draft = durableQuoteDrafts.find((candidate) => candidate.id === quoteDraftId);
+
+        if (!draft) {
+          throw new Error(`quote draft ${quoteDraftId} not found`);
+        }
+
+        if (!draft.document) {
+          draft.document = {
+            fileName: `cotizacion-sn8-v${draft.version}.pdf`,
+            mimeType: 'application/pdf',
+            sizeBytes: 185000 + draft.version,
+            generatedAt: new Date('2026-04-01T19:10:00.000Z'),
+            content: Buffer.from(`%PDF-active-v${draft.version}`),
+          };
+        }
+
+        return draft.document;
+      }),
+    };
+
     const moduleRef = await Test.createTestingModule({
       imports: [
         ConfigModule.forRoot({ isGlobal: true }),
@@ -313,6 +373,10 @@ describe('Conversations (e2e)', () => {
         {
           provide: OwnerReviewService,
           useValue: ownerReviewServiceMock,
+        },
+        {
+          provide: QuotePdfService,
+          useValue: quotePdfServiceMock,
         },
       ],
     })
@@ -379,6 +443,13 @@ describe('Conversations (e2e)', () => {
         ? new Date(draft.deliveredToCustomerAt.toISOString())
         : null,
       updatedAt: new Date(draft.updatedAt.toISOString()),
+      document: draft.document
+        ? {
+            ...draft.document,
+            generatedAt: new Date(draft.document.generatedAt.toISOString()),
+            content: Buffer.from(draft.document.content),
+          }
+        : null,
       commercialBrief: { ...draft.commercialBrief },
     }));
   });
@@ -412,6 +483,9 @@ describe('Conversations (e2e)', () => {
       .expect(401);
     await request(app.getHttpServer())
       .get(`/conversations/${primaryConversationId}/quote-review`)
+      .expect(401);
+    await request(app.getHttpServer())
+      .get(`/conversations/${primaryConversationId}/quote-review/pdf`)
       .expect(401);
     await request(app.getHttpServer())
       .post(`/conversations/${primaryConversationId}/quote-review/approve`)
@@ -480,6 +554,42 @@ describe('Conversations (e2e)', () => {
         projectType: 'CRM',
         budget: 'USD 10k',
         urgency: 'High',
+      },
+      pdf: {
+        available: false,
+        fileName: null,
+        generatedAt: null,
+        sizeBytes: null,
+        version: 2,
+      },
+    });
+  });
+
+  it('returns the authenticated pdf route as application/pdf for the active draft version without changing review status', async () => {
+    const cookie = await loginAndGetCookie();
+
+    const response = await request(app.getHttpServer())
+      .get(`/conversations/${primaryConversationId}/quote-review/pdf`)
+      .set('Cookie', cookie)
+      .buffer(true)
+      .parse((res, callback) => {
+        const chunks: Buffer[] = [];
+        res.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+        res.on('end', () => callback(null, Buffer.concat(chunks)));
+      })
+      .expect(200);
+
+    expect(response.headers['content-type']).toContain('application/pdf');
+    expect(response.headers['content-disposition']).toBe(
+      'inline; filename="cotizacion-sn8-v2.pdf"',
+    );
+    expect(response.body).toEqual(Buffer.from('%PDF-active-v2'));
+    expect(quotePdfServiceMock.getOrCreateDraftPdf).toHaveBeenCalledWith('draft_primary_v2');
+    expect(durableQuoteDrafts.find((draft) => draft.id === 'draft_primary_v2')).toMatchObject({
+      reviewStatus: 'ready_for_recheck',
+      deliveredToCustomerAt: null,
+      document: {
+        fileName: 'cotizacion-sn8-v2.pdf',
       },
     });
   });

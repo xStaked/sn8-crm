@@ -7,6 +7,7 @@ describe('ConversationsController', () => {
     listConversations: jest.Mock;
     listConversationMessages: jest.Mock;
     getConversationQuoteReview: jest.Mock;
+    getConversationQuoteReviewPdf: jest.Mock;
     approveConversationQuote: jest.Mock;
     requestConversationQuoteChanges: jest.Mock;
   };
@@ -16,6 +17,7 @@ describe('ConversationsController', () => {
       listConversations: jest.fn(),
       listConversationMessages: jest.fn(),
       getConversationQuoteReview: jest.fn(),
+      getConversationQuoteReviewPdf: jest.fn(),
       approveConversationQuote: jest.fn(),
       requestConversationQuoteChanges: jest.fn(),
     };
@@ -103,6 +105,13 @@ describe('ConversationsController', () => {
         budget: 'USD 10k',
         urgency: 'High',
       },
+      pdf: {
+        available: false,
+        fileName: null,
+        generatedAt: null,
+        sizeBytes: null,
+        version: 2,
+      },
     });
 
     await expect(
@@ -114,6 +123,42 @@ describe('ConversationsController', () => {
       reviewStatus: 'ready_for_recheck',
     });
     expect(service.getConversationQuoteReview).toHaveBeenCalledWith('573001112233');
+  });
+
+  it('delegates quote review pdf downloads and sets pdf headers', async () => {
+    service.getConversationQuoteReviewPdf.mockResolvedValue({
+      conversationId: '573001112233',
+      quoteDraftId: 'draft_2',
+      version: 2,
+      fileName: 'cotizacion-sn8-v2.pdf',
+      mimeType: 'application/pdf',
+      sizeBytes: 182304,
+      generatedAt: '2026-04-01T19:00:00.000Z',
+      content: Buffer.from('pdf bytes'),
+    });
+    const response = {
+      setHeader: jest.fn(),
+      send: jest.fn(),
+    };
+
+    await controller.downloadConversationQuoteReviewPdf(
+      '573001112233',
+      response as any,
+    );
+
+    expect(service.getConversationQuoteReviewPdf).toHaveBeenCalledWith('573001112233');
+    expect(response.setHeader).toHaveBeenNthCalledWith(
+      1,
+      'Content-Type',
+      'application/pdf',
+    );
+    expect(response.setHeader).toHaveBeenNthCalledWith(2, 'Content-Length', '182304');
+    expect(response.setHeader).toHaveBeenNthCalledWith(
+      3,
+      'Content-Disposition',
+      'inline; filename="cotizacion-sn8-v2.pdf"',
+    );
+    expect(response.send).toHaveBeenCalledWith(Buffer.from('pdf bytes'));
   });
 
   it('delegates quote approvals using the authenticated reviewer identity', async () => {
@@ -133,6 +178,13 @@ describe('ConversationsController', () => {
         projectType: 'CRM',
         budget: 'USD 10k',
         urgency: 'High',
+      },
+      pdf: {
+        available: true,
+        fileName: 'cotizacion-sn8-v2.pdf',
+        generatedAt: '2026-04-01T18:58:00.000Z',
+        sizeBytes: 182304,
+        version: 2,
       },
     });
 
@@ -170,6 +222,13 @@ describe('ConversationsController', () => {
         projectType: 'CRM',
         budget: 'USD 10k',
         urgency: 'High',
+      },
+      pdf: {
+        available: false,
+        fileName: null,
+        generatedAt: null,
+        sizeBytes: null,
+        version: 2,
       },
     });
 

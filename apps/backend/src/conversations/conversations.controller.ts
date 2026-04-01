@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Req, Res, UseGuards } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiBadRequestResponse,
@@ -8,10 +8,11 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiParam,
+  ApiProduces,
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ApproveQuoteDto } from './dto/approve-quote.dto';
 import {
@@ -85,6 +86,35 @@ export class ConversationsController {
   @UseGuards(JwtAuthGuard)
   getConversationQuoteReview(@Param('conversationId') conversationId: string) {
     return this.conversationsService.getConversationQuoteReview(conversationId);
+  }
+
+  @ApiOperation({ summary: 'Descargar el PDF comercial del quote activo de una conversacion' })
+  @ApiParam({
+    name: 'conversationId',
+    example: '573001112233',
+    description: 'Telefono normalizado usado como id estable de la conversacion.',
+  })
+  @ApiProduces('application/pdf')
+  @ApiOkResponse({
+    description: 'PDF comercial del draft mas reciente dentro del flujo de revision.',
+  })
+  @ApiNotFoundResponse({
+    description: 'La conversacion no existe o no tiene quote dentro del flujo de revision.',
+  })
+  @Get('conversations/:conversationId/quote-review/pdf')
+  @UseGuards(JwtAuthGuard)
+  async downloadConversationQuoteReviewPdf(
+    @Param('conversationId') conversationId: string,
+    @Res() res: Response,
+  ) {
+    const pdf = await this.conversationsService.getConversationQuoteReviewPdf(
+      conversationId,
+    );
+
+    res.setHeader('Content-Type', pdf.mimeType);
+    res.setHeader('Content-Length', pdf.sizeBytes.toString());
+    res.setHeader('Content-Disposition', `inline; filename="${pdf.fileName}"`);
+    res.send(pdf.content);
   }
 
   @ApiOperation({ summary: 'Aprobar el quote activo de una conversacion desde CRM' })
