@@ -2,16 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
+status: Ready to execute
 stopped_at: Completed 02-04-PLAN.md
-last_updated: "2026-03-23T16:20:37.000Z"
-last_activity: 2026-03-23 — Completed Phase 02 Plan 04 with Redis reconstruction, returning-contact expiry reset, and worker/e2e continuity proof
+last_updated: "2026-04-01T20:58:56.341Z"
 progress:
-  total_phases: 9
+  total_phases: 10
   completed_phases: 6
-  total_plans: 23
-  completed_plans: 22
-  percent: 96
+  total_plans: 26
+  completed_plans: 23
 ---
 
 # Project State
@@ -21,16 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-15)
 
 **Core value:** El bot nunca deja a un cliente sin respuesta y toda cotización pasa por validación del socio antes de enviarse — garantizando rentabilidad sin sacrificar velocidad de respuesta.
-**Current focus:** Phase 02 Bot Conversation Engine is now complete with restart-safe recovery and expiry proof; downstream work can assume the routing FSM survives Redis loss and 24-hour returns without replaying first-contact logic.
+**Current focus:** Phase 05.3 — quote-approval-from-crm
 
 ## Current Position
 
-Phase: 02 of 9 (Bot Conversation Engine)
-Plan: 4 of 4 in current phase
-Status: Complete
-Last activity: 2026-04-01 - Completed quick task 260401-lbb: Implementar trigger de entrega al cliente después de SN8 APPROVE
-
-Progress: [██████████] 96%
+Phase: 05.3 (quote-approval-from-crm) — EXECUTING
+Plan: 2 of 3
 
 ## Performance Metrics
 
@@ -122,11 +116,13 @@ Recent decisions affecting current work:
 - [Phase 02]: INFO_SERVICES remains an informational branch with explicit readiness cues that can re-enter QUALIFYING without reopening Phase 2.1 scope.
 - [Phase 02]: Expired Prisma backup snapshots remain available during recovery so returning leads receive the `Hola de nuevo` greeting instead of being treated as first contact after Redis loss.
 - [Phase 02]: Phase 2 continuity proof runs through MessageProcessor + BotConversationService + BotConversationRepository with in-memory Redis/Prisma doubles, keeping restart verification deterministic and infrastructure-free.
+- [Phase 05.3]: Conversation e2e coverage composes AuthModule with ConversationsController and ConversationsService directly, avoiding unrelated Redis/Bull infrastructure during read-contract verification.
 
 ### Roadmap Evolution
 
 - Phase 5 added: Frontend integration with current backend
 - Phase 05.1 inserted after Phase 5: Integración real de Kapso y flujo inbound end-to-end (URGENT)
+- Phase 05.3 inserted after Phase 05.2: Quote Approval from CRM
 
 ### Pending Todos
 

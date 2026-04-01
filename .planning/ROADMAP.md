@@ -132,7 +132,7 @@ Phases execute in numeric order: 1 → 1.1 → 2 → 2.1 → 3 → 4 → 5 → 5
 | 5. Frontend integration with current backend | 4/4 | Complete | 2026-03-20 |
 | 05.1. Integración real de Kapso y flujo inbound end-to-end | 3/3 | Complete    | 2026-03-19 |
 | 05.2. Manual Reply from CRM | 1/2 | In Progress | - |
-| 05.3. Quote Approval from CRM | 0/TBD | Not started | - |
+| 05.3. Quote Approval from CRM | 1/3 | In Progress|  |
 
 ### Phase 5: Frontend integration with current backend
 
@@ -172,10 +172,10 @@ Plans:
   2. El socio puede abrir una cotización y ver una vista previa suficiente para decidir aprobación o revisión
   3. El socio puede aprobar o solicitar revisión desde el CRM, incluyendo comentarios cuando pide cambios
   4. Al aprobar, el sistema ejecuta la entrega automática al cliente usando el endpoint ya implementado y deja el estado auditable en el CRM
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 
 Plans:
-- [ ] 05.3-01-PLAN.md — Backend quote review read model: additive pendingQuote inbox metadata and GET /conversations/:conversationId/quote-review
+- [x] 05.3-01-PLAN.md — Backend quote review read model: additive pendingQuote inbox metadata and GET /conversations/:conversationId/quote-review
 - [ ] 05.3-02-PLAN.md — Backend approve/request-changes actions delegated to OwnerReviewService with CRM-aware audit and delivery timestamps
 - [ ] 05.3-03-PLAN.md — CRM shell integration in conversation list/detail panel using SWR and existing layout patterns
 
