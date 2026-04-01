@@ -165,7 +165,8 @@ Plans:
 ### Phase 05.3: Quote Approval from CRM (INSERTED)
 
 **Goal:** El socio puede revisar cotizaciones pendientes desde el CRM web, previsualizar el quote generado, aprobarlo o solicitar revisión con comentarios, y al aprobar se dispara automáticamente la entrega al cliente usando el endpoint ya implementado
-**Depends on:** Phase 05.2
+**Depends on:** Phase 05.2 backend reply path and existing CRM shell patterns
+**Dependency note:** Phase 05.3 was intentionally executed before `05.2-02` because quote approval reuses the already existente detail shell and authenticated `/conversations` surface; the remaining 05.2 compose UI is additive and can finish in parallel without blocking quote review
 **Requirements**: QUOTE-CRM-01, QUOTE-CRM-02, QUOTE-CRM-03, QUOTE-CRM-04
 **Success Criteria** (what must be TRUE):
   1. El socio ve una lista de cotizaciones pendientes de aprobación dentro del CRM web sin depender de notificaciones por WhatsApp
@@ -178,6 +179,19 @@ Plans:
 - [x] 05.3-01-PLAN.md — Backend quote review read model: additive pendingQuote inbox metadata and GET /conversations/:conversationId/quote-review
 - [x] 05.3-02-PLAN.md — Backend approve/request-changes actions delegated to OwnerReviewService with CRM-aware audit and delivery timestamps
 - [x] 05.3-03-PLAN.md — CRM shell integration in conversation list/detail panel using SWR and existing layout patterns
+
+### Phase 05.3.1: Implementar generación de cotizaciones en PDF con formato comercial real y flujo compatible con aprobación desde CRM (INSERTED)
+
+**Goal:** El socio puede abrir o descargar desde el CRM una cotización en PDF con formato comercial real, generada y cacheada por versión del draft activo, sin romper el boundary actual donde solo `OwnerReviewService` controla la entrega al cliente
+**Requirements**: COT-04, QUOTE-PDF-01, QUOTE-PDF-02, QUOTE-PDF-03
+**Depends on:** Phase 05.3
+**Planning note:** Ejecutar primero `05.3.1-01-PLAN.md` para fijar el contrato del PDF comercial a partir del artefacto de referencia antes de implementar el renderer
+**Plans:** 1/3 plans executed
+
+Plans:
+- [x] 05.3.1-01-PLAN.md — Backend PDF rendering foundation, per-draft document persistence, and version-locked cache generation
+- [ ] 05.3.1-02-PLAN.md — Authenticated conversation-scoped PDF metadata/download endpoints with additive contract coverage
+- [ ] 05.3.1-03-PLAN.md — CRM quote review card integration for opening/downloading the commercial PDF without changing approval flow
 
 ### Phase 05.1: Integración real de Kapso y flujo inbound end-to-end (INSERTED)
 

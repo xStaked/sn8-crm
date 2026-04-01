@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Milestone complete
+status: Ready to execute
 stopped_at: Completed 05.3-03-PLAN.md
-last_updated: "2026-04-01T21:24:55.364Z"
+last_updated: "2026-04-01T23:42:50.387Z"
 progress:
-  total_phases: 10
+  total_phases: 11
   completed_phases: 7
-  total_plans: 26
-  completed_plans: 25
+  total_plans: 29
+  completed_plans: 26
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-15)
 
 **Core value:** El bot nunca deja a un cliente sin respuesta y toda cotización pasa por validación del socio antes de enviarse — garantizando rentabilidad sin sacrificar velocidad de respuesta.
-**Current focus:** Phase 05.3 — quote-approval-from-crm
+**Current focus:** Phase 05.3.1 — implementar-generaci-n-de-cotizaciones-en-pdf-con-formato-comercial-real-y-flujo-compatible-con-aprobaci-n-desde-crm
 
 ## Current Position
 
-Phase: 05.3
-Plan: Not started
+Phase: 05.3.1 (implementar-generaci-n-de-cotizaciones-en-pdf-con-formato-comercial-real-y-flujo-compatible-con-aprobaci-n-desde-crm) — EXECUTING
+Plan: 2 of 3
 
 ## Performance Metrics
 
@@ -120,12 +120,14 @@ Recent decisions affecting current work:
 - [Phase 05.3]: Conversation e2e coverage composes AuthModule with ConversationsController and ConversationsService directly, avoiding unrelated Redis/Bull infrastructure during read-contract verification.
 - [Phase 05.3]: CRM-origin review actions use the authenticated user email as reviewer identity while keeping WhatsApp owner commands unchanged.
 - [Phase 05.3]: Quote approval actions mutate both the selected quote-review cache and the conversations list cache so inbox and detail stay consistent after approve/request-changes.
+- [Phase 05.3.1]: React PDF is loaded dynamically so the NestJS CommonJS backend can consume an ESM renderer without changing the approval boundary.
 
 ### Roadmap Evolution
 
 - Phase 5 added: Frontend integration with current backend
 - Phase 05.1 inserted after Phase 5: Integración real de Kapso y flujo inbound end-to-end (URGENT)
 - Phase 05.3 inserted after Phase 05.2: Quote Approval from CRM
+- Phase 05.3.1 inserted after Phase 05.3: Implementar generación de cotizaciones en PDF con formato comercial real y flujo compatible con aprobación desde CRM (URGENT)
 
 ### Pending Todos
 
@@ -136,6 +138,8 @@ None yet.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260401-lbb | Implementar trigger de entrega al cliente después de SN8 APPROVE | 2026-04-01 | f503ac2 | [260401-lbb-implementar-trigger-de-entrega-al-client](./quick/260401-lbb-implementar-trigger-de-entrega-al-client/) |
+| 260401-o9d | Investigar y corregir el flujo de generación de cotizaciones en producción | 2026-04-01 | uncommitted | [260401-o9d-investigar-y-corregir-el-flujo-de-genera](./quick/260401-o9d-investigar-y-corregir-el-flujo-de-genera/) |
+| 260401-p00 | Corregir el pipeline de generación de cotizaciones para que la revisión desde CRM no dependa de AI_SALES_OWNER_PHONE | 2026-04-01 | uncommitted | [260401-p00-corregir-el-pipeline-de-generaci-n-de-co](./quick/260401-p00-corregir-el-pipeline-de-generaci-n-de-co/) |
 
 ### Blockers/Concerns
 

@@ -53,6 +53,7 @@ Requirements para el lanzamiento inicial. Cada uno mapea a fases del roadmap.
 - [ ] **COT-01**: DeepSeek genera una cotización (descripción, alcance, precio estimado, tecnologías sugeridas) a partir de los requisitos extraídos
 - [ ] **COT-02**: La cotización pasa por validación Zod con sanity bounds (rangos mínimo/máximo por categoría de proyecto) antes de presentarse al socio
 - [ ] **COT-03**: La cotización se guarda en base de datos con estado (pendiente_aprobacion / aprobada / rechazada / enviada)
+- [x] **COT-04**: El sistema puede exportar la cotización activa como un PDF comercial listo para revisión interna desde el CRM
 
 ### Aprobación
 
@@ -68,6 +69,12 @@ Requirements para el lanzamiento inicial. Cada uno mapea a fases del roadmap.
 - [x] **QUOTE-CRM-02**: El panel de detalle del CRM permite abrir una vista previa suficiente de la cotización pendiente usando contratos autenticados del backend actual
 - [x] **QUOTE-CRM-03**: El socio puede aprobar o solicitar cambios de una cotización desde el CRM web, incluyendo comentarios obligatorios al pedir revisión
 - [x] **QUOTE-CRM-04**: Al aprobar desde el CRM, el sistema reutiliza el flujo existente de entrega al cliente y deja trazabilidad auditable de la entrega en el mismo CRM
+
+### Quote PDF from CRM
+
+- [ ] **QUOTE-PDF-01**: El panel de detalle del CRM permite abrir o descargar un PDF comercial generado a partir del draft activo de cotización
+- [x] **QUOTE-PDF-02**: El PDF queda fijado a la `version` del `QuoteDraft`, se cachea por draft y una nueva regeneración crea un artefacto nuevo sin reutilizar el anterior
+- [x] **QUOTE-PDF-03**: La generación y lectura del PDF no envían nada al cliente ni alteran el boundary actual; solo `OwnerReviewService` puede seguir disparando la entrega externa tras aprobación explícita
 
 ### CRM Dashboard
 
@@ -115,7 +122,6 @@ Aplazados para versión futura. Identificados pero fuera del roadmap actual.
 
 ### Cotizaciones Avanzadas
 
-- **COT-04**: Exportar cotización como PDF
 - **COT-05**: Catálogo de servicios configurable desde el CRM (con precios base por categoría)
 - **COT-06**: Historial de versiones de cotización (v1, v2, v3 tras rechazos)
 
@@ -169,11 +175,15 @@ Actualizado durante la creación del roadmap.
 | COT-01 | Phase 3 | Pending |
 | COT-02 | Phase 3 | Pending |
 | COT-03 | Phase 3 | Pending |
+| COT-04 | Phase 05.3.1 | Complete |
 | APPR-01 | Phase 3 | Pending |
 | APPR-02 | Phase 3 | Pending |
 | APPR-03 | Phase 3 | Pending |
 | APPR-04 | Phase 3 | Pending |
 | APPR-05 | Phase 3 | Pending |
+| QUOTE-PDF-01 | Phase 05.3.1 | Pending |
+| QUOTE-PDF-02 | Phase 05.3.1 | Complete |
+| QUOTE-PDF-03 | Phase 05.3.1 | Complete |
 | CRM-01 | Phase 4 | Pending |
 | CRM-02 | Phase 4 | Pending |
 | CRM-03 | Phase 4 | Pending |
@@ -203,4 +213,4 @@ Actualizado durante la creación del roadmap.
 
 ---
 *Requirements defined: 2026-03-15*
-*Last updated: 2026-04-01 after adding Phase 05.3 CRM quote approval traceability*
+*Last updated: 2026-04-01 after planning Phase 05.3.1 PDF quote traceability*
