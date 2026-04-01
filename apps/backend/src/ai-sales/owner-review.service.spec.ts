@@ -109,20 +109,37 @@ describe('OwnerReviewService', () => {
   });
 
   it('approves only the active draft version and records durable approval', async () => {
-    prisma.quoteDraft.findFirst.mockResolvedValue({
-      id: 'draft_2',
-      commercialBriefId: 'brief_1',
-      conversationId: '+573001234567',
-      version: 2,
-      reviewStatus: 'pending_owner_review',
-      reviewEvents: [{ id: 'evt_1', iteration: 3 }],
-      commercialBrief: {
-        id: 'brief_1',
+    prisma.quoteDraft.findFirst
+      .mockResolvedValueOnce({
+        id: 'draft_2',
+        commercialBriefId: 'brief_1',
         conversationId: '+573001234567',
-        customerName: 'Acme',
-        summary: 'Resumen',
-      },
-    });
+        version: 2,
+        reviewStatus: 'pending_owner_review',
+        reviewEvents: [{ id: 'evt_1', iteration: 3 }],
+        commercialBrief: {
+          id: 'brief_1',
+          conversationId: '+573001234567',
+          customerName: 'Acme',
+          summary: 'Resumen',
+        },
+      })
+      .mockResolvedValueOnce({
+        id: 'draft_2',
+        commercialBriefId: 'brief_1',
+        conversationId: '+573001234567',
+        version: 2,
+        reviewStatus: 'approved',
+        renderedQuote: 'Cotizacion aprobada lista para el cliente.',
+        reviewEvents: [],
+        commercialBrief: {
+          id: 'brief_1',
+          conversationId: '+573001234567',
+          customerName: 'Acme',
+          summary: 'Resumen',
+        },
+      });
+    messagingService.sendText.mockResolvedValue('out_delivery_123');
 
     await service.approveDraft({
       action: 'approve' as any,
@@ -153,6 +170,76 @@ describe('OwnerReviewService', () => {
       where: { id: 'brief_1' },
       data: { status: 'approved' },
     });
+
+    // Customer delivery assertions
+    expect(messagingService.sendText).toHaveBeenCalledWith(
+      '+573001234567',
+      'Cotizacion aprobada lista para el cliente.',
+      'kapso-phone-id',
+    );
+    expect(prisma.quoteDraft.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'draft_2' },
+        data: { reviewStatus: 'delivered_to_customer' },
+      }),
+    );
+    expect(prisma.message.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          toPhone: '+573001234567',
+          body: 'Cotizacion aprobada lista para el cliente.',
+          direction: 'outbound',
+        }),
+      }),
+    );
+  });
+
+  it('does not mark delivered_to_customer when rendered quote body is empty', async () => {
+    prisma.quoteDraft.findFirst
+      .mockResolvedValueOnce({
+        id: 'draft_2',
+        commercialBriefId: 'brief_1',
+        conversationId: '+573001234567',
+        version: 2,
+        reviewStatus: 'pending_owner_review',
+        reviewEvents: [{ id: 'evt_1', iteration: 3 }],
+        commercialBrief: {
+          id: 'brief_1',
+          conversationId: '+573001234567',
+          customerName: 'Acme',
+          summary: 'Resumen',
+        },
+      })
+      .mockResolvedValueOnce({
+        id: 'draft_2',
+        commercialBriefId: 'brief_1',
+        conversationId: '+573001234567',
+        version: 2,
+        reviewStatus: 'approved',
+        renderedQuote: null,
+        reviewEvents: [],
+        commercialBrief: {
+          id: 'brief_1',
+          conversationId: '+573001234567',
+          customerName: 'Acme',
+          summary: 'Resumen',
+        },
+      });
+
+    await expect(
+      service.approveDraft({
+        action: 'approve' as any,
+        conversationId: '+573001234567',
+        version: 2,
+        reviewerPhone: '+573009998877',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    // Should NOT have updated to delivered_to_customer
+    const deliveredUpdateCall = (prisma.quoteDraft.update as jest.Mock).mock.calls.find(
+      (call: any[]) => call[0]?.data?.reviewStatus === 'delivered_to_customer',
+    );
+    expect(deliveredUpdateCall).toBeUndefined();
   });
 
   it('blocks customer delivery while the latest draft is still pending owner review', async () => {
