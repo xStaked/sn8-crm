@@ -2,7 +2,7 @@
 
 ## Overview
 
-El sistema se construye en cinco fases principales ordenadas por dependencia estricta, con tres inserciones decimales para adelantar trabajo crítico sin renumerar todo el roadmap. La Fase 1 establece el backbone completo: autenticación, recepción de webhooks idempotente, cola asíncrona y el adaptador de canal abstracto. La Fase 2 construye el motor conversacional sobre esa base sin introducir IA — el FSM de conversación debe estar estable antes de añadir una fuente de fallos nueva. La Fase 2.1 inserta el agente comercial experto: una IA consultiva/premium que guía la conversación de venta de software, captura el brief comercial y prepara una cotización en formato definido por el socio sin enviarla todavía al cliente. La Fase 3 cierra el loop de valor central: esa cotización se valida, persiste y entra en un flujo de aprobación humana donde solo llega al cliente cuando el socio lo aprueba explícitamente. La Fase 4 expone el CRM operativo completo en Next.js. La Fase 5 conecta ese frontend con el backend real actual para reemplazar mocks y dejar flujos funcionales end-to-end. La Fase 05.1 endurece la entrada real de Kapso para que los mensajes inbound persistan y reaparezcan en el CRM actual sin rediseñar la superficie frontend. Cada fase entrega un artefacto desplegable y verificable.
+El sistema se construye en cinco fases principales ordenadas por dependencia estricta, con cuatro inserciones decimales para adelantar trabajo crítico sin renumerar todo el roadmap. La Fase 1 establece el backbone completo: autenticación, recepción de webhooks idempotente, cola asíncrona y el adaptador de canal abstracto. La Fase 2 construye el motor conversacional sobre esa base sin introducir IA — el FSM de conversación debe estar estable antes de añadir una fuente de fallos nueva. La Fase 2.1 inserta el agente comercial experto: una IA consultiva/premium que guía la conversación de venta de software, captura el brief comercial y prepara una cotización en formato definido por el socio sin enviarla todavía al cliente. La Fase 3 cierra el loop de valor central: esa cotización se valida, persiste y entra en un flujo de aprobación humana donde solo llega al cliente cuando el socio lo aprueba explícitamente. La Fase 4 expone el CRM operativo completo en Next.js. La Fase 5 conecta ese frontend con el backend real actual para reemplazar mocks y dejar flujos funcionales end-to-end. La Fase 05.1 endurece la entrada real de Kapso para que los mensajes inbound persistan y reaparezcan en el CRM actual sin rediseñar la superficie frontend. La Fase 05.3 inserta la aprobación de cotizaciones desde el CRM web para cerrar el loop operativo sin depender de WhatsApp. Cada fase entrega un artefacto desplegable y verificable.
 
 ## Phases
 
@@ -21,6 +21,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 5: Frontend integration with current backend** - Reemplazar datos mock del frontend por consumo real del backend actual y cerrar flujos end-to-end (completed 2026-03-20)
 - [x] **Phase 05.1: Integración real de Kapso y flujo inbound end-to-end** (INSERTED) - Conectar el webhook real/simulado de Kapso al backend actual y probar que los mensajes inbound persistidos aparecen en APIs y CRM (completed 2026-03-19)
 - [ ] **Phase 05.2: Manual Reply from CRM** (INSERTED) - El socio puede responder mensajes inbound desde el panel de detalle del CRM: backend outbound endpoint + UI de reply integrada
+- [ ] **Phase 05.3: Quote Approval from CRM** (INSERTED) - El socio aprueba o solicita revisión de cotizaciones directamente desde el CRM web y el sistema entrega automáticamente la cotización aprobada al cliente
 
 ## Phase Details
 
@@ -118,7 +119,7 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 1.1 → 2 → 2.1 → 3 → 4 → 5 → 5.1
+Phases execute in numeric order: 1 → 1.1 → 2 → 2.1 → 3 → 4 → 5 → 5.1 → 5.2 → 5.3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -131,6 +132,7 @@ Phases execute in numeric order: 1 → 1.1 → 2 → 2.1 → 3 → 4 → 5 → 5
 | 5. Frontend integration with current backend | 4/4 | Complete | 2026-03-20 |
 | 05.1. Integración real de Kapso y flujo inbound end-to-end | 3/3 | Complete    | 2026-03-19 |
 | 05.2. Manual Reply from CRM | 1/2 | In Progress | - |
+| 05.3. Quote Approval from CRM | 0/TBD | Not started | - |
 
 ### Phase 5: Frontend integration with current backend
 
@@ -159,6 +161,23 @@ Plans:
 Plans:
 - [x] 05.2-01-PLAN.md — Backend outbound send chain (sendText returns wamid), POST endpoint, DTO, service method, module wiring (REPLY-02)
 - [ ] 05.2-02-PLAN.md — Frontend compose area in detail panel with SWR mutate for instant history update (REPLY-01, REPLY-03)
+
+### Phase 05.3: Quote Approval from CRM (INSERTED)
+
+**Goal:** El socio puede revisar cotizaciones pendientes desde el CRM web, previsualizar el quote generado, aprobarlo o solicitar revisión con comentarios, y al aprobar se dispara automáticamente la entrega al cliente usando el endpoint ya implementado
+**Depends on:** Phase 05.2
+**Requirements**: QUOTE-CRM-01, QUOTE-CRM-02, QUOTE-CRM-03, QUOTE-CRM-04
+**Success Criteria** (what must be TRUE):
+  1. El socio ve una lista de cotizaciones pendientes de aprobación dentro del CRM web sin depender de notificaciones por WhatsApp
+  2. El socio puede abrir una cotización y ver una vista previa suficiente para decidir aprobación o revisión
+  3. El socio puede aprobar o solicitar revisión desde el CRM, incluyendo comentarios cuando pide cambios
+  4. Al aprobar, el sistema ejecuta la entrega automática al cliente usando el endpoint ya implementado y deja el estado auditable en el CRM
+**Plans:** 3 plans
+
+Plans:
+- [ ] 05.3-01-PLAN.md — Backend quote review read model: additive pendingQuote inbox metadata and GET /conversations/:conversationId/quote-review
+- [ ] 05.3-02-PLAN.md — Backend approve/request-changes actions delegated to OwnerReviewService with CRM-aware audit and delivery timestamps
+- [ ] 05.3-03-PLAN.md — CRM shell integration in conversation list/detail panel using SWR and existing layout patterns
 
 ### Phase 05.1: Integración real de Kapso y flujo inbound end-to-end (INSERTED)
 
