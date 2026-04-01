@@ -157,7 +157,7 @@ export class OwnerReviewService {
       await this.approveDraft(command);
       await this.sendOwnerAck(
         source.fromPhone,
-        `Aprobacion registrada para ${command.conversationId} v${command.version}. La cotizacion queda marcada como aprobada para pasos posteriores controlados.`,
+        `Aprobacion registrada para ${command.conversationId} v${command.version}. La cotizacion fue enviada al cliente.`,
         source.messageId,
       );
       return true;
@@ -208,6 +208,39 @@ export class OwnerReviewService {
       conversationId: command.conversationId,
       version: command.version,
       reviewerPhone: command.reviewerPhone ?? null,
+    });
+
+    const delivery = await this.prepareApprovedCustomerDelivery(command.conversationId);
+    const senderPhoneNumberId =
+      this.config.get<string>('KAPSO_PHONE_NUMBER_ID')?.trim() || undefined;
+    const externalMessageId = await this.messagingService.sendText(
+      delivery.conversationId,
+      delivery.body,
+      senderPhoneNumberId,
+    );
+    await this.prisma.quoteDraft.update({
+      where: { id: delivery.quoteDraftId },
+      data: { reviewStatus: 'delivered_to_customer' },
+    });
+    await this.prisma.message.create({
+      data: {
+        externalMessageId,
+        direction: 'outbound',
+        fromPhone: senderPhoneNumberId ?? 'ai-sales',
+        toPhone: delivery.conversationId,
+        body: delivery.body,
+        channel: 'whatsapp',
+        rawPayload: {
+          externalMessageId,
+          direction: 'outbound',
+          fromPhone: senderPhoneNumberId ?? 'ai-sales',
+          toPhone: delivery.conversationId,
+          body: delivery.body,
+          source: 'ai-sales-customer-delivery',
+          quoteDraftId: delivery.quoteDraftId,
+          version: delivery.version,
+        },
+      },
     });
   }
 
