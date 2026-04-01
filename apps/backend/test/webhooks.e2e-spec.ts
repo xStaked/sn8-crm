@@ -4,6 +4,8 @@ import express from 'express';
 import { createHmac } from 'crypto';
 import request from 'supertest';
 import { getQueueToken } from '@nestjs/bullmq';
+import { OwnerReviewService } from '../src/ai-sales/owner-review.service';
+import { MessageProcessor } from '../src/messaging/processors/message.processor';
 import { REDIS_CLIENT } from '../src/redis/redis.constants';
 import { WebhooksController } from '../src/webhooks/webhooks.controller';
 import { WebhooksService } from '../src/webhooks/webhooks.service';
@@ -48,11 +50,19 @@ describe('Webhooks (e2e)', () => {
 
   let app: any;
   let queue: { add: jest.Mock };
+  let ownerReviewService: { handleOwnerCommand: jest.Mock };
+  let messageProcessor: { process: jest.Mock };
 
   beforeAll(async () => {
     process.env.KAPSO_WEBHOOK_SECRET = secret;
 
     queue = { add: jest.fn(async () => ({ id: 'job_1' })) };
+    ownerReviewService = {
+      handleOwnerCommand: jest.fn(async () => false),
+    };
+    messageProcessor = {
+      process: jest.fn(async () => undefined),
+    };
 
     const keys = new Set<string>();
     const redis = {
@@ -76,6 +86,8 @@ describe('Webhooks (e2e)', () => {
         WebhooksService,
         { provide: REDIS_CLIENT, useValue: redis },
         { provide: getQueueToken('incoming-messages'), useValue: queue },
+        { provide: OwnerReviewService, useValue: ownerReviewService },
+        { provide: MessageProcessor, useValue: messageProcessor },
       ],
     }).compile();
 
@@ -89,6 +101,12 @@ describe('Webhooks (e2e)', () => {
       }),
     );
     await app.init();
+  });
+
+  beforeEach(() => {
+    queue.add.mockClear();
+    ownerReviewService.handleOwnerCommand.mockClear();
+    messageProcessor.process.mockClear();
   });
 
   afterAll(async () => {
@@ -125,11 +143,17 @@ describe('Webhooks (e2e)', () => {
       .send(payload)
       .expect(401);
 
-    expect(queue.add).toHaveBeenCalledTimes(1);
+    expect(queue.add).not.toHaveBeenCalled();
   });
 
   it('duplicate delivery returns 200 and enqueues once', async () => {
-    const payload = { message: { id: 'msg_e2e_dup' } };
+    const payload = {
+      message: {
+        id: 'msg_e2e_dup',
+        from: '573001234567',
+        text: { body: 'Hola duplicado' },
+      },
+    };
     const signature = sign(payload);
 
     await request(app.getHttpServer())
@@ -144,12 +168,17 @@ describe('Webhooks (e2e)', () => {
       .send(payload)
       .expect(200);
 
-    // First test already enqueued once, and this test should enqueue once more (only the first request here).
-    expect(queue.add).toHaveBeenCalledTimes(2);
+    expect(queue.add).toHaveBeenCalledTimes(1);
   });
 
   it('accepts the documented X-Idempotency-Key header', async () => {
-    const payload = { type: 'whatsapp.message.received' };
+    const payload = {
+      message: {
+        id: 'msg_e2e_header',
+        from: '573001234567',
+        text: { body: 'Header idempotency path' },
+      },
+    };
     const signature = sign(payload);
 
     await request(app.getHttpServer())
