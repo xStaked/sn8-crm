@@ -282,7 +282,8 @@ export class OwnerReviewService {
         },
       },
     });
-    await this.trySendPdfToCustomer(delivery, senderPhoneNumberId);
+    // PDF is now available via link instead of attachment (better WhatsApp delivery)
+    await this.sendPdfLinkToCustomer(delivery, senderPhoneNumberId);
   }
 
   private async requestChangesWithSource(
@@ -475,50 +476,59 @@ export class OwnerReviewService {
     };
   }
 
-  private async trySendPdfToCustomer(
+  private async sendPdfLinkToCustomer(
     delivery: ApprovedCustomerDeliveryPayload,
     senderPhoneNumberId: string | undefined,
   ): Promise<void> {
     try {
+      // Ensure PDF exists (it will be available via the API endpoint)
       const doc = await this.quotePdfService.getOrCreateDraftPdf(delivery.quoteDraftId);
-      const buffer = Buffer.from(doc.content as Uint8Array);
-      const pdfMessageId = await this.messagingService.sendDocument(
+      
+      // Build the PDF link - this will be available at the CRM URL
+      const baseUrl = this.config.get<string>('CRM_BASE_URL')?.trim() || 'https://crm.sn8labs.com';
+      const pdfUrl = `${baseUrl}/conversations/${delivery.conversationId}/quote-review/pdf`;
+      
+      const linkMessage = `📄 También puedes descargar la propuesta en PDF aquí: ${pdfUrl}`;
+      
+      const externalMessageId = await this.messagingService.sendText(
         delivery.conversationId,
-        buffer,
-        doc.fileName,
-        undefined,
+        linkMessage,
         senderPhoneNumberId,
       );
+      
       await this.prisma.message.create({
         data: {
-          externalMessageId: pdfMessageId,
+          externalMessageId,
           direction: 'outbound',
           fromPhone: senderPhoneNumberId ?? 'ai-sales',
           toPhone: delivery.conversationId,
-          body: null,
+          body: linkMessage,
           channel: 'whatsapp',
           rawPayload: {
-            externalMessageId: pdfMessageId,
+            externalMessageId,
             direction: 'outbound',
             fromPhone: senderPhoneNumberId ?? 'ai-sales',
             toPhone: delivery.conversationId,
-            source: 'ai-sales-customer-delivery-pdf',
+            source: 'ai-sales-customer-delivery-pdf-link',
             quoteDraftId: delivery.quoteDraftId,
             version: delivery.version,
             fileName: doc.fileName,
+            pdfUrl,
           },
         },
       });
+      
       this.logger.log({
-        event: 'customer_delivery_pdf_sent',
+        event: 'customer_delivery_pdf_link_sent',
         conversationId: delivery.conversationId,
         quoteDraftId: delivery.quoteDraftId,
         version: delivery.version,
-        externalMessageId: pdfMessageId,
+        externalMessageId,
+        pdfUrl,
       });
     } catch (error) {
       this.logger.warn({
-        event: 'customer_delivery_pdf_failed',
+        event: 'customer_delivery_pdf_link_failed',
         conversationId: delivery.conversationId,
         quoteDraftId: delivery.quoteDraftId,
         version: delivery.version,

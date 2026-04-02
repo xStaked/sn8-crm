@@ -14,10 +14,15 @@ import {
 } from './dto/ai-sales-state.dto';
 import { OwnerReviewService } from './owner-review.service';
 
-const REQUIRED_BRIEF_FIELDS = [
+// Core fields that are truly required to understand the project
+const CORE_BRIEF_FIELDS = [
   'projectType',
   'businessProblem',
   'desiredScope',
+] as const;
+
+// Optional fields - we collect them if provided but don't block the quote
+const OPTIONAL_BRIEF_FIELDS = [
   'budget',
   'urgency',
   'constraints',
@@ -68,6 +73,30 @@ export class AiSalesOrchestrator {
     });
 
     return job;
+  }
+
+  /**
+   * Force immediate generation of a quote draft for a conversation.
+   * This bypasses the queue and runs synchronously - useful for manual regeneration from CRM.
+   */
+  async forceGenerateQuoteDraft(conversationId: string): Promise<AiSalesStateDto> {
+    const normalizedConversationId = conversationId.trim();
+    
+    this.logger.log({
+      event: 'ai_sales_force_generate_draft_started',
+      conversationId: normalizedConversationId,
+    });
+
+    const result = await this.processQualifiedConversation(normalizedConversationId);
+
+    this.logger.log({
+      event: 'ai_sales_force_generate_draft_completed',
+      conversationId: normalizedConversationId,
+      processingStage: result.processingStage,
+      quoteDraftId: result.quoteDraftId ?? null,
+    });
+
+    return result;
   }
 
   async processQualifiedConversation(
@@ -125,7 +154,9 @@ export class AiSalesOrchestrator {
       ),
       summary: this.pickMeaningfulValue(extractedBrief.summary, currentBrief?.summary),
     };
-    const missingFields = REQUIRED_BRIEF_FIELDS.filter(
+    // Only core fields are required to proceed with a quote
+    // Optional fields are nice to have but not blocking
+    const missingFields = CORE_BRIEF_FIELDS.filter(
       (field) => !this.hasMeaningfulBriefValue(mergedBrief[field]),
     );
 
@@ -246,6 +277,11 @@ export class AiSalesOrchestrator {
     const normalized = value?.trim();
     if (!normalized) {
       return null;
+    }
+
+    // Client explicitly says they don't have a budget or want us to propose
+    if (/(no tengo presupuesto|no sé|no se|dime el precio|dime cuanto|cual es el precio|cuanto cuesta|a definir|por definir|me dices tu|tu me dices)/i.test(normalized)) {
+      return 'a definir con SN8';
     }
 
     if (/(no importa|abierto|flexible|sin tope|lo vemos)/i.test(normalized)) {

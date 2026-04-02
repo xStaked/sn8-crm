@@ -9,16 +9,23 @@ import { MessageVariantService } from './message-variant.service';
 const DEFAULT_AUTO_REPLY =
   'Hola, soy el asistente comercial de SN8 Labs. Ya recibi tu mensaje y te voy a guiar para entender tu proyecto antes de preparar una propuesta.';
 
-const REQUIRED_BRIEF_FIELDS = [
+// Core fields that are truly required to understand the project
+const CORE_BRIEF_FIELDS = [
   'projectType',
   'businessProblem',
   'desiredScope',
+] as const;
+
+// Optional fields - we try to collect them but don't block the quote if missing
+const OPTIONAL_BRIEF_FIELDS = [
   'budget',
   'urgency',
   'constraints',
 ] as const;
 
-type RequiredBriefField = (typeof REQUIRED_BRIEF_FIELDS)[number];
+const ALL_BRIEF_FIELDS = [...CORE_BRIEF_FIELDS, ...OPTIONAL_BRIEF_FIELDS] as const;
+
+type RequiredBriefField = (typeof ALL_BRIEF_FIELDS)[number];
 
 type ReplyPlan = {
   body: string;
@@ -228,10 +235,7 @@ export class ConversationFlowService {
           currentBrief?.desiredScope,
         ),
         budget: this.mergeBudgetValue(extractedBrief.budget, currentBrief?.budget),
-        urgency: this.pickMeaningfulValue(
-          extractedBrief.urgency,
-          currentBrief?.urgency,
-        ),
+        urgency: this.mergeUrgencyValue(extractedBrief.urgency, currentBrief?.urgency),
         constraints: this.pickMeaningfulValue(
           extractedBrief.constraints,
           currentBrief?.constraints,
@@ -241,11 +245,30 @@ export class ConversationFlowService {
       const extractedMissing = this.resolveExtractedMissingFields(
         extractedBrief.missingInformation,
       );
-      const missingFields = REQUIRED_BRIEF_FIELDS.filter(
+      // Check core fields (must have these)
+      const missingCoreFields = CORE_BRIEF_FIELDS.filter(
         (field) =>
           !this.hasMeaningfulBriefValue(mergedBrief[field]) ||
           (extractedMissing.has(field) && !this.hasMeaningfulBriefValue(currentBrief?.[field])),
       );
+
+      // Check optional fields - only ask if missing AND we haven't tried to get them yet
+      // If client said they don't have this info, we accept it and move on
+      const missingOptionalFields = OPTIONAL_BRIEF_FIELDS.filter((field) => {
+        const hasValue = this.hasMeaningfulBriefValue(mergedBrief[field]);
+        const wasAskedBefore = this.hasMeaningfulBriefValue(currentBrief?.[field]);
+        const isMarkedAsFlexible = 
+          (field === 'budget' && /a definir|presupuesto abierto/i.test(mergedBrief[field] || '')) ||
+          (field === 'urgency' && /flexible/i.test(mergedBrief[field] || ''));
+        
+        // If already marked as flexible/undefined, don't ask again
+        if (isMarkedAsFlexible) return false;
+        
+        // If no value and not asked before, we should ask once
+        return !hasValue && !wasAskedBefore && extractedMissing.has(field);
+      });
+
+      const missingFields = [...missingCoreFields, ...missingOptionalFields];
 
       // Persist new project marker if this is a new project start
       const contextWithNewProjectMarker = {
@@ -382,28 +405,13 @@ export class ConversationFlowService {
       },
     );
 
-    // Build context summary
-    const summaryParts = [
-      brief.businessProblem?.trim(),
-      brief.desiredScope?.trim(),
-      brief.budget?.trim() ? `presupuesto ${brief.budget.trim()}` : null,
-      brief.urgency?.trim() ? `tiempo ${brief.urgency.trim()}` : null,
-    ].filter((value): value is string => Boolean(value));
+    // Simple closing without the lengthy summary (the brief is already in the system)
+    // Just invite to add more details if needed
+    const closing = brief.budget === 'a definir con SN8' || brief.urgency === 'flexible'
+      ? ' Si quieres ajustar algo del alcance o agregar detalles, aún estamos a tiempo.'
+      : ' Si se te ocurre algo más que quieras agregar, escríbeme antes de que cierre el brief.';
 
-    const normalizedSummary =
-      (summaryParts.length > 0 ? summaryParts.join('; ') : null)?.replace(/[.\s]+$/, '') ??
-      null;
-
-    // Combine variant message with context
-    const context = normalizedSummary
-      ? ` Entendí esto como base: ${normalizedSummary}.`
-      : '';
-
-    // Add closing that invites more details
-    const closing =
-      ' Si quieres, todavía puedes responder con más detalle sobre alcance, presupuesto o prioridad y lo incorporo antes de cerrarla.';
-
-    return `${baseMessage}${context}${closing}`;
+    return `${baseMessage}${closing}`;
   }
 
   private pickMeaningfulValue(
@@ -441,8 +449,27 @@ export class ConversationFlowService {
       return null;
     }
 
+    // Client explicitly says they don't have a budget or want us to propose
+    if (/(no tengo presupuesto|no sé|no se|dime el precio|dime cuanto|cual es el precio|cuanto cuesta|a definir|por definir|me dices tu|tu me dices)/i.test(normalized)) {
+      return 'a definir con SN8';
+    }
+
     if (/(no importa|abierto|flexible|sin tope|lo vemos)/i.test(normalized)) {
       return 'presupuesto abierto';
+    }
+
+    return this.looksLikeMissingPlaceholder(normalized) ? null : normalized;
+  }
+
+  private normalizeUrgencyValue(value: string | null | undefined): string | null {
+    const normalized = value?.trim();
+    if (!normalized) {
+      return null;
+    }
+
+    // Client explicitly says they're not in a hurry
+    if (/(no tengo prisa|no hay afán|no hay afan|cuando esté|cuando este|sin fecha|flexible|cuando puedas|no urgente)/i.test(normalized)) {
+      return 'flexible';
     }
 
     return this.looksLikeMissingPlaceholder(normalized) ? null : normalized;
@@ -453,6 +480,13 @@ export class ConversationFlowService {
     fallback: string | null | undefined,
   ): string | null {
     return this.normalizeBudgetValue(primary) ?? this.normalizeBudgetValue(fallback);
+  }
+
+  private mergeUrgencyValue(
+    primary: string | null | undefined,
+    fallback: string | null | undefined,
+  ): string | null {
+    return this.normalizeUrgencyValue(primary) ?? this.normalizeUrgencyValue(fallback);
   }
 
   private looksLikeMissingPlaceholder(value: string): boolean {

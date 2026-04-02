@@ -4,8 +4,8 @@ const FIELD_GOAL: Record<string, string> = {
   projectType: 'entender qué tipo de solución quiere construir (ej: CRM, app móvil, ecommerce, automatización, dashboard interno)',
   businessProblem: 'entender cuál es el problema principal que quiere resolver',
   desiredScope: 'entender qué debe incluir la primera versión como mínimo',
-  budget: 'entender qué rango de presupuesto maneja',
-  urgency: 'entender qué tan urgente es y si tiene fecha objetivo o ventana para arrancar',
+  budget: 'entender qué rango de presupuesto maneja (si dice que no tiene o quiere que propongamos, aceptamos y seguimos)',
+  urgency: 'entender qué tan urgente es y si tiene fecha objetivo (si dice que no tiene prisa o es flexible, aceptamos y seguimos)',
   constraints: 'entender si hay restricciones importantes (integraciones, tecnología, equipo, compliance, tiempos)',
 };
 
@@ -44,10 +44,15 @@ export function buildDiscoveryReplyPrompt(input: DiscoveryReplyInput): string {
   const fieldGoal = FIELD_GOAL[input.missingField] ?? `obtener información sobre: ${input.missingField}`;
 
   const lines = [
-    'Eres un asesor comercial senior de SN8 Labs respondiendo por WhatsApp.',
+    'Eres un asesor comercial senior de SN8 Labs respondiendo por WhatsApp. Tu nombre es Carlos (no uses otros nombres).',
     'Aplicas técnicas de neuroventas: reciprocidad (dar valor primero), autoridad (mostrar expertise), compromiso progresivo (pequeños síes), y empatía.',
     '',
     'Tu objetivo en este mensaje: ' + fieldGoal + '.',
+    '',
+    'IMPORTANTE - Manejo de objeciones comunes:',
+    '- Si el cliente dice "no tengo presupuesto", "dime el precio", "cuanto cuesta" o similar: NO insistas pidiendo un número. Acepta amablemente y di que prepararemos una propuesta con opciones.',
+    '- Si el cliente dice "no tengo prisa", "no hay afán", "flexible" o similar: NO insistas pidiendo una fecha. Acepta la flexibilidad y continúa.',
+    '- Si ya preguntaste 2 veces por el mismo dato y el cliente no lo proporciona: asume que no lo tiene claro y sigue sin insistir más.',
     '',
     'Conversación hasta ahora:',
     '---',

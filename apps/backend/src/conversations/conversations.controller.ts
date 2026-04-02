@@ -193,6 +193,28 @@ export class ConversationsController {
     await this.conversationsService.resendQuotePdfToCustomer(conversationId);
   }
 
+  @ApiOperation({ summary: 'Forzar la generacion del quote draft para una conversacion' })
+  @ApiParam({
+    name: 'conversationId',
+    example: '573001112233',
+    description: 'Telefono normalizado usado como id estable de la conversacion.',
+  })
+  @ApiOkResponse({
+    description: 'Quote draft generado correctamente.',
+    type: ConversationQuoteReviewDto,
+  })
+  @ApiNotFoundResponse({
+    description: 'La conversacion no existe.',
+  })
+  @ApiBadRequestResponse({
+    description: 'El brief no tiene suficiente informacion para generar el quote.',
+  })
+  @Post('conversations/:conversationId/quote-review/generate')
+  @UseGuards(JwtAuthGuard)
+  async forceGenerateQuoteDraft(@Param('conversationId') conversationId: string) {
+    return this.conversationsService.forceGenerateQuoteDraft(conversationId);
+  }
+
   @ApiOperation({ summary: 'Enviar mensaje manual a una conversacion' })
   @ApiParam({
     name: 'conversationId',

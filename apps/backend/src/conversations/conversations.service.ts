@@ -1,6 +1,7 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { QuoteReviewStatus } from '@prisma/client';
+import { AiSalesOrchestrator } from '../ai-sales/ai-sales.orchestrator';
 import { OwnerReviewAction } from '../ai-sales/dto/owner-review-command.dto';
 import { OwnerReviewService } from '../ai-sales/owner-review.service';
 import { MessagingService } from '../messaging/messaging.service';
@@ -105,6 +106,7 @@ export class ConversationsService {
     private readonly config: ConfigService,
     private readonly ownerReviewService: OwnerReviewService,
     private readonly quotePdfService: QuotePdfService,
+    private readonly aiSalesOrchestrator: AiSalesOrchestrator,
   ) {}
 
   async listConversations(): Promise<ConversationSummary[]> {
@@ -326,6 +328,20 @@ export class ConversationsService {
       quoteDraftId: draft.id,
       version: draft.version,
     });
+  }
+
+  async forceGenerateQuoteDraft(conversationId: string): Promise<ConversationQuoteReviewDto> {
+    const normalizedConversationId = this.normalizeParticipantPhone(conversationId);
+    await this.assertConversationExists(normalizedConversationId);
+
+    // Process the conversation synchronously to generate the draft
+    const result = await this.aiSalesOrchestrator.processQualifiedConversation(normalizedConversationId);
+
+    if (result.processingStage !== 'draft_ready_for_review') {
+      throw new Error(`Could not generate quote draft: ${result.processingStage}. Missing fields: ${result.missingFields?.join(', ') ?? 'none'}`);
+    }
+
+    return this.getConversationQuoteReview(normalizedConversationId);
   }
 
   async sendMessage(

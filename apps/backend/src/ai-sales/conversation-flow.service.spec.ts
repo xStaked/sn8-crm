@@ -159,14 +159,9 @@ describe('ConversationFlowService', () => {
       body: expect.any(String),
       source: 'commercial-ready-for-quote',
     });
-    // Message should contain project info
-    expect(result.body).toContain('Centralizar');
-    expect(result.body).toContain('6 semanas');
-    expect(result.body).toContain('Centralizar el seguimiento comercial.');
-    expect(result.body).toContain('Pipeline, automatizaciones y panel de reportes.');
-    expect(result.body).toContain('presupuesto USD 4k a 6k');
-    expect(result.body).toContain('tiempo 6 semanas');
-    expect(result.body.toLowerCase()).toContain('todav');  // matches todavía/todavia
+    // Message should be natural and concise (no long summary anymore)
+    expect(result.body).toContain('propuesta');
+    expect(result.body.length).toBeLessThan(300); // Shorter, more natural message than before
   });
 
   it('returns a processing message when the brief is already ready_for_quote and the user sends another message', async () => {
