@@ -4,6 +4,7 @@ import { ConversationsService } from '../conversations/conversations.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AiSalesOrchestrator } from './ai-sales.orchestrator';
 import { AiSalesService } from './ai-sales.service';
+import { MessageVariantService } from './message-variant.service';
 
 const DEFAULT_AUTO_REPLY =
   'Hola, soy el asistente comercial de SN8 Labs. Ya recibi tu mensaje y te voy a guiar para entender tu proyecto antes de preparar una propuesta.';
@@ -66,6 +67,7 @@ export class ConversationFlowService {
     private readonly conversationsService: ConversationsService,
     private readonly aiSalesService: AiSalesService,
     private readonly aiSalesOrchestrator: AiSalesOrchestrator,
+    private readonly messageVariantService: MessageVariantService,
   ) {}
 
   async planReply(input: {
@@ -97,7 +99,7 @@ export class ConversationFlowService {
     const latestDraft = currentBrief?.quoteDrafts[0];
     if (latestDraft) {
       return {
-        body: this.buildReviewStatusReply(latestDraft.reviewStatus),
+        body: this.buildReviewStatusReply(latestDraft.reviewStatus, normalizedConversationId),
         source: 'commercial-review-status',
       };
     }
@@ -143,6 +145,9 @@ export class ConversationFlowService {
         transcript,
         currentBrief ?? undefined,
       );
+
+      // Extract conversation context for better replies
+      const conversationContext = await this.extractConversationContext(transcript);
       const mergedBrief: MergedCommercialBrief = {
         customerName: this.pickMeaningfulValue(
           extractedBrief.customerName,
@@ -187,11 +192,13 @@ export class ConversationFlowService {
           status: missingFields.length > 0 ? 'collecting' : 'ready_for_quote',
           ...mergedBrief,
           sourceTranscript: messages,
+          conversationContext: conversationContext as any,
         },
         update: {
           status: missingFields.length > 0 ? 'collecting' : 'ready_for_quote',
           ...mergedBrief,
           sourceTranscript: messages,
+          conversationContext: conversationContext as any,
         },
       });
 
@@ -203,6 +210,8 @@ export class ConversationFlowService {
             missingField: missingFields[0],
             isFirstTouch: !currentBrief,
             knownProjectType: mergedBrief.projectType,
+            customerName: mergedBrief.customerName,
+            conversationContext: conversationContext ?? undefined,
           });
         } catch (replyError) {
           this.logger.warn({
@@ -225,7 +234,7 @@ export class ConversationFlowService {
       );
 
       return {
-        body: this.buildReadyForQuoteReply(mergedBrief),
+        body: this.buildReadyForQuoteReply(mergedBrief, normalizedConversationId),
         source: 'commercial-ready-for-quote',
       };
     } catch (error) {
@@ -264,22 +273,48 @@ export class ConversationFlowService {
     return `${intro} ${questions[missingField]}`;
   }
 
-  private buildReviewStatusReply(reviewStatus: QuoteDraft['reviewStatus']): string {
+  private buildReviewStatusReply(
+    reviewStatus: QuoteDraft['reviewStatus'],
+    conversationId: string,
+  ): string {
     switch (reviewStatus) {
       case 'delivered_to_customer':
-        return 'Tu propuesta ya fue enviada. Si tienes preguntas o quieres avanzar con el proyecto, con gusto te ayudamos.';
+        return this.messageVariantService.getReviewStatusVariant(
+          'delivered_to_customer',
+          conversationId,
+        );
       case 'approved':
         return 'Tu propuesta ya fue aprobada internamente. Estamos preparando el siguiente paso para compartirla contigo por este mismo canal.';
       case 'changes_requested':
+        return this.messageVariantService.getReviewStatusVariant(
+          'changes_requested',
+          conversationId,
+        );
       case 'ready_for_recheck':
       case 'pending_owner_review':
       default:
-        return 'Ya tenemos tu brief y la propuesta esta en revision interna. Si quieres, puedes seguir agregando contexto y lo tendremos en cuenta antes de cerrarla.';
+        return this.messageVariantService.getReviewStatusVariant(
+          'pending_owner_review',
+          conversationId,
+        );
     }
   }
 
-  private buildReadyForQuoteReply(brief: MergedCommercialBrief): string {
-    const projectLabel = brief.projectType?.trim() || 'tu proyecto';
+  private buildReadyForQuoteReply(
+    brief: MergedCommercialBrief,
+    conversationId: string,
+  ): string {
+    // Use message variant service for varied, natural responses
+    const baseMessage = this.messageVariantService.getReadyForQuoteVariant(
+      brief.projectType,
+      {
+        hasUrgency: !!brief.urgency,
+        hasBudget: !!brief.budget,
+        conversationId,
+      },
+    );
+
+    // Build context summary
     const summaryParts = [
       brief.businessProblem?.trim(),
       brief.desiredScope?.trim(),
@@ -291,12 +326,16 @@ export class ConversationFlowService {
       (summaryParts.length > 0 ? summaryParts.join('; ') : null)?.replace(/[.\s]+$/, '') ??
       null;
 
-    const opening = `Perfecto. Con lo que tengo hasta ahora, voy a cotizar ${projectLabel}.`;
+    // Combine variant message with context
     const context = normalizedSummary
-      ? ` Entendi esto como base: ${normalizedSummary}.`
+      ? ` Entendí esto como base: ${normalizedSummary}.`
       : '';
 
-    return `${opening}${context} El siguiente paso es consolidar este brief y preparar una propuesta preliminar. Cuando ya quede lista, pasara a revision interna antes de compartir cualquier cotizacion final. Si quieres, todavia puedes responder con mas detalle sobre alcance, presupuesto o prioridad y lo incorporo antes de cerrarla.`;
+    // Add closing that invites more details
+    const closing =
+      ' Si quieres, todavía puedes responder con más detalle sobre alcance, presupuesto o prioridad y lo incorporo antes de cerrarla.';
+
+    return `${baseMessage}${context}${closing}`;
   }
 
   private pickMeaningfulValue(
@@ -380,5 +419,68 @@ export class ConversationFlowService {
     }
 
     return resolved;
+  }
+
+  /**
+   * Extract conversational context from the transcript
+   * Uses heuristics to determine tone, topics, and concerns
+   */
+  private extractConversationContext(transcript: string): {
+    previousTopics: string[];
+    customerTone: 'formal' | 'casual' | 'technical';
+    expressedConcerns: string[];
+  } | null {
+    try {
+      const topics: string[] = [];
+      const concerns: string[] = [];
+
+      // Extract potential topics (capitalized phrases, quoted terms)
+      const topicMatches = transcript.match(/(?:CRM|app|aplicación|sistema|web|mobile|ecommerce|automatización|dashboard|API|integración|whatsapp|instagram|redes|cloud|servidor)/gi);
+      if (topicMatches) {
+        topics.push(...new Set(topicMatches.map(t => t.toLowerCase())));
+      }
+
+      // Detect concerns based on keywords
+      if (/presupuesto|costo|precio|barato|caro|dinero/i.test(transcript)) {
+        concerns.push('presupuesto');
+      }
+      if (/tiempo|urgencia|ya|pronto|fecha|demora|lento/i.test(transcript)) {
+        concerns.push('tiempo');
+      }
+      if (/complejo|difícil|imposible|no se puede|problema/i.test(transcript)) {
+        concerns.push('complejidad');
+      }
+      if (/tecnología|stack|lenguaje|plataforma|hosting/i.test(transcript)) {
+        concerns.push('tecnología');
+      }
+
+      // Detect tone
+      let tone: 'formal' | 'casual' | 'technical' = 'casual';
+      const formalIndicators = /usted|estimado|cordial|saludos|atentamente|empresa/i;
+      const technicalIndicators = /api|endpoint|database|frontend|backend|deploy|server|json|rest|graphql/i;
+
+      if (technicalIndicators.test(transcript)) {
+        tone = 'technical';
+      } else if (formalIndicators.test(transcript)) {
+        tone = 'formal';
+      }
+
+      // Only return if we have meaningful context
+      if (topics.length === 0 && concerns.length === 0) {
+        return null;
+      }
+
+      return {
+        previousTopics: topics.slice(0, 5), // Limit to 5 topics
+        customerTone: tone,
+        expressedConcerns: concerns,
+      };
+    } catch (error) {
+      this.logger.warn({
+        event: 'conversation_context_extraction_failed',
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return null;
+    }
   }
 }

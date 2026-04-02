@@ -5,6 +5,12 @@ export type GenerateDiscoveryReplyInput = {
   missingField: string;
   isFirstTouch: boolean;
   knownProjectType?: string | null;
+  customerName?: string | null;
+  conversationContext?: {
+    previousTopics: string[];
+    customerTone: 'formal' | 'casual' | 'technical';
+    expressedConcerns: string[];
+  };
 };
 
 export type CommercialBriefSnapshot = {

@@ -12,6 +12,8 @@ import { AI_SALES_QUEUE } from './dto/ai-sales-state.dto';
 import { AiSalesService } from './ai-sales.service';
 import { ConversationFlowService } from './conversation-flow.service';
 import { OwnerReviewService } from './owner-review.service';
+import { MessageVariantService } from './message-variant.service';
+import { FollowUpService } from './follow-up.service';
 
 @Module({
   imports: [
@@ -27,6 +29,9 @@ import { OwnerReviewService } from './owner-review.service';
     AiSalesOrchestrator,
     ConversationFlowService,
     OwnerReviewService,
+    MessageVariantService,
+    FollowUpService,
+    MessageVariantService,
     AiSalesProcessor,
     {
       provide: AI_PROVIDER,

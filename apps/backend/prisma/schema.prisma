@@ -69,21 +69,22 @@ model ConversationState {
 }
 
 model CommercialBrief {
-  id               String                @id @default(cuid())
-  conversationId   String                @unique
-  status           CommercialBriefStatus @default(collecting)
-  customerName     String?
-  projectType      String?
-  businessProblem  String?
-  desiredScope     String?
-  budget           String?
-  urgency          String?
-  constraints      String?
-  summary          String?
-  sourceTranscript Json?
-  createdAt        DateTime              @default(now())
-  updatedAt        DateTime              @updatedAt
-  quoteDrafts      QuoteDraft[]
+  id                  String                @id @default(cuid())
+  conversationId      String                @unique
+  status              CommercialBriefStatus @default(collecting)
+  customerName        String?
+  projectType         String?
+  businessProblem     String?
+  desiredScope        String?
+  budget              String?
+  urgency             String?
+  constraints         String?
+  summary             String?
+  sourceTranscript    Json?
+  conversationContext Json? // Stores topics, tone, concerns, urgency level, technical level
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  quoteDrafts         QuoteDraft[]
 
   @@index([status])
 }
