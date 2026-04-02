@@ -140,16 +140,23 @@ function QuoteReviewCard({
   ].filter((field) => Boolean(field.value));
 
   const actionable = isQuoteReviewActionable(quoteReview.reviewStatus);
-  const pdfVersion = quoteReview.pdf.version ?? quoteReview.version;
+  const pdf = quoteReview.pdf ?? {
+    available: false,
+    fileName: null,
+    generatedAt: null,
+    sizeBytes: null,
+    version: quoteReview.version,
+  };
+  const pdfVersion = pdf.version ?? quoteReview.version;
   const pdfMetadata = [
     `Version PDF v${pdfVersion}`,
-    quoteReview.pdf.generatedAt
-      ? `Generado ${formatTimestamp(quoteReview.pdf.generatedAt)}`
-      : quoteReview.pdf.available
+    pdf.generatedAt
+      ? `Generado ${formatTimestamp(pdf.generatedAt)}`
+      : pdf.available
         ? "PDF disponible"
         : "Se genera al abrirlo",
-    typeof quoteReview.pdf.sizeBytes === "number"
-      ? formatBytes(quoteReview.pdf.sizeBytes)
+    typeof pdf.sizeBytes === "number"
+      ? formatBytes(pdf.sizeBytes)
       : null,
   ].filter(Boolean);
 
@@ -224,16 +231,16 @@ function QuoteReviewCard({
                 <Badge
                   variant="secondary"
                   className={
-                    quoteReview.pdf.available
+                    pdf.available
                       ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200"
                       : "border-border bg-muted text-muted-foreground"
                   }
                 >
-                  {quoteReview.pdf.available ? "Disponible" : "Generación al abrir"}
+                  {pdf.available ? "Disponible" : "Generación al abrir"}
                 </Badge>
               </div>
               <p className="text-sm text-muted-foreground">
-                {quoteReview.pdf.fileName ??
+                {pdf.fileName ??
                   `cotizacion-${quoteReview.conversationId}-v${pdfVersion}.pdf`}
               </p>
               <p className="text-xs text-muted-foreground">
@@ -445,6 +452,14 @@ export function DetailPanel() {
       return;
     }
 
+    const pdf = quoteReview.pdf ?? {
+      available: false,
+      fileName: null,
+      generatedAt: null,
+      sizeBytes: null,
+      version: quoteReview.version,
+    };
+
     const pdfUrl = `/conversations/${encodeURIComponent(selectedId)}/quote-review/pdf`;
 
     setPdfOpening(true);
@@ -475,8 +490,7 @@ export function DetailPanel() {
         const anchor = document.createElement("a");
         anchor.href = blobUrl;
         anchor.download =
-          quoteReview.pdf.fileName ??
-          `cotizacion-${selectedId}-v${quoteReview.version}.pdf`;
+          pdf.fileName ?? `cotizacion-${selectedId}-v${pdf.version}.pdf`;
         anchor.rel = "noopener noreferrer";
         anchor.click();
       }
