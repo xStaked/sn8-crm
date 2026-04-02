@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { UserRole } from '@prisma/client';
 
 export class AuthOkResponseDto {
   @ApiProperty({ example: 'ok' })
@@ -17,4 +18,7 @@ export class AuthUserResponseDto {
 
   @ApiProperty({ example: 'socio@example.com' })
   email: string;
+
+  @ApiProperty({ example: 'admin', enum: UserRole })
+  role: UserRole;
 }

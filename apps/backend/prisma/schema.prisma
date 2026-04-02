@@ -31,10 +31,16 @@ enum QuoteDraftDocumentKind {
   commercial_pdf
 }
 
+enum UserRole {
+  admin
+  user
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
   passwordHash String
+  role         UserRole @default(user)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }

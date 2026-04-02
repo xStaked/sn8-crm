@@ -87,7 +87,7 @@ export class AuthController {
       throw new ForbiddenException();
     }
 
-    return this.authService.bootstrapUser(dto.email, dto.password);
+    return this.authService.bootstrapUser(dto.email, dto.password, dto.role);
   }
 
   @ApiOperation({
@@ -106,7 +106,7 @@ export class AuthController {
   @UseGuards(LocalAuthGuard)
   async login(
     @Body() _loginDto: LoginDto,
-    @Request() req: { user: { userId: string; email: string } },
+    @Request() req: { user: { userId: string; email: string; role: import('@prisma/client').UserRole } },
     @Response({ passthrough: true }) res: ExpressResponse,
   ) {
     const { access_token } = await this.authService.login(req.user);
@@ -124,7 +124,7 @@ export class AuthController {
   @ApiUnauthorizedResponse({ description: 'La cookie de sesion es invalida o no existe.' })
   @Get('me')
   @UseGuards(JwtAuthGuard)
-  me(@Request() req: { user: { userId: string; email: string } }) {
+  me(@Request() req: { user: { userId: string; email: string; role: import('@prisma/client').UserRole } }) {
     return req.user;
   }
 
