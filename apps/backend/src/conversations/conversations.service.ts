@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, Logger, NotFoundException, forwardRef } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { QuoteReviewStatus } from '@prisma/client';
 import { AiSalesOrchestrator } from '../ai-sales/ai-sales.orchestrator';
@@ -106,6 +106,7 @@ export class ConversationsService {
     private readonly config: ConfigService,
     private readonly ownerReviewService: OwnerReviewService,
     private readonly quotePdfService: QuotePdfService,
+    @Inject(forwardRef(() => AiSalesOrchestrator))
     private readonly aiSalesOrchestrator: AiSalesOrchestrator,
   ) {}
 

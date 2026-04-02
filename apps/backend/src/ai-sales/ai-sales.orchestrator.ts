@@ -1,5 +1,5 @@
 import { InjectQueue } from '@nestjs/bullmq';
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, forwardRef } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Queue } from 'bullmq';
 import { ConversationsService } from '../conversations/conversations.service';
@@ -38,6 +38,7 @@ export class AiSalesOrchestrator {
   constructor(
     @InjectQueue(AI_SALES_QUEUE) private readonly aiSalesQueue: Queue,
     private readonly prisma: PrismaService,
+    @Inject(forwardRef(() => ConversationsService))
     private readonly conversationsService: ConversationsService,
     private readonly messagingService: MessagingService,
     private readonly config: ConfigService,
