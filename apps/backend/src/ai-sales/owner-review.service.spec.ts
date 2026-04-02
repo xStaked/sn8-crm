@@ -8,6 +8,7 @@ describe('OwnerReviewService', () => {
   let config: ConfigService;
   let queue: any;
   let aiSalesService: any;
+  let quotePdfService: any;
   let service: OwnerReviewService;
 
   beforeEach(() => {
@@ -36,6 +37,13 @@ describe('OwnerReviewService', () => {
     };
     messagingService = {
       sendText: jest.fn().mockResolvedValue('out_123'),
+      sendDocument: jest.fn().mockResolvedValue('out_pdf_123'),
+    };
+    quotePdfService = {
+      getOrCreateDraftPdf: jest.fn().mockResolvedValue({
+        content: Buffer.from('fake-pdf'),
+        fileName: 'cotizacion.pdf',
+      }),
     };
     config = {
       get: jest.fn((key: string) => {
@@ -63,6 +71,7 @@ describe('OwnerReviewService', () => {
       messagingService,
       config,
       aiSalesService,
+      quotePdfService,
     );
   });
 

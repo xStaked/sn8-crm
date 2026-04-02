@@ -2,7 +2,7 @@ import { ConversationFlowService } from './conversation-flow.service';
 
 describe('ConversationFlowService', () => {
   let prisma: {
-    commercialBrief: { findUnique: jest.Mock; upsert: jest.Mock };
+    commercialBrief: { findUnique: jest.Mock; upsert: jest.Mock; delete: jest.Mock };
   };
   let conversationsService: { listConversationMessages: jest.Mock };
   let aiSalesService: { extractCommercialBrief: jest.Mock; generateDiscoveryReply: jest.Mock };
@@ -14,6 +14,7 @@ describe('ConversationFlowService', () => {
       commercialBrief: {
         findUnique: jest.fn(),
         upsert: jest.fn(),
+        delete: jest.fn(),
       },
     };
     conversationsService = {
@@ -384,5 +385,83 @@ describe('ConversationFlowService', () => {
     expect(conversationsService.listConversationMessages).not.toHaveBeenCalled();
     expect(aiSalesService.extractCommercialBrief).not.toHaveBeenCalled();
     expect(aiSalesOrchestrator.enqueueQualifiedConversation).not.toHaveBeenCalled();
+  });
+
+  it('resets the previous brief when the customer explicitly asks to quote something else during review', async () => {
+    prisma.commercialBrief.findUnique.mockResolvedValue({
+      id: 'brief_1',
+      conversationId: '573001112233',
+      status: 'quote_in_review',
+      customerName: 'Sergio',
+      projectType: 'CRM',
+      businessProblem: 'Centralizar ventas',
+      desiredScope: 'Pipeline y reportes',
+      budget: 'USD 5k',
+      urgency: '1 mes',
+      constraints: 'Integracion con WhatsApp',
+      summary: 'CRM',
+      sourceTranscript: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      quoteDrafts: [
+        {
+          id: 'draft_1',
+          commercialBriefId: 'brief_1',
+          conversationId: '573001112233',
+          version: 1,
+          origin: 'initial',
+          reviewStatus: 'pending_owner_review',
+          templateVersion: 'v1',
+          draftPayload: {},
+          renderedQuote: null,
+          ownerFeedbackSummary: null,
+          approvedAt: null,
+          deliveredToCustomerAt: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ],
+    });
+    conversationsService.listConversationMessages.mockResolvedValue([
+      {
+        id: 'msg_2',
+        conversationId: '573001112233',
+        direction: 'inbound',
+        body: 'quiero cotizar otra cosa',
+        createdAt: '2026-04-01T21:54:00.000Z',
+      },
+    ]);
+    aiSalesService.extractCommercialBrief.mockResolvedValue({
+      customerName: 'Sergio',
+      projectType: null,
+      businessProblem: null,
+      desiredScope: null,
+      budget: null,
+      urgency: null,
+      constraints: null,
+      summary: null,
+      missingInformation: ['tipo de proyecto'],
+    });
+    aiSalesService.generateDiscoveryReply.mockResolvedValue(
+      'Perfecto. Dejamos aparte la cotizacion anterior. Que tipo de solucion quieres cotizar ahora?',
+    );
+
+    const result = await service.planReply({
+      conversationId: '573001112233',
+      inboundMessageId: 'msg_2',
+      inboundBody: 'quiero cotizar otra cosa',
+    });
+
+    expect(prisma.commercialBrief.delete).toHaveBeenCalledWith({
+      where: { conversationId: '573001112233' },
+    });
+    expect(conversationsService.listConversationMessages).toHaveBeenCalledWith(
+      '573001112233',
+    );
+    expect(aiSalesService.extractCommercialBrief).toHaveBeenCalled();
+    expect(result).toEqual({
+      body: expect.stringContaining('Que tipo de solucion quieres cotizar ahora'),
+      source: 'commercial-discovery',
+    });
   });
 });

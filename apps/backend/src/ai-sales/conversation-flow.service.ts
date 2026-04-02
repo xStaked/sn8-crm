@@ -84,6 +84,14 @@ export class ConversationFlowService {
       },
     });
 
+    // If user explicitly requests a new/different project, reset the existing brief
+    if (currentBrief && this.detectsNewProjectIntent(input.inboundBody)) {
+      await this.prisma.commercialBrief.delete({
+        where: { conversationId: normalizedConversationId },
+      });
+      currentBrief = null;
+    }
+
     const latestDraft = currentBrief?.quoteDrafts[0];
     if (latestDraft && latestDraft.reviewStatus !== 'delivered_to_customer') {
       return {
@@ -92,13 +100,7 @@ export class ConversationFlowService {
       };
     }
 
-    // If user explicitly requests a new/different project, reset the existing brief
-    if (currentBrief && this.detectsNewProjectIntent(input.inboundBody)) {
-      await this.prisma.commercialBrief.delete({
-        where: { conversationId: normalizedConversationId },
-      });
-      currentBrief = null;
-    } else if (currentBrief?.status === 'ready_for_quote') {
+    if (currentBrief?.status === 'ready_for_quote') {
       // Brief is complete and already enqueued — re-enqueue in case job failed silently,
       // but don't repeat the same "voy a cotizar" message
       await this.aiSalesOrchestrator.enqueueQualifiedConversation(
@@ -338,8 +340,13 @@ export class ConversationFlowService {
   }
 
   private detectsNewProjectIntent(body: string | null): boolean {
-    if (!body) return false;
-    return /(otro proyecto|nueva? cotizaci[oó]n|nuevo proyecto|empezar de nuevo|empezar de cero|cotizar otro|diferente proyecto)/i.test(body);
+    if (!body) {
+      return false;
+    }
+
+    return /(otro proyecto|otra cosa|nueva? cotizaci[oó]n|nuevo proyecto|empezar de nuevo|empezar de cero|cotizar otro|cotizar otra|diferente proyecto)/i.test(
+      body,
+    );
   }
 
   private resolveExtractedMissingFields(

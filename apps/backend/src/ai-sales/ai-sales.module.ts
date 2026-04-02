@@ -3,6 +3,7 @@ import { BullModule } from '@nestjs/bullmq';
 import { ConversationsModule } from '../conversations/conversations.module';
 import { MessagingModule } from '../messaging/messaging.module';
 import { PrismaModule } from '../prisma/prisma.module';
+import { QuoteDocumentsModule } from '../quote-documents/quote-documents.module';
 import { AI_PROVIDER } from './ai-provider.interface';
 import { AiSalesOrchestrator } from './ai-sales.orchestrator';
 import { AiSalesProcessor } from './ai-sales.processor';
@@ -15,6 +16,7 @@ import { OwnerReviewService } from './owner-review.service';
 @Module({
   imports: [
     PrismaModule,
+    QuoteDocumentsModule,
     forwardRef(() => ConversationsModule),
     forwardRef(() => MessagingModule),
     BullModule.registerQueue({ name: AI_SALES_QUEUE }),

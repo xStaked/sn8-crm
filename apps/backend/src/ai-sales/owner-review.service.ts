@@ -11,6 +11,7 @@ import type { Queue } from 'bullmq';
 import { validateSync } from 'class-validator';
 import { PrismaService } from '../prisma/prisma.service';
 import { MessagingService } from '../messaging/messaging.service';
+import { QuotePdfService } from '../quote-documents/quote-pdf.service';
 import { AiSalesService } from './ai-sales.service';
 import {
   AI_SALES_PROCESS_OWNER_REVISION_JOB,
@@ -59,6 +60,7 @@ export class OwnerReviewService {
     private readonly messagingService: MessagingService,
     private readonly config: ConfigService,
     private readonly aiSalesService: AiSalesService,
+    private readonly quotePdfService: QuotePdfService,
   ) {}
 
   async requestOwnerReview(quoteDraftId: string): Promise<void> {
@@ -280,6 +282,7 @@ export class OwnerReviewService {
         },
       },
     });
+    await this.trySendPdfToCustomer(delivery, senderPhoneNumberId);
   }
 
   private async requestChangesWithSource(
@@ -470,6 +473,58 @@ export class OwnerReviewService {
       version: approvedDraft.version,
       body,
     };
+  }
+
+  private async trySendPdfToCustomer(
+    delivery: ApprovedCustomerDeliveryPayload,
+    senderPhoneNumberId: string | undefined,
+  ): Promise<void> {
+    try {
+      const doc = await this.quotePdfService.getOrCreateDraftPdf(delivery.quoteDraftId);
+      const buffer = Buffer.from(doc.content as Uint8Array);
+      const pdfMessageId = await this.messagingService.sendDocument(
+        delivery.conversationId,
+        buffer,
+        doc.fileName,
+        undefined,
+        senderPhoneNumberId,
+      );
+      await this.prisma.message.create({
+        data: {
+          externalMessageId: pdfMessageId,
+          direction: 'outbound',
+          fromPhone: senderPhoneNumberId ?? 'ai-sales',
+          toPhone: delivery.conversationId,
+          body: null,
+          channel: 'whatsapp',
+          rawPayload: {
+            externalMessageId: pdfMessageId,
+            direction: 'outbound',
+            fromPhone: senderPhoneNumberId ?? 'ai-sales',
+            toPhone: delivery.conversationId,
+            source: 'ai-sales-customer-delivery-pdf',
+            quoteDraftId: delivery.quoteDraftId,
+            version: delivery.version,
+            fileName: doc.fileName,
+          },
+        },
+      });
+      this.logger.log({
+        event: 'customer_delivery_pdf_sent',
+        conversationId: delivery.conversationId,
+        quoteDraftId: delivery.quoteDraftId,
+        version: delivery.version,
+        externalMessageId: pdfMessageId,
+      });
+    } catch (error) {
+      this.logger.warn({
+        event: 'customer_delivery_pdf_failed',
+        conversationId: delivery.conversationId,
+        quoteDraftId: delivery.quoteDraftId,
+        version: delivery.version,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 
   private async getLatestDraftForCommand(

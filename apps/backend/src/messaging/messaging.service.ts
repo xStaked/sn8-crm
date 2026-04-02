@@ -37,4 +37,14 @@ export class MessagingService {
       senderPhoneNumberId,
     );
   }
+
+  async sendDocument(
+    to: string,
+    buffer: Buffer,
+    fileName: string,
+    caption?: string,
+    senderPhoneNumberId?: string,
+  ): Promise<string> {
+    return this.channel.sendDocument(to, buffer, fileName, caption, senderPhoneNumberId);
+  }
 }

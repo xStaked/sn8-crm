@@ -143,6 +143,49 @@ export class KapsoClient {
     await client.messages.sendTemplate({ phoneNumberId, to, template });
   }
 
+  async sendDocument(
+    to: string,
+    buffer: Buffer,
+    fileName: string,
+    caption?: string,
+    senderPhoneNumberId?: string,
+  ): Promise<string> {
+    const { client, phoneNumberId } = this.assertConfigured(senderPhoneNumberId);
+
+    this.logger.log({
+      event: 'kapso_send_document_attempt',
+      to,
+      senderPhoneNumberId: phoneNumberId,
+      fileName,
+    });
+
+    const upload = await client.media.upload({
+      phoneNumberId,
+      type: 'application/pdf',
+      file: buffer,
+      fileName,
+    });
+
+    const response = await client.messages.sendDocument({
+      phoneNumberId,
+      to,
+      document: {
+        id: upload.id,
+        filename: fileName,
+        ...(caption ? { caption } : {}),
+      },
+    });
+
+    this.logger.log({
+      event: 'kapso_send_document_success',
+      to,
+      senderPhoneNumberId: phoneNumberId,
+      externalMessageId: response.messages[0]?.id ?? null,
+    });
+
+    return response.messages[0].id;
+  }
+
   async sendInteractiveButtons(
     to: string,
     body: string,

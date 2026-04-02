@@ -32,5 +32,13 @@ export abstract class ChannelAdapter {
     senderPhoneNumberId?: string,
   ): Promise<string>;
 
+  abstract sendDocument(
+    to: string,
+    buffer: Buffer,
+    fileName: string,
+    caption?: string,
+    senderPhoneNumberId?: string,
+  ): Promise<string>;
+
   abstract normalizeInbound(rawPayload: unknown): NormalizedMessage;
 }

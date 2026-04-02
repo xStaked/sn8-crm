@@ -94,6 +94,16 @@ export class KapsoAdapter extends ChannelAdapter {
     );
   }
 
+  async sendDocument(
+    to: string,
+    buffer: Buffer,
+    fileName: string,
+    caption?: string,
+    senderPhoneNumberId?: string,
+  ): Promise<string> {
+    return this.kapso.sendDocument(to, buffer, fileName, caption, senderPhoneNumberId);
+  }
+
   normalizeInbound(rawPayload: unknown): NormalizedMessage {
     // Primary: Meta Cloud API webhook shape (Kapso mirrors this when proxying).
     // https://developers.facebook.com/docs/whatsapp/cloud-api/webhooks/payload-examples
