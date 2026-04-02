@@ -102,6 +102,31 @@ export class ConversationFlowService {
 
     const latestDraft = currentBrief?.quoteDrafts[0];
     if (latestDraft) {
+      // Check if user wants to start a new project even when there's an existing draft
+      const userIntent = this.detectUserIntent(input.inboundBody);
+      
+      if (userIntent === 'wants_new_project') {
+        // User explicitly wants to start fresh - delete the brief and all drafts
+        await this.prisma.commercialBrief.delete({
+          where: { conversationId: normalizedConversationId },
+        });
+        // Continue to normal flow for new project
+        return this.planReply({
+          conversationId: input.conversationId,
+          inboundMessageId: input.inboundMessageId,
+          inboundBody: input.inboundBody,
+        });
+      }
+      
+      if (userIntent === 'confused_about_project' || userIntent === 'asking_for_clarification') {
+        // Conversational response acknowledging confusion
+        const projectSummary = this.buildBriefSummary(currentBrief);
+        return {
+          body: `Entiendo la confusión. Tengo en mi sistema una propuesta en preparación para *${projectSummary}*. Si este no es el proyecto que quieres, solo dímelo y empezamos de cero. ¿Quieres continuar con este proyecto o hablamos de algo diferente?`,
+          source: 'commercial-clarification',
+        };
+      }
+      
       return {
         body: this.buildReviewStatusReply(latestDraft.reviewStatus, normalizedConversationId),
         source: 'commercial-review-status',
@@ -441,9 +466,37 @@ export class ConversationFlowService {
       return false;
     }
 
-    return /(otro proyecto|otra cosa|otra aplicaci[oó]n|otro sistema|nueva? cotizaci[oó]n|nuevo proyecto|nueva? propuesta|empezar de nuevo|empezar de cero|cotizar otro|cotizar otra|diferente proyecto|pidiendo otra|quiero otra|es otro|es diferente)/i.test(
-      body,
-    );
+    const lowerBody = body.toLowerCase();
+    
+    // Explicit new project patterns
+    const newProjectPatterns = [
+      /otro proyecto/i,
+      /otra cosa/i,
+      /otra aplicaci[oó]n/i,
+      /otro sistema/i,
+      /nueva? cotizaci[oó]n/i,
+      /nuevo proyecto/i,
+      /nueva? propuesta/i,
+      /empezar de nuevo/i,
+      /empezar de cero/i,
+      /cotizar otro/i,
+      /cotizar otra/i,
+      /diferente proyecto/i,
+      /pidiendo otra/i,
+      /quiero otra/i,
+      /es otro/i,
+      /es diferente/i,
+      /cambiar de proyecto/i,
+      /cambiar el proyecto/i,
+      /no es ese proyecto/i,
+      /no es ese/i,
+      /no quiero eso/i,
+      /no es lo que quiero/i,
+      /hablar de otra cosa/i,
+      /hablamos de otra cosa/i,
+    ];
+    
+    return newProjectPatterns.some(p => p.test(lowerBody));
   }
 
   /**
@@ -472,6 +525,15 @@ export class ConversationFlowService {
       /ablame/i,  // "hablame" sin h
       /cuentame/i,
       /explicate/i,
+      /c[oó]mo as[ií]/i,  // "como asi", "cómo así"
+      /qu[eé] hablas/i,
+      /de qu[eé] hablas/i,
+      /no te entiendo/i,
+      /a qu[eé] te refieres/i,
+      /no me suena/i,
+      /eso no es/i,
+      /eso no tiene/i,
+      /qu[eé] tiene que ver/i,
     ];
     
     if (confusionPatterns.some(p => p.test(lowerBody))) {
@@ -524,6 +586,26 @@ export class ConversationFlowService {
     conversationId: string,
     userMessage?: string | null,
   ): string {
+    // Check if user seems confused based on message content
+    const confusionIndicators = [
+      /como asi/i,
+      /como así/i,
+      /c[oó]mo as[ií]/i,
+      /qu[eé] es eso/i,
+      /no entiendo/i,
+      /de qu[eé] hablas/i,
+      /qu[eé] hablas/i,
+      /a qu[eé] te refieres/i,
+    ];
+    
+    const seemsConfused = userMessage && confusionIndicators.some(p => p.test(userMessage.toLowerCase()));
+    
+    // If user seems confused, provide clarification with option to start fresh
+    if (seemsConfused) {
+      const projectSummary = this.buildBriefSummary(brief);
+      return `Entiendo la confusión. Tengo en mi sistema un brief para *${projectSummary}*. Si este proyecto no es el que quieres cotizar ahora, solo dímelo y empezamos de cero con tu nueva idea. ¿Te gustaría continuar con este proyecto o hablamos de algo diferente?`;
+    }
+    
     // If user asked a specific question, acknowledge it
     if (userMessage && userMessage.length > 10) {
       const responses = [

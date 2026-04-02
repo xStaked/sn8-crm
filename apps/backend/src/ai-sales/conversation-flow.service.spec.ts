@@ -649,4 +649,187 @@ describe('ConversationFlowService', () => {
     // Both should mention the project but be different
     expect(result1.body).not.toBe(result2.body);
   });
+
+  it('detects "como asi" and similar phrases as confusion and provides clarification', async () => {
+    prisma.commercialBrief.findUnique.mockResolvedValue({
+      id: 'brief_1',
+      conversationId: '573001112233',
+      status: 'ready_for_quote',
+      customerName: 'Sergio',
+      projectType: 'CRM con IA',
+      businessProblem: 'Calificar leads automaticamente',
+      desiredScope: 'Conexion con WhatsApp y scoring',
+      budget: '300 USD',
+      urgency: '1 mes',
+      constraints: 'Uso interno para 2 personas',
+      summary: 'CRM interno con IA',
+      sourceTranscript: null,
+      conversationContext: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      quoteDrafts: [],
+    });
+
+    const result = await service.planReply({
+      conversationId: '573001112233',
+      inboundMessageId: 'msg_confused',
+      inboundBody: 'como asi que estas cotizando?',
+    });
+
+    expect(result.source).toBe('commercial-clarification');
+    expect(result.body).toContain('CRM con IA');
+    expect(result.body.toLowerCase()).toMatch(/confusi[oó]n|entender/);
+    expect(result.body.toLowerCase()).toMatch(/prefieres|diferente|empezamos de cero/);
+  });
+
+  it('detects confusion when user asks "que tiene que ver" and provides clarification', async () => {
+    prisma.commercialBrief.findUnique.mockResolvedValue({
+      id: 'brief_1',
+      conversationId: '573001112233',
+      status: 'ready_for_quote',
+      customerName: 'Sergio',
+      projectType: 'CRM con IA',
+      businessProblem: 'Calificar leads',
+      desiredScope: 'MVP',
+      budget: '300 USD',
+      urgency: '1 mes',
+      constraints: null,
+      summary: 'CRM',
+      sourceTranscript: null,
+      conversationContext: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      quoteDrafts: [],
+    });
+
+    const result = await service.planReply({
+      conversationId: '573001112233',
+      inboundMessageId: 'msg_confused2',
+      inboundBody: 'y eso que tiene que ver con mi proyecto de aplicacion movil?',
+    });
+
+    expect(result.source).toBe('commercial-clarification');
+    expect(result.body).toContain('CRM');
+  });
+
+  it('resets brief when user wants new project even if a draft already exists', async () => {
+    prisma.commercialBrief.findUnique.mockResolvedValue({
+      id: 'brief_1',
+      conversationId: '573001112233',
+      status: 'quote_in_review',
+      customerName: 'Sergio',
+      projectType: 'CRM con IA',
+      businessProblem: 'Calificar leads',
+      desiredScope: 'MVP',
+      budget: '300 USD',
+      urgency: '1 mes',
+      constraints: null,
+      summary: 'CRM',
+      sourceTranscript: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      quoteDrafts: [
+        {
+          id: 'draft_1',
+          commercialBriefId: 'brief_1',
+          conversationId: '573001112233',
+          version: 1,
+          origin: 'initial',
+          reviewStatus: 'pending_owner_review',
+          templateVersion: 'v1',
+          draftPayload: {},
+          renderedQuote: null,
+          ownerFeedbackSummary: null,
+          approvedAt: null,
+          deliveredToCustomerAt: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ],
+    });
+    conversationsService.listConversationMessages.mockResolvedValue([
+      {
+        id: 'msg_new',
+        conversationId: '573001112233',
+        direction: 'inbound',
+        body: 'quiero cotizar otro proyecto, una app movil',
+        createdAt: '2026-04-01T23:30:00.000Z',
+      },
+    ]);
+    aiSalesService.extractCommercialBrief.mockResolvedValue({
+      customerName: 'Sergio',
+      projectType: 'app móvil',
+      businessProblem: null,
+      desiredScope: null,
+      budget: null,
+      urgency: null,
+      constraints: null,
+      summary: 'App móvil',
+      missingInformation: ['problema principal'],
+    });
+    aiSalesService.generateDiscoveryReply.mockResolvedValue(
+      'Perfecto, una app móvil. Cuéntame qué problema quieres resolver.',
+    );
+
+    const result = await service.planReply({
+      conversationId: '573001112233',
+      inboundMessageId: 'msg_new',
+      inboundBody: 'quiero cotizar otro proyecto, una app movil',
+    });
+
+    expect(prisma.commercialBrief.delete).toHaveBeenCalledWith({
+      where: { conversationId: '573001112233' },
+    });
+    expect(aiSalesService.extractCommercialBrief).toHaveBeenCalled();
+    expect(result.source).toBe('commercial-discovery');
+    expect(result.body).toContain('app móvil');
+  });
+
+  it('provides clarification message when user is confused and there is an existing draft', async () => {
+    prisma.commercialBrief.findUnique.mockResolvedValue({
+      id: 'brief_1',
+      conversationId: '573001112233',
+      status: 'quote_in_review',
+      customerName: 'Sergio',
+      projectType: 'CRM con IA',
+      businessProblem: 'Calificar leads',
+      desiredScope: 'MVP',
+      budget: '300 USD',
+      urgency: '1 mes',
+      constraints: null,
+      summary: 'CRM',
+      sourceTranscript: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      quoteDrafts: [
+        {
+          id: 'draft_1',
+          commercialBriefId: 'brief_1',
+          conversationId: '573001112233',
+          version: 1,
+          origin: 'initial',
+          reviewStatus: 'pending_owner_review',
+          templateVersion: 'v1',
+          draftPayload: {},
+          renderedQuote: null,
+          ownerFeedbackSummary: null,
+          approvedAt: null,
+          deliveredToCustomerAt: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ],
+    });
+
+    const result = await service.planReply({
+      conversationId: '573001112233',
+      inboundMessageId: 'msg_confused',
+      inboundBody: 'no entiendo de que hablas',
+    });
+
+    expect(result.source).toBe('commercial-clarification');
+    expect(result.body).toContain('CRM');
+    expect(result.body.toLowerCase()).toMatch(/confusi[oó]n|entender/);
+    expect(result.body.toLowerCase()).toMatch(/empezamos de cero|diferente/);
+  });
 });
