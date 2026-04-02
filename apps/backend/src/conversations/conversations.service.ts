@@ -274,6 +274,60 @@ export class ConversationsService {
     return this.getConversationQuoteReview(normalizedConversationId);
   }
 
+  async resendQuotePdfToCustomer(conversationId: string): Promise<void> {
+    const normalizedConversationId = this.normalizeParticipantPhone(conversationId);
+    await this.assertConversationExists(normalizedConversationId);
+
+    const draft = await this.findLatestReviewRelevantDraft(normalizedConversationId);
+
+    if (!draft) {
+      throw new NotFoundException(
+        `Conversation ${normalizedConversationId} has no quote review draft.`,
+      );
+    }
+
+    const senderPhoneNumberId =
+      this.config.get<string>('KAPSO_PHONE_NUMBER_ID')?.trim() || undefined;
+
+    const pdf = await this.quotePdfService.getOrCreateDraftPdf(draft.id);
+    const buffer = Buffer.from(pdf.content as Uint8Array);
+    const pdfMessageId = await this.messagingService.sendDocument(
+      normalizedConversationId,
+      buffer,
+      pdf.fileName,
+      undefined,
+      senderPhoneNumberId,
+    );
+
+    await this.prisma.message.create({
+      data: {
+        externalMessageId: pdfMessageId,
+        direction: 'outbound',
+        fromPhone: senderPhoneNumberId ?? 'crm',
+        toPhone: normalizedConversationId,
+        body: null,
+        channel: 'whatsapp',
+        rawPayload: {
+          externalMessageId: pdfMessageId,
+          direction: 'outbound',
+          fromPhone: senderPhoneNumberId ?? 'crm',
+          toPhone: normalizedConversationId,
+          source: 'crm-resend-pdf',
+          quoteDraftId: draft.id,
+          version: draft.version,
+          fileName: pdf.fileName,
+        },
+      },
+    });
+
+    this.logger.log({
+      event: 'crm_resend_pdf',
+      conversationId: normalizedConversationId,
+      quoteDraftId: draft.id,
+      version: draft.version,
+    });
+  }
+
   async sendMessage(
     conversationId: string,
     body: string,

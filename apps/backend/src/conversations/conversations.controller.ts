@@ -177,6 +177,22 @@ export class ConversationsController {
     );
   }
 
+  @ApiOperation({ summary: 'Reenviar el PDF del quote activo al cliente desde CRM' })
+  @ApiParam({
+    name: 'conversationId',
+    example: '573001112233',
+    description: 'Telefono normalizado usado como id estable de la conversacion.',
+  })
+  @ApiOkResponse({ description: 'PDF reenviado correctamente al cliente.' })
+  @ApiNotFoundResponse({
+    description: 'La conversacion no existe o no tiene quote con PDF disponible.',
+  })
+  @Post('conversations/:conversationId/quote-review/resend-pdf')
+  @UseGuards(JwtAuthGuard)
+  async resendQuotePdf(@Param('conversationId') conversationId: string) {
+    await this.conversationsService.resendQuotePdfToCustomer(conversationId);
+  }
+
   @ApiOperation({ summary: 'Enviar mensaje manual a una conversacion' })
   @ApiParam({
     name: 'conversationId',

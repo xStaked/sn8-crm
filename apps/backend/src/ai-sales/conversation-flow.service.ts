@@ -93,7 +93,7 @@ export class ConversationFlowService {
     }
 
     const latestDraft = currentBrief?.quoteDrafts[0];
-    if (latestDraft && latestDraft.reviewStatus !== 'delivered_to_customer') {
+    if (latestDraft) {
       return {
         body: this.buildReviewStatusReply(latestDraft.reviewStatus),
         source: 'commercial-review-status',
@@ -253,6 +253,8 @@ export class ConversationFlowService {
 
   private buildReviewStatusReply(reviewStatus: QuoteDraft['reviewStatus']): string {
     switch (reviewStatus) {
+      case 'delivered_to_customer':
+        return 'Tu propuesta ya fue enviada. Si tienes preguntas o quieres avanzar con el proyecto, con gusto te ayudamos.';
       case 'approved':
         return 'Tu propuesta ya fue aprobada internamente. Estamos preparando el siguiente paso para compartirla contigo por este mismo canal.';
       case 'changes_requested':
