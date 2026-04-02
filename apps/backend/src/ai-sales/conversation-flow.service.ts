@@ -94,6 +94,9 @@ export class ConversationFlowService {
       });
       currentBrief = null;
       newProjectStartMessageId = input.inboundMessageId;
+    } else if (currentBrief?.conversationContext?.['newProjectStartMessageId']) {
+      // Use persisted new project marker for subsequent messages
+      newProjectStartMessageId = currentBrief.conversationContext['newProjectStartMessageId'];
     }
 
     const latestDraft = currentBrief?.quoteDrafts[0];
@@ -185,6 +188,12 @@ export class ConversationFlowService {
           (extractedMissing.has(field) && !this.hasMeaningfulBriefValue(currentBrief?.[field])),
       );
 
+      // Persist new project marker if this is a new project start
+      const contextWithNewProjectMarker = {
+        ...conversationContext,
+        ...(newProjectStartMessageId ? { newProjectStartMessageId } : {}),
+      };
+
       await this.prisma.commercialBrief.upsert({
         where: { conversationId: normalizedConversationId },
         create: {
@@ -192,13 +201,13 @@ export class ConversationFlowService {
           status: missingFields.length > 0 ? 'collecting' : 'ready_for_quote',
           ...mergedBrief,
           sourceTranscript: messages,
-          conversationContext: conversationContext as any,
+          conversationContext: contextWithNewProjectMarker as any,
         },
         update: {
           status: missingFields.length > 0 ? 'collecting' : 'ready_for_quote',
           ...mergedBrief,
           sourceTranscript: messages,
-          conversationContext: conversationContext as any,
+          conversationContext: contextWithNewProjectMarker as any,
         },
       });
 

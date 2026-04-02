@@ -473,4 +473,104 @@ describe('ConversationFlowService', () => {
       source: 'commercial-discovery',
     });
   });
+
+  it('persists newProjectStartMessageId and uses it for subsequent messages to avoid old context pollution', async () => {
+    // First, simulate a new project being started
+    prisma.commercialBrief.findUnique.mockResolvedValue({
+      id: 'brief_2',
+      conversationId: '573001112233',
+      status: 'collecting',
+      customerName: 'Sergio',
+      projectType: 'app movil para veterinarias',
+      businessProblem: 'Conectar veterinarios con dueños de mascotas',
+      desiredScope: 'App tipo Laika con geolocalizacion',
+      budget: null,
+      urgency: null,
+      constraints: null,
+      summary: 'App movil para veterinarias tipo marketplace',
+      sourceTranscript: null,
+      conversationContext: { newProjectStartMessageId: 'msg_new_project' },
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      quoteDrafts: [],
+    });
+    
+    // Simulate conversation history with old and new messages
+    conversationsService.listConversationMessages.mockResolvedValue([
+      // Old CRM project messages (should be filtered out)
+      {
+        id: 'msg_old_1',
+        conversationId: '573001112233',
+        direction: 'inbound',
+        body: 'quiero un CRM con IA',
+        createdAt: '2026-04-01T22:00:00.000Z',
+      },
+      {
+        id: 'msg_old_2',
+        conversationId: '573001112233',
+        direction: 'outbound',
+        body: 'Perfecto, un CRM',
+        createdAt: '2026-04-01T22:01:00.000Z',
+      },
+      // New project start marker
+      {
+        id: 'msg_new_project',
+        conversationId: '573001112233',
+        direction: 'inbound',
+        body: 'quiero cotizar otro proyecto, el CRM ya no me interesa',
+        createdAt: '2026-04-01T23:11:52.000Z',
+      },
+      {
+        id: 'msg_new_reply',
+        conversationId: '573001112233',
+        direction: 'outbound',
+        body: 'Vale, entiendo que ahora quieres una app movil',
+        createdAt: '2026-04-01T23:12:21.000Z',
+      },
+      // Current message asking about timeline
+      {
+        id: 'msg_current',
+        conversationId: '573001112233',
+        direction: 'inbound',
+        body: 'no tiene urgencia, me gustaria saber cuanto se tardan',
+        createdAt: '2026-04-01T23:13:07.000Z',
+      },
+    ]);
+    
+    aiSalesService.extractCommercialBrief.mockResolvedValue({
+      customerName: 'Sergio',
+      projectType: 'app movil para veterinarias',
+      businessProblem: 'Conectar veterinarios con dueños de mascotas',
+      desiredScope: 'App tipo Laika con geolocalizacion',
+      budget: null,
+      urgency: 'sin urgencia',
+      constraints: null,
+      summary: 'App movil marketplace para veterinarias',
+      missingInformation: ['presupuesto'],
+    });
+    aiSalesService.generateDiscoveryReply.mockResolvedValue(
+      'Ok, sin urgencia. Sobre el presupuesto, que rango manejas?',
+    );
+
+    const result = await service.planReply({
+      conversationId: '573001112233',
+      inboundMessageId: 'msg_current',
+      inboundBody: 'no tiene urgencia, me gustaria saber cuanto se tardan',
+    });
+
+    // Verify that extraction was called with filtered messages (only from msg_new_project onwards)
+    const extractionCall = aiSalesService.extractCommercialBrief.mock.calls[0];
+    const transcript = extractionCall[1]; // second argument is the transcript
+    
+    // The transcript should NOT contain the old CRM messages
+    expect(transcript).not.toContain('CRM con IA');
+    expect(transcript).not.toContain('quiero un CRM');
+    
+    // The transcript SHOULD contain the new project messages (from msg_new_project onwards)
+    expect(transcript).toContain('quiero cotizar otro proyecto');
+    expect(transcript).toContain('CRM ya no me interesa');
+    expect(transcript).toContain('no tiene urgencia');
+
+    expect(result.source).toBe('commercial-discovery');
+  });
 });
