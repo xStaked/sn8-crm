@@ -195,7 +195,9 @@ describe('ConversationFlowService', () => {
     });
 
     expect(result.source).toBe('commercial-review-status');
-    expect(result.body).toContain('Ya tenemos tu información completa');
+    // Response should indicate the brief is being processed (varied responses)
+    expect(result.body.length).toBeGreaterThan(20);
+    expect(result.body.toLowerCase()).toMatch(/propuesta|cotizaci|brief|preparaci|listo|revisi/);
     // Should re-enqueue in case the async job failed silently
     expect(aiSalesOrchestrator.enqueueQualifiedConversation).toHaveBeenCalledWith(
       '573001112233',
@@ -572,5 +574,79 @@ describe('ConversationFlowService', () => {
     expect(transcript).toContain('no tiene urgencia');
 
     expect(result.source).toBe('commercial-discovery');
+  });
+
+  it('detects user confusion and provides clarification instead of repeating the same message', async () => {
+    prisma.commercialBrief.findUnique.mockResolvedValue({
+      id: 'brief_1',
+      conversationId: '573001112233',
+      status: 'ready_for_quote',
+      customerName: 'Sergio',
+      projectType: 'CRM con IA',
+      businessProblem: 'Calificar leads automaticamente',
+      desiredScope: 'Conexion con WhatsApp y scoring',
+      budget: '300 USD',
+      urgency: '1 mes',
+      constraints: 'Uso interno para 2 personas',
+      summary: 'CRM interno con IA',
+      sourceTranscript: null,
+      conversationContext: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      quoteDrafts: [],
+    });
+
+    const result = await service.planReply({
+      conversationId: '573001112233',
+      inboundMessageId: 'msg_confused',
+      inboundBody: 'informacion de que proyecto?',
+    });
+
+    expect(result.source).toBe('commercial-clarification');
+    expect(result.body).toContain('CRM con IA');
+    expect(result.body).toContain('confusión');
+    expect(result.body.toLowerCase()).toMatch(/prefieres|diferente|continuar/);
+    // Should NOT be the generic "Ya tenemos tu información completa" message
+    expect(result.body).not.toContain('Ya tenemos tu información completa');
+  });
+
+  it('provides varied responses when brief is ready_for_quote and user sends different messages', async () => {
+    prisma.commercialBrief.findUnique.mockResolvedValue({
+      id: 'brief_1',
+      conversationId: '573001112233',
+      status: 'ready_for_quote',
+      customerName: 'Sergio',
+      projectType: 'App móvil',
+      businessProblem: 'Conectar veterinarios',
+      desiredScope: 'MVP con geolocalización',
+      budget: 'USD 8k',
+      urgency: '2 meses',
+      constraints: null,
+      summary: 'App para veterinarias',
+      sourceTranscript: null,
+      conversationContext: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      quoteDrafts: [],
+    });
+
+    // First follow-up
+    const result1 = await service.planReply({
+      conversationId: '573001112233',
+      inboundMessageId: 'msg_1',
+      inboundBody: 'ok gracias',
+    });
+    expect(result1.source).toBe('commercial-review-status');
+
+    // Second follow-up - should be different
+    const result2 = await service.planReply({
+      conversationId: '573001112233',
+      inboundMessageId: 'msg_2',
+      inboundBody: 'cuanto falta?',
+    });
+    expect(result2.source).toBe('commercial-review-status');
+    
+    // Both should mention the project but be different
+    expect(result1.body).not.toBe(result2.body);
   });
 });

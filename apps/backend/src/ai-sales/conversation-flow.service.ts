@@ -26,7 +26,8 @@ type ReplyPlan = {
     | 'default-auto-reply'
     | 'commercial-discovery'
     | 'commercial-ready-for-quote'
-    | 'commercial-review-status';
+    | 'commercial-review-status'
+    | 'commercial-clarification';
 };
 
 type CommercialBriefWithLatestDraft = CommercialBrief & {
@@ -108,14 +109,47 @@ export class ConversationFlowService {
     }
 
     if (currentBrief?.status === 'ready_for_quote') {
+      // Detect if user is confused or asking about what project we're discussing
+      const userIntent = this.detectUserIntent(input.inboundBody);
+      
+      if (userIntent === 'confused_about_project' || userIntent === 'asking_for_clarification') {
+        // Conversational response acknowledging confusion
+        const projectSummary = this.buildBriefSummary(currentBrief);
+        return {
+          body: `Entiendo la confusión. Tengo en mi brief un proyecto de *${projectSummary}*. ¿Es este el proyecto que quieres cotizar, o prefieres hablar de algo diferente?`,
+          source: 'commercial-clarification',
+        };
+      }
+      
+      if (userIntent === 'wants_new_project') {
+        // User explicitly wants to start fresh - reset brief
+        await this.prisma.commercialBrief.delete({
+          where: { conversationId: normalizedConversationId },
+        });
+        // Continue to normal flow for new project
+        return this.planReply({
+          conversationId: input.conversationId,
+          inboundMessageId: input.inboundMessageId,
+          inboundBody: input.inboundBody,
+        });
+      }
+
       // Brief is complete and already enqueued — re-enqueue in case job failed silently,
       // but don't repeat the same "voy a cotizar" message
       await this.aiSalesOrchestrator.enqueueQualifiedConversation(
         normalizedConversationId,
         'customer-message',
       );
+      
+      // Varied response based on conversation history to avoid robotic repetition
+      const variedResponse = this.buildReadyForQuoteFollowUpResponse(
+        currentBrief, 
+        normalizedConversationId,
+        input.inboundBody,
+      );
+      
       return {
-        body: 'Ya tenemos tu información completa. Estamos preparando la propuesta preliminar y te avisamos cuando ya esté lista para revisión interna.',
+        body: variedResponse,
         source: 'commercial-review-status',
       };
     }
@@ -410,6 +444,115 @@ export class ConversationFlowService {
     return /(otro proyecto|otra cosa|otra aplicaci[oó]n|otro sistema|nueva? cotizaci[oó]n|nuevo proyecto|nueva? propuesta|empezar de nuevo|empezar de cero|cotizar otro|cotizar otra|diferente proyecto|pidiendo otra|quiero otra|es otro|es diferente)/i.test(
       body,
     );
+  }
+
+  /**
+   * Detect user intent from their message to handle edge cases
+   */
+  private detectUserIntent(body: string | null): 'confused_about_project' | 'asking_for_clarification' | 'wants_new_project' | 'continuing' {
+    if (!body) return 'continuing';
+    
+    const lowerBody = body.toLowerCase();
+    
+    // Confusion patterns
+    const confusionPatterns = [
+      /de qu[eé] proyecto/i,
+      /informaci[óo]n de qu[eé]/i,
+      /no entiendo/i,
+      /qu[eé] es esto/i,
+      /de qu[eé] hablamos/i,
+      /no habl[eé] de/i,
+      /no ped[ií]/i,
+      /qu[eé] cotizaci[óo]n/i,
+      /qu[eé] propuesta/i,
+      /no es mio/i,
+      /no es mi/i,
+      /error/i,
+      /equivocad/i,
+      /ablame/i,  // "hablame" sin h
+      /cuentame/i,
+      /explicate/i,
+    ];
+    
+    if (confusionPatterns.some(p => p.test(lowerBody))) {
+      return 'confused_about_project';
+    }
+    
+    // New project intent (additional to the main detector)
+    if (this.detectsNewProjectIntent(body)) {
+      return 'wants_new_project';
+    }
+    
+    return 'continuing';
+  }
+
+  /**
+   * Build a brief summary of the current brief for clarification
+     */
+  private buildBriefSummary(brief: CommercialBriefWithLatestDraft | null): string {
+    if (!brief) return 'proyecto no identificado';
+    
+    const parts: string[] = [];
+    
+    if (brief.projectType) {
+      parts.push(brief.projectType);
+    }
+    
+    if (brief.businessProblem) {
+      // Truncate if too long
+      const shortProblem = brief.businessProblem.length > 50 
+        ? brief.businessProblem.substring(0, 50) + '...'
+        : brief.businessProblem;
+      parts.push(`para ${shortProblem}`);
+    }
+    
+    if (parts.length === 0 && brief.summary) {
+      const shortSummary = brief.summary.length > 60
+        ? brief.summary.substring(0, 60) + '...'
+        : brief.summary;
+      return shortSummary;
+    }
+    
+    return parts.join(' ') || 'proyecto en definición';
+  }
+
+  /**
+   * Build varied follow-up response when brief is ready for quote
+   */
+  private buildReadyForQuoteFollowUpResponse(
+    brief: CommercialBriefWithLatestDraft,
+    conversationId: string,
+    userMessage?: string | null,
+  ): string {
+    // If user asked a specific question, acknowledge it
+    if (userMessage && userMessage.length > 10) {
+      const responses = [
+        `Recibido. Ya tengo tu brief completo para ${brief.projectType || 'el proyecto'}. Estoy preparando la propuesta y te aviso cuando esté lista. ¿Algo más que deba considerar mientras tanto?`,
+        `Gracias por el mensaje. Tu propuesta para ${brief.projectType || 'este proyecto'} está en preparación. Te contacto en cuanto esté lista para revisión.`,
+        `Noted. Estoy en proceso de preparar tu cotización para ${brief.projectType || 'lo que conversamos'}. Te aviso en cuanto tenga novedades.`,
+      ];
+      const index = this.hashStringToIndex(conversationId, responses.length);
+      return responses[index];
+    }
+    
+    // Generic but varied responses
+    const responses = [
+      'Ya tenemos tu información completa. Estamos preparando la propuesta preliminar y te avisamos cuando esté lista para revisión interna.',
+      'Tu brief está completo y la propuesta está en preparación. Te contacto en cuanto esté lista.',
+      'Recibido. Estoy finalizando tu propuesta. Te aviso en cuanto pase a revisión interna.',
+    ];
+    const index = this.hashStringToIndex(conversationId, responses.length);
+    return responses[index];
+  }
+
+  private hashStringToIndex(str: string, max: number): number {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash;
+    }
+    return Math.abs(hash) % max;
   }
 
   private resolveExtractedMissingFields(
