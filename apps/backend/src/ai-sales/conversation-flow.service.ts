@@ -34,7 +34,12 @@ type ReplyPlan = {
     | 'commercial-discovery'
     | 'commercial-ready-for-quote'
     | 'commercial-review-status'
-    | 'commercial-clarification';
+    | 'commercial-clarification'
+    | 'commercial-delivered-acceptance'
+    | 'commercial-delivered-pdf-request'
+    | 'commercial-delivered-questions'
+    | 'commercial-human-handoff-frustration'
+    | 'commercial-delivered-follow-up';
 };
 
 type CommercialBriefWithLatestDraft = CommercialBrief & {
@@ -132,6 +137,16 @@ export class ConversationFlowService {
           body: `Entiendo la confusión. Tengo en mi sistema una propuesta en preparación para *${projectSummary}*. Si este no es el proyecto que quieres, solo dímelo y empezamos de cero. ¿Quieres continuar con este proyecto o hablamos de algo diferente?`,
           source: 'commercial-clarification',
         };
+      }
+      
+      // If draft is already delivered to customer and user responds, don't repeat the same message
+      // Instead, provide a helpful response or handoff to human
+      if (latestDraft.reviewStatus === 'delivered_to_customer') {
+        return this.handleDeliveredQuoteResponse(
+          input.inboundBody,
+          latestDraft,
+          normalizedConversationId,
+        );
       }
       
       return {
@@ -389,6 +404,121 @@ export class ConversationFlowService {
           conversationId,
         );
     }
+  }
+
+  /**
+   * Handle user responses when the quote has already been delivered.
+   * Prevents repeating the same "delivered_to_customer" message in a loop.
+   */
+  private handleDeliveredQuoteResponse(
+    userMessage: string | null,
+    draft: QuoteDraft,
+    conversationId: string,
+  ): ReplyPlan {
+    const lowerMessage = userMessage?.toLowerCase().trim() || '';
+
+    // Intent: user wants to proceed/accept
+    const proceedPatterns = [
+      /avancemos/i,
+      /adelante/i,
+      /ok$/i,
+      /^ok$/i,
+      /^dale$/i,
+      /^va$/i,
+      /^si$/i,
+      /^sí$/i,
+      /perfecto/i,
+      /listo/i,
+      /procedamos/i,
+      /empecemos/i,
+      /^bueno$/i,
+      /^bien$/i,
+    ];
+
+    if (proceedPatterns.some((p) => p.test(lowerMessage))) {
+      return {
+        body: '¡Perfecto! Quedo atento para coordinar el siguiente paso. Un asesor te contactará pronto para formalizar todo. ¿Algo más en lo que pueda ayudarte mientras tanto?',
+        source: 'commercial-delivered-acceptance',
+      };
+    }
+
+    // Intent: user wants PDF or document
+    const pdfPatterns = [
+      /pdf/i,
+      /documento/i,
+      /cotizaci[oó]n.*pdf/i,
+      /propuesta.*pdf/i,
+      /env[ií]a.*pdf/i,
+      /manda.*pdf/i,
+      /mandame/i,
+    ];
+
+    if (pdfPatterns.some((p) => p.test(lowerMessage))) {
+      return {
+        body: `Puedes descargar la propuesta en PDF aquí: https://crm.sn8labs.com/conversations/${conversationId}/quote-review/pdf\n\n¿Te quedó claro todo o tienes alguna duda específica?`,
+        source: 'commercial-delivered-pdf-request',
+      };
+    }
+
+    // Intent: user has questions or concerns
+    const questionPatterns = [
+      /pregunta/i,
+      /duda/i,
+      /no entiendo/i,
+      /explica/i,
+      /c[oó]mo/i,
+      /por qu[eé]/i,
+      /cu[aá]ndo/i,
+      /cu[aá]nto/i,
+      /precio/i,
+      /costo/i,
+      /pago/i,
+      /desarrollo/i,
+      /tiempo/i,
+      /plazo/i,
+      /modificar/i,
+      /cambiar/i,
+      /ajustar/i,
+    ];
+
+    if (questionPatterns.some((p) => p.test(lowerMessage))) {
+      return {
+        body: 'Entiendo que tienes dudas sobre la propuesta. Para darte la mejor atención, voy a pasarte con un asesor humano que puede resolver tus preguntas específicas. Un momento por favor.',
+        source: 'commercial-delivered-questions',
+      };
+    }
+
+    // Intent: user is frustrated or angry
+    const frustrationPatterns = [
+      /hpta/i,
+      /hp/i,
+      /mierda/i,
+      /carajo/i,
+      /puta/i,
+      /estupido/i,
+      /est[uú]pido/i,
+      /pendejo/i,
+      /imb[eé]cil/i,
+      /idiota/i,
+      /no funciona/i,
+      /no sirve/i,
+      /malo/i,
+      /pesimo/i,
+      /p[eé]simo/i,
+    ];
+
+    if (frustrationPatterns.some((p) => p.test(lowerMessage))) {
+      return {
+        body: 'Lamento la confusión. Parece que hay un problema con nuestra comunicación. Te paso de inmediato con un asesor humano para que te atienda personalmente. Disculpa las molestias.',
+        source: 'commercial-human-handoff-frustration',
+      };
+    }
+
+    // Default: generic helpful response instead of repeating status
+    return {
+      body: 'Recibido. Si quieres avanzar con la propuesta o tienes alguna pregunta específica, dime y te ayudo. También puedo pasarte con un asesor humano si lo prefieres.',
+      source: 'commercial-delivered-follow-up',
+    };
   }
 
   private buildReadyForQuoteReply(
