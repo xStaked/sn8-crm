@@ -85,11 +85,13 @@ export class ConversationFlowService {
     });
 
     // If user explicitly requests a new/different project, reset the existing brief
+    let newProjectStartMessageId: string | null = null;
     if (currentBrief && this.detectsNewProjectIntent(input.inboundBody)) {
       await this.prisma.commercialBrief.delete({
         where: { conversationId: normalizedConversationId },
       });
       currentBrief = null;
+      newProjectStartMessageId = input.inboundMessageId;
     }
 
     const latestDraft = currentBrief?.quoteDrafts[0];
@@ -114,8 +116,19 @@ export class ConversationFlowService {
     }
 
     try {
-      const messages =
+      const allMessages =
         await this.conversationsService.listConversationMessages(normalizedConversationId);
+
+      // When a new project was just requested, only use messages from that point forward
+      // so the old project context doesn't pollute the new brief extraction.
+      let messages = allMessages;
+      if (newProjectStartMessageId) {
+        const startIndex = allMessages.findIndex((m) => m.id === newProjectStartMessageId);
+        if (startIndex >= 0) {
+          messages = allMessages.slice(startIndex);
+        }
+      }
+
       const transcript = messages
         .map(
           (message) =>
@@ -346,7 +359,7 @@ export class ConversationFlowService {
       return false;
     }
 
-    return /(otro proyecto|otra cosa|nueva? cotizaci[oó]n|nuevo proyecto|empezar de nuevo|empezar de cero|cotizar otro|cotizar otra|diferente proyecto)/i.test(
+    return /(otro proyecto|otra cosa|otra aplicaci[oó]n|otro sistema|nueva? cotizaci[oó]n|nuevo proyecto|nueva? propuesta|empezar de nuevo|empezar de cero|cotizar otro|cotizar otra|diferente proyecto|pidiendo otra|quiero otra|es otro|es diferente)/i.test(
       body,
     );
   }
