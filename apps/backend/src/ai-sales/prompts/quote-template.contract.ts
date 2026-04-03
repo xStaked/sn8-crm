@@ -8,7 +8,7 @@ export type QuoteTemplateSection = {
 export type QuoteTemplateContract = {
   version: string;
   ownerTemplateProvided: boolean;
-  status: 'pending-owner-template' | 'ready';
+  status: 'ready';
   brandVoice: 'premium-consultive';
   customerDisclosure: string;
   reviewGateLabel: string;
@@ -17,47 +17,49 @@ export type QuoteTemplateContract = {
 };
 
 export const QUOTE_TEMPLATE: QuoteTemplateContract = {
-  version: 'pending-owner-template',
-  ownerTemplateProvided: false,
-  status: 'pending-owner-template',
+  version: '2026-04-03.commercial-template-v1',
+  ownerTemplateProvided: true,
+  status: 'ready',
   brandVoice: 'premium-consultive',
   customerDisclosure:
     'Esta es una cotizacion preliminar preparada por SN8 Labs y queda sujeta a revision y aprobacion interna antes de cualquier envio final al cliente.',
-  reviewGateLabel: 'pendiente de revision del socio',
+  reviewGateLabel: 'Borrador comercial para revision del socio',
   sections: [
     {
-      key: 'project-context',
-      label: 'Contexto del proyecto',
+      key: 'executive-summary',
+      label: 'Resumen ejecutivo',
       required: true,
       guidance:
-        'Resumen ejecutivo del problema de negocio, objetivo del proyecto y alcance preliminar confirmado con el cliente.',
+        'Sintesis comercial del reto del cliente, oportunidad de negocio y propuesta de valor de SN8 Labs.',
     },
     {
       key: 'proposed-scope',
       label: 'Alcance propuesto',
       required: true,
       guidance:
-        'Entregables y limites del alcance en lenguaje comercial claro, sin comprometer elementos no validados.',
+        'Entregables, limites y responsabilidades por fase en lenguaje comercial claro y verificable.',
     },
     {
-      key: 'commercial-notes',
-      label: 'Notas comerciales y supuestos',
+      key: 'commercial-assumptions',
+      label: 'Supuestos y consideraciones comerciales',
       required: true,
       guidance:
-        'Supuestos, restricciones, dependencias del cliente y advertencias necesarias antes de emitir una version final.',
+        'Supuestos, dependencias del cliente, exclusiones explicitas y condiciones para sostener alcance y costo.',
     },
     {
-      key: 'pricing-placeholder',
-      label: 'Estructura de valor y precio preliminar',
+      key: 'pricing-structure',
+      label: 'Pricing y estructura economica',
       required: true,
       guidance:
-        'Espacio reservado para la estructura exacta de pricing que el socio defina en su plantilla oficial.',
+        'Rango min-target-max, modalidad de cobro, terminos de pago y notas financieras relevantes para aprobacion.',
+    },
+    {
+      key: 'implementation-timeline',
+      label: 'Timeline y plan de implementacion',
+      required: true,
+      guidance:
+        'Hitos, duraciones estimadas, dependencias criticas y fecha objetivo de arranque/cierre.',
     },
   ],
-  pendingOwnerInputs: [
-    'Plantilla exacta de cotizacion aprobada por el socio',
-    'Orden final de secciones y encabezados obligatorios',
-    'Formato de pricing, moneda y notas legales/comerciales',
-    'Ejemplos reales de cotizaciones validas e invalidas para la marca',
-  ],
+  pendingOwnerInputs: [],
 };

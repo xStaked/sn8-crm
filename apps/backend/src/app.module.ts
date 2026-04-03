@@ -6,7 +6,9 @@ import { AuthModule } from './auth/auth.module';
 import { BotConversationModule } from './bot-conversation/bot-conversation.module';
 import { ConversationsModule } from './conversations/conversations.module';
 import { MessagingModule } from './messaging/messaging.module';
+import { PricingRulesModule } from './pricing-rules/pricing-rules.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { QuoteMetricsModule } from './quote-metrics/quote-metrics.module';
 import { QuoteDocumentsModule } from './quote-documents/quote-documents.module';
 import { RedisModule } from './redis/redis.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
@@ -17,6 +19,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
     PrismaModule,
     RedisModule,
     AuthModule,
+    PricingRulesModule,
     AiSalesModule,
     BotConversationModule,
     BullModule.forRootAsync({
@@ -38,6 +41,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
     }),
     MessagingModule,
     QuoteDocumentsModule,
+    QuoteMetricsModule,
     ConversationsModule,
     WebhooksModule,
   ],

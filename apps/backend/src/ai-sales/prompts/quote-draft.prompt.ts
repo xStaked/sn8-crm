@@ -1,7 +1,7 @@
 import type { GenerateQuoteDraftInput, RegenerateQuoteDraftInput } from '../ai-provider.interface';
 import { SALES_AGENT_PROMPT_VERSION, SALES_AGENT_SYSTEM_PROMPT } from './sales-agent.system';
 
-export const QUOTE_DRAFT_PROMPT_VERSION = '2026-03-19.quote-v1';
+export const QUOTE_DRAFT_PROMPT_VERSION = '2026-04-03.quote-v2';
 
 function buildBasePrompt(input: GenerateQuoteDraftInput): string {
   return [

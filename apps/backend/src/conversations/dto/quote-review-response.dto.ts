@@ -64,6 +64,23 @@ export class ConversationQuoteReviewPdfDto {
   version: number;
 }
 
+export class ConversationQuotePricingRuleDto {
+  @ApiProperty({ nullable: true, example: 'cma_pricing_rule_123' })
+  id: string | null;
+
+  @ApiProperty({ nullable: true, example: 4 })
+  version: number | null;
+
+  @ApiProperty({ nullable: true, example: 'crm' })
+  category: string | null;
+
+  @ApiProperty({ nullable: true, example: 'medium' })
+  complexity: string | null;
+
+  @ApiProperty({ nullable: true, example: 'erp' })
+  integrationType: string | null;
+}
+
 export class ConversationQuoteReviewDto {
   @ApiProperty({ example: '573001112233' })
   conversationId: string;
@@ -123,4 +140,7 @@ export class ConversationQuoteReviewDto {
 
   @ApiProperty({ type: ConversationQuoteReviewPdfDto })
   pdf: ConversationQuoteReviewPdfDto;
+
+  @ApiProperty({ type: ConversationQuotePricingRuleDto })
+  pricingRule: ConversationQuotePricingRuleDto;
 }

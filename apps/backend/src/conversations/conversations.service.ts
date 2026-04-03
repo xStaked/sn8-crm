@@ -209,6 +209,13 @@ export class ConversationsService {
         sizeBytes: draft.document?.sizeBytes ?? null,
         version: draft.version,
       },
+      pricingRule: {
+        id: draft.pricingRule?.id ?? null,
+        version: draft.pricingRuleVersion ?? null,
+        category: draft.pricingRule?.category ?? null,
+        complexity: draft.pricingRule?.complexity ?? null,
+        integrationType: draft.pricingRule?.integrationType ?? null,
+      },
     };
   }
 
@@ -490,6 +497,14 @@ export class ConversationsService {
             fileName: true,
             sizeBytes: true,
             generatedAt: true,
+          },
+        },
+        pricingRule: {
+          select: {
+            id: true,
+            category: true,
+            complexity: true,
+            integrationType: true,
           },
         },
       },

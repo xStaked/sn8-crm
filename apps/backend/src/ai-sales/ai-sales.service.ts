@@ -84,6 +84,9 @@ export class AiSalesService {
     });
 
     const nextVersion = (brief.quoteDrafts[0]?.version ?? 0) + 1;
+    const appliedPricingRule = await this.resolveApplicablePricingRule(
+      brief.projectType,
+    );
     const draftPayload: Prisma.InputJsonObject = {
       summary: result.summary,
       structuredDraft: result.structuredDraft as Prisma.InputJsonValue,
@@ -91,6 +94,15 @@ export class AiSalesService {
       ownerReviewNotes: (result.ownerReviewNotes ?? []) as Prisma.InputJsonValue,
       customerSafeStatus: result.customerSafeStatus ?? QUOTE_TEMPLATE.customerDisclosure,
       model: result.model,
+      pricingRuleApplied: appliedPricingRule
+        ? {
+            id: appliedPricingRule.id,
+            category: appliedPricingRule.category,
+            complexity: appliedPricingRule.complexity,
+            integrationType: appliedPricingRule.integrationType,
+            version: appliedPricingRule.version,
+          }
+        : null,
     };
 
     return this.prisma.quoteDraft.create({
@@ -101,9 +113,47 @@ export class AiSalesService {
         origin: nextVersion === 1 ? 'initial' : 'regenerated',
         reviewStatus: 'pending_owner_review',
         templateVersion: QUOTE_TEMPLATE.version,
+        pricingRuleId: appliedPricingRule?.id ?? null,
+        pricingRuleVersion: appliedPricingRule?.version ?? null,
         draftPayload,
         renderedQuote: result.renderedQuote,
       },
     });
+  }
+
+  private async resolveApplicablePricingRule(projectType: string | null) {
+    const requestedCategory = this.normalizePricingToken(projectType);
+    if (requestedCategory) {
+      const byCategory = await this.prisma.pricingRule.findFirst({
+        where: {
+          category: requestedCategory,
+          isActive: true,
+          archivedAt: null,
+        },
+        orderBy: [{ version: 'desc' }, { updatedAt: 'desc' }],
+      });
+
+      if (byCategory) {
+        return byCategory;
+      }
+    }
+
+    return this.prisma.pricingRule.findFirst({
+      where: {
+        category: 'general',
+        isActive: true,
+        archivedAt: null,
+      },
+      orderBy: [{ version: 'desc' }, { updatedAt: 'desc' }],
+    });
+  }
+
+  private normalizePricingToken(value: string | null | undefined): string | null {
+    if (!value) {
+      return null;
+    }
+
+    const normalized = value.trim().toLowerCase();
+    return normalized.length > 0 ? normalized : null;
   }
 }

@@ -46,29 +46,29 @@ model User {
 }
 
 model Message {
-  id                String   @id @default(cuid())
-  externalMessageId String   @unique
+  id                String    @id @default(cuid())
+  externalMessageId String    @unique
   direction         String // "inbound" | "outbound"
   fromPhone         String
   toPhone           String
   body              String?
-  channel           String  @default("whatsapp")
+  channel           String    @default("whatsapp")
   rawPayload        Json
   processedAt       DateTime?
-  createdAt         DateTime @default(now())
+  createdAt         DateTime  @default(now())
 }
 
 model ConversationState {
-  id                String   @id @default(cuid())
-  conversationId    String   @unique
-  state             String
-  metadata          Json?
-  offFlowCount      Int      @default(0)
+  id                   String   @id @default(cuid())
+  conversationId       String   @unique
+  state                String
+  metadata             Json?
+  offFlowCount         Int      @default(0)
   lastInboundMessageId String?
-  lastTransitionAt  DateTime
-  expiresAt         DateTime
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  lastTransitionAt     DateTime
+  expiresAt            DateTime
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
   @@index([expiresAt])
   @@index([state, lastTransitionAt])
@@ -96,40 +96,117 @@ model CommercialBrief {
 }
 
 model QuoteDraft {
-  id                    String            @id @default(cuid())
+  id                    String                  @id @default(cuid())
   commercialBriefId     String
   conversationId        String
   version               Int
-  origin                QuoteDraftOrigin  @default(initial)
-  reviewStatus          QuoteReviewStatus @default(pending_owner_review)
+  origin                QuoteDraftOrigin        @default(initial)
+  reviewStatus          QuoteReviewStatus       @default(pending_owner_review)
   templateVersion       String?
   draftPayload          Json
   renderedQuote         String?
   ownerFeedbackSummary  String?
   approvedAt            DateTime?
   deliveredToCustomerAt DateTime?
-  createdAt             DateTime          @default(now())
-  updatedAt             DateTime          @updatedAt
-  commercialBrief       CommercialBrief   @relation(fields: [commercialBriefId], references: [id], onDelete: Cascade)
+  pricingRuleId         String?
+  pricingRuleVersion    Int?
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+  commercialBrief       CommercialBrief         @relation(fields: [commercialBriefId], references: [id], onDelete: Cascade)
   document              QuoteDraftDocument?
+  pricingRule           PricingRule?            @relation(fields: [pricingRuleId], references: [id], onDelete: SetNull)
+  estimateSnapshots     QuoteEstimateSnapshot[]
+  outcomes              QuoteOutcome[]
   reviewEvents          QuoteReviewEvent[]
 
   @@unique([conversationId, version])
   @@index([commercialBriefId, version])
   @@index([conversationId, reviewStatus, createdAt])
+  @@index([pricingRuleId, pricingRuleVersion, createdAt])
+}
+
+model PricingRule {
+  id                String                  @id @default(cuid())
+  name              String
+  category          String
+  complexity        String
+  integrationType   String
+  version           Int
+  description       String?
+  currency          String                  @default("COP")
+  minMarginPct      Decimal                 @db.Decimal(5, 2)
+  targetMarginPct   Decimal                 @db.Decimal(5, 2)
+  maxMarginPct      Decimal                 @db.Decimal(5, 2)
+  scoreWeights      Json?
+  confidenceWeights Json?
+  isActive          Boolean                 @default(true)
+  archivedAt        DateTime?
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+  quoteDrafts       QuoteDraft[]
+  estimateSnapshots QuoteEstimateSnapshot[]
+
+  @@unique([category, complexity, integrationType, version])
+  @@index([isActive, updatedAt])
+  @@index([category, complexity, integrationType, isActive, version])
+}
+
+model QuoteEstimateSnapshot {
+  id                    String        @id @default(cuid())
+  conversationId        String
+  quoteDraftId          String?
+  pricingRuleId         String?
+  currency              String        @default("COP")
+  effortHours           Decimal?      @db.Decimal(10, 2)
+  complexityScore       Decimal?      @db.Decimal(5, 2)
+  confidencePct         Int?
+  estimatedMinAmount    Decimal       @db.Decimal(14, 2)
+  estimatedTargetAmount Decimal       @db.Decimal(14, 2)
+  estimatedMaxAmount    Decimal       @db.Decimal(14, 2)
+  breakdown             Json?
+  inputPayload          Json?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+  quoteDraft            QuoteDraft?   @relation(fields: [quoteDraftId], references: [id], onDelete: SetNull)
+  pricingRule           PricingRule?  @relation(fields: [pricingRuleId], references: [id], onDelete: SetNull)
+  outcome               QuoteOutcome?
+
+  @@index([conversationId, createdAt])
+  @@index([quoteDraftId, createdAt])
+  @@index([pricingRuleId, createdAt])
+}
+
+model QuoteOutcome {
+  id                      String                @id @default(cuid())
+  conversationId          String
+  quoteDraftId            String?
+  quoteEstimateSnapshotId String                @unique
+  currency                String                @default("COP")
+  finalAmount             Decimal               @db.Decimal(14, 2)
+  outcomeStatus           String
+  closedAt                DateTime
+  notes                   String?
+  createdAt               DateTime              @default(now())
+  updatedAt               DateTime              @updatedAt
+  quoteDraft              QuoteDraft?           @relation(fields: [quoteDraftId], references: [id], onDelete: SetNull)
+  quoteEstimateSnapshot   QuoteEstimateSnapshot @relation(fields: [quoteEstimateSnapshotId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, closedAt])
+  @@index([quoteDraftId, closedAt])
+  @@index([outcomeStatus, closedAt])
 }
 
 model QuoteDraftDocument {
-  id             String                @id @default(cuid())
-  quoteDraftId   String                @unique
+  id             String                 @id @default(cuid())
+  quoteDraftId   String                 @unique
   kind           QuoteDraftDocumentKind @default(commercial_pdf)
   fileName       String
   mimeType       String
   checksumSha256 String
   sizeBytes      Int
   content        Bytes
-  generatedAt    DateTime              @default(now())
-  quoteDraft     QuoteDraft            @relation(fields: [quoteDraftId], references: [id], onDelete: Cascade)
+  generatedAt    DateTime               @default(now())
+  quoteDraft     QuoteDraft             @relation(fields: [quoteDraftId], references: [id], onDelete: Cascade)
 
   @@index([kind, generatedAt])
 }

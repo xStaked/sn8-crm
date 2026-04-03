@@ -22,6 +22,7 @@ import {
   OwnerReviewAction,
   OwnerReviewCommandDto,
 } from './dto/owner-review-command.dto';
+import { QUOTE_TEMPLATE } from './prompts/quote-template.contract';
 
 type ReviewCommandSource = {
   body: string;
@@ -379,11 +380,10 @@ export class OwnerReviewService {
         summary: sourceDraft.commercialBrief.summary ?? undefined,
       },
       quoteTemplate: {
-        version: sourceDraft.templateVersion ?? 'pending-owner-template',
-        title: 'pendiente de revision del socio',
-        sections: [],
-        note:
-          'Esta es una cotizacion preliminar preparada por SN8 Labs y queda sujeta a revision y aprobacion interna antes de cualquier envio final al cliente.',
+        version: sourceDraft.templateVersion ?? QUOTE_TEMPLATE.version,
+        title: QUOTE_TEMPLATE.reviewGateLabel,
+        sections: QUOTE_TEMPLATE.sections.map((section) => section.label),
+        note: QUOTE_TEMPLATE.customerDisclosure,
       },
     });
 

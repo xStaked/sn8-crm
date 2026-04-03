@@ -379,6 +379,7 @@ describe('ConversationsService', () => {
       id: 'draft_3',
       conversationId: '573001112233',
       version: 3,
+      pricingRuleVersion: 7,
       reviewStatus: 'approved',
       renderedQuote: 'Quote body',
       draftPayload: { summary: 'Executive summary' },
@@ -396,6 +397,12 @@ describe('ConversationsService', () => {
         projectType: 'CRM',
         budget: 'USD 10k',
         urgency: 'High',
+      },
+      pricingRule: {
+        id: 'rule_7',
+        category: 'crm',
+        complexity: 'medium',
+        integrationType: 'erp',
       },
     });
 
@@ -423,6 +430,13 @@ describe('ConversationsService', () => {
         sizeBytes: 182304,
         version: 3,
       },
+      pricingRule: {
+        id: 'rule_7',
+        version: 7,
+        category: 'crm',
+        complexity: 'medium',
+        integrationType: 'erp',
+      },
     });
   });
 
@@ -437,6 +451,7 @@ describe('ConversationsService', () => {
       id: 'draft_4',
       conversationId: '573001112233',
       version: 4,
+      pricingRuleVersion: null,
       reviewStatus: 'ready_for_recheck',
       renderedQuote: 'Quote body',
       draftPayload: { summary: 'Executive summary' },
@@ -451,6 +466,7 @@ describe('ConversationsService', () => {
         budget: 'USD 10k',
         urgency: 'High',
       },
+      pricingRule: null,
     });
 
     await expect(service.getConversationQuoteReview('573001112233')).resolves.toMatchObject({
@@ -461,6 +477,10 @@ describe('ConversationsService', () => {
         generatedAt: null,
         sizeBytes: null,
         version: 4,
+      },
+      pricingRule: {
+        id: null,
+        version: null,
       },
     });
   });
@@ -476,6 +496,7 @@ describe('ConversationsService', () => {
       id: 'draft_5',
       conversationId: '573001112233',
       version: 5,
+      pricingRuleVersion: null,
       reviewStatus: 'approved',
       renderedQuote: 'Quote body',
       draftPayload: { summary: 'Executive summary' },
@@ -490,6 +511,7 @@ describe('ConversationsService', () => {
         budget: 'USD 10k',
         urgency: 'High',
       },
+      pricingRule: null,
     });
     quotePdfService.getOrCreateDraftPdf.mockResolvedValue({
       fileName: 'cotizacion-sn8-v5.pdf',
@@ -541,6 +563,14 @@ describe('ConversationsService', () => {
             generatedAt: true,
           },
         },
+        pricingRule: {
+          select: {
+            id: true,
+            category: true,
+            complexity: true,
+            integrationType: true,
+          },
+        },
       },
     });
     expect(quotePdfService.getOrCreateDraftPdf).toHaveBeenCalledWith('draft_5');
@@ -571,6 +601,7 @@ describe('ConversationsService', () => {
       id: 'draft_3',
       conversationId: '573001112233',
       version: 3,
+      pricingRuleVersion: null,
       reviewStatus: 'delivered_to_customer',
       renderedQuote: 'Quote body',
       draftPayload: { summary: 'Executive summary' },
@@ -585,6 +616,7 @@ describe('ConversationsService', () => {
         budget: 'USD 10k',
         urgency: 'High',
       },
+      pricingRule: null,
     });
 
     const response = await service.approveConversationQuote(
@@ -617,6 +649,7 @@ describe('ConversationsService', () => {
       id: 'draft_3',
       conversationId: '573001112233',
       version: 3,
+      pricingRuleVersion: null,
       reviewStatus: 'changes_requested',
       renderedQuote: 'Quote body',
       draftPayload: { summary: 'Executive summary' },
@@ -631,6 +664,7 @@ describe('ConversationsService', () => {
         budget: 'USD 10k',
         urgency: 'High',
       },
+      pricingRule: null,
     });
 
     const response = await service.requestConversationQuoteChanges(
