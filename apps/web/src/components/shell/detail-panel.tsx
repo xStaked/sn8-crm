@@ -8,8 +8,12 @@ import {
   ExternalLink,
   FileText,
   MessageSquare,
+  MoreVertical,
+  Paperclip,
   PencilLine,
+  Phone,
   Send,
+  SmilePlus,
   SlidersHorizontal,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -20,10 +24,21 @@ import { useConversationQuoteReview } from "@/hooks/use-conversation-quote-revie
 import { useConversations } from "@/hooks/use-conversations";
 import { apiFetch, apiFetchJson, isApiError } from "@/lib/api";
 import type {
+  ConversationControlMode,
+  ConversationControlState,
   ConversationMessageDto,
   ConversationQuoteReview,
   ConversationQuoteReviewDto,
 } from "@/types/conversation";
+
+function getInitials(name: string): string {
+  return name
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+}
 
 function formatTimestamp(isoString: string) {
   return new Date(isoString).toLocaleString("es-MX", {
@@ -54,6 +69,13 @@ function formatCurrency(value: number | null) {
     currency: "COP",
     maximumFractionDigits: 0,
   }).format(value);
+}
+
+function formatTimeOnly(isoString: string) {
+  return new Date(isoString).toLocaleTimeString("es-MX", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function parseNumericInput(value: string): number | null {
@@ -87,13 +109,13 @@ function getReviewStatusTone(status: ConversationQuoteReview["reviewStatus"]) {
   switch (status) {
     case "pending_owner_review":
     case "ready_for_recheck":
-      return "border-amber-500/30 bg-amber-500/10 text-amber-200";
+      return "tone-warning";
     case "changes_requested":
-      return "border-sky-500/30 bg-sky-500/10 text-sky-200";
+      return "tone-info";
     case "approved":
-      return "border-emerald-500/30 bg-emerald-500/10 text-emerald-200";
+      return "tone-success";
     case "delivered_to_customer":
-      return "border-emerald-500/30 bg-emerald-500/10 text-emerald-100";
+      return "tone-success";
     default:
       return "border-border bg-muted text-muted-foreground";
   }
@@ -101,6 +123,47 @@ function getReviewStatusTone(status: ConversationQuoteReview["reviewStatus"]) {
 
 function isQuoteReviewActionable(status: ConversationQuoteReview["reviewStatus"]) {
   return status === "pending_owner_review" || status === "ready_for_recheck";
+}
+
+function getControlLabel(mode: ConversationControlMode): string {
+  switch (mode) {
+    case "human_control":
+      return "Human takeover";
+    case "pending_resume":
+      return "Ready to resume AI";
+    case "ai_control":
+    default:
+      return "AI managed";
+  }
+}
+
+function getControlTone(mode: ConversationControlMode): string {
+  switch (mode) {
+    case "human_control":
+      return "tone-warning border";
+    case "pending_resume":
+      return "tone-info border";
+    case "ai_control":
+    default:
+      return "tone-success border";
+  }
+}
+
+function getControlStateLabel(state: ConversationControlState): string {
+  switch (state) {
+    case "GREETING":
+      return "Saludo inicial";
+    case "INFO_SERVICES":
+      return "Mostrando servicios";
+    case "QUALIFYING":
+      return "Calificacion IA";
+    case "HUMAN_HANDOFF":
+      return "En handoff humano";
+    case "AI_SALES":
+      return "IA comercial";
+    default:
+      return state;
+  }
 }
 
 function QuoteReviewSkeleton() {
@@ -343,7 +406,7 @@ function QuoteReviewCard({
                   variant="secondary"
                   className={
                     pdf.available
-                      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200"
+                      ? "tone-success border"
                       : "border-border bg-muted text-muted-foreground"
                   }
                 >
@@ -442,8 +505,8 @@ function QuoteReviewCard({
         </div>
 
         {latestOwnerAdjustment ? (
-          <div className="mt-5 rounded-xl border border-sky-500/20 bg-sky-500/5 px-4 py-3">
-            <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-sky-200">
+          <div className="tone-info mt-5 rounded-xl border px-4 py-3">
+            <p className="text-[11px] font-medium uppercase tracking-[0.12em]">
               Ultimo ajuste manual
             </p>
             <p className="mt-2 text-sm text-foreground">
@@ -556,8 +619,8 @@ function QuoteReviewCard({
         </div>
 
         {quoteReview.ownerFeedbackSummary ? (
-          <div className="mt-5 rounded-xl border border-sky-500/20 bg-sky-500/5 px-4 py-3">
-            <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-sky-200">
+          <div className="tone-info mt-5 rounded-xl border px-4 py-3">
+            <p className="text-[11px] font-medium uppercase tracking-[0.12em]">
               Ultima retroalimentacion del socio
             </p>
             <p className="mt-2 text-sm text-foreground">
@@ -567,7 +630,7 @@ function QuoteReviewCard({
         ) : null}
 
         {quoteReview.deliveredToCustomerAt ? (
-          <div className="mt-5 flex items-start gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3 text-sm text-emerald-100">
+          <div className="tone-success mt-5 flex items-start gap-2 rounded-xl border px-4 py-3 text-sm">
             <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
             <p>
               Entregada automaticamente al cliente el{" "}
@@ -575,7 +638,7 @@ function QuoteReviewCard({
             </p>
           </div>
         ) : quoteReview.approvedAt ? (
-          <div className="mt-5 flex items-start gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3 text-sm text-emerald-100">
+          <div className="tone-success mt-5 flex items-start gap-2 rounded-xl border px-4 py-3 text-sm">
             <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
             <p>Aprobada el {formatTimestamp(quoteReview.approvedAt)}.</p>
           </div>
@@ -617,13 +680,33 @@ function QuoteReviewCard({
 
 function MessageSkeleton() {
   return (
-    <div className="space-y-3">
-      <Skeleton className="h-4 w-32" />
+    <div className="space-y-4">
+      <div className="flex justify-center">
+        <Skeleton className="h-6 w-28 rounded-full" />
+      </div>
       <div className="flex justify-start">
         <Skeleton className="h-20 w-full max-w-md rounded-2xl" />
       </div>
       <div className="flex justify-end">
         <Skeleton className="h-16 w-full max-w-sm rounded-2xl" />
+      </div>
+    </div>
+  );
+}
+
+function DetailStateCard({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="flex flex-1 items-center justify-center px-6 py-10">
+      <div className="max-w-md rounded-2xl border border-border/70 bg-card/70 px-6 py-7 text-center">
+        <MessageSquare className="mx-auto h-11 w-11 text-muted-foreground/50" />
+        <p className="mt-4 text-sm font-medium text-foreground">{title}</p>
+        <p className="mt-2 text-sm text-muted-foreground">{description}</p>
       </div>
     </div>
   );
@@ -657,6 +740,13 @@ export function DetailPanel() {
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [pdfOpening, setPdfOpening] = useState(false);
+  const [controlSubmitting, setControlSubmitting] = useState(false);
+  const [controlError, setControlError] = useState<string | null>(null);
+  const [controlNotice, setControlNotice] = useState<string | null>(null);
+  const quoteTotal =
+    (quoteReview?.estimatedTargetAmount ?? 0) > 0
+      ? quoteReview?.estimatedTargetAmount ?? null
+      : quoteReview?.estimatedMaxAmount ?? quoteReview?.estimatedMinAmount ?? null;
 
   useEffect(() => {
     setRequestChangesMode(false);
@@ -668,6 +758,8 @@ export function DetailPanel() {
     setAdjustmentTargetAmount("");
     setAdjustmentMaxAmount("");
     setReviewError(null);
+    setControlError(null);
+    setControlNotice(null);
   }, [selectedId]);
 
   useEffect(() => {
@@ -900,36 +992,157 @@ export function DetailPanel() {
     }
   }
 
+  async function handleTransferControl(nextControl: "human" | "ai-resume") {
+    if (!selectedId || controlSubmitting) {
+      return;
+    }
+
+    setControlSubmitting(true);
+    setControlError(null);
+    setControlNotice(null);
+
+    try {
+      const response = await apiFetchJson<{
+        conversationId: string;
+        state: ConversationControlState;
+        control: ConversationControlMode;
+        updatedAt: string;
+        updatedBy: string;
+      }>(`/conversations/${encodeURIComponent(selectedId)}/control/${nextControl}`, {
+        method: "POST",
+      });
+
+      await mutateConversations(
+        (current) =>
+          (current ?? []).map((conversation) =>
+            conversation.id === response.conversationId
+              ? {
+                  ...conversation,
+                  conversationControl: {
+                    state: response.state,
+                    control: response.control,
+                    updatedAt: response.updatedAt,
+                    updatedBy: response.updatedBy,
+                  },
+                }
+              : conversation,
+          ),
+        { revalidate: false },
+      );
+      await mutateConversations();
+      setControlNotice(
+        nextControl === "human"
+          ? "Control transferido a humano."
+          : "Conversacion lista para que IA retome en el siguiente inbound.",
+      );
+    } catch (controlAttemptError) {
+      if (isApiError(controlAttemptError)) {
+        setControlError(controlAttemptError.message);
+      } else {
+        setControlError("No se pudo actualizar el control de la conversacion.");
+      }
+    } finally {
+      setControlSubmitting(false);
+    }
+  }
+
   if (!selectedConversation) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <div className="text-center">
-          <MessageSquare className="mx-auto h-12 w-12 text-muted-foreground/50" />
-          <p className="mt-4 text-sm text-muted-foreground">
-            Selecciona una conversacion para ver el detalle.
-          </p>
-        </div>
-      </div>
+      <DetailStateCard
+        title="Selecciona una conversacion"
+        description="El detalle de mensajes y cotizaciones aparecera aqui."
+      />
     );
   }
 
   return (
-    <div className="flex h-full flex-col bg-background">
-      <div className="border-b border-border px-6 py-5">
+    <div className="flex h-full flex-col bg-muted/20">
+      <div className="sticky top-0 z-10 border-b border-border/70 bg-background/85 px-8 py-4 backdrop-blur-xl">
         <div className="flex items-center justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-semibold text-foreground">
+          <div className="min-w-0">
+            <h2 className="truncate text-lg font-bold tracking-tight text-foreground">
               {selectedConversation.contactName}
             </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Ultimo movimiento: {formatTimestamp(selectedConversation.lastMessageAt)}
+            <p className="mt-1 text-xs font-medium text-muted-foreground">
+              Conversation updated{" "}
+              {formatTimestamp(selectedConversation.lastMessageAt)}
             </p>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <Badge
+                variant="secondary"
+                className={getControlTone(selectedConversation.conversationControl.control)}
+              >
+                {getControlLabel(selectedConversation.conversationControl.control)}
+              </Badge>
+              <span className="text-[11px] text-muted-foreground">
+                {getControlStateLabel(selectedConversation.conversationControl.state)}
+              </span>
+            </div>
           </div>
-          {selectedConversation.unreadCount > 0 ? (
-            <Badge>{selectedConversation.unreadCount} sin leer</Badge>
-          ) : null}
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-9"
+              onClick={() => {
+                void handleTransferControl("human");
+              }}
+              disabled={
+                controlSubmitting ||
+                selectedConversation.conversationControl.control === "human_control"
+              }
+            >
+              <Phone className="mr-2 h-4 w-4" />
+              {controlSubmitting &&
+              selectedConversation.conversationControl.control !== "human_control"
+                ? "Transfiriendo..."
+                : "Pasar a humano"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-9"
+              onClick={() => {
+                void handleTransferControl("ai-resume");
+              }}
+              disabled={
+                controlSubmitting ||
+                selectedConversation.conversationControl.control === "pending_resume"
+              }
+            >
+              <Send className="mr-2 h-4 w-4" />
+              {controlSubmitting &&
+              selectedConversation.conversationControl.control !== "pending_resume"
+                ? "Actualizando..."
+                : "Devolver a IA"}
+            </Button>
+            <Button type="button" variant="ghost" size="icon" className="h-9 w-9">
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+            {selectedConversation.unreadCount > 0 ? (
+              <Badge>{selectedConversation.unreadCount} unread</Badge>
+            ) : null}
+          </div>
         </div>
       </div>
+
+      {controlNotice ? (
+        <div className="border-b border-border px-8 py-3">
+          <div className="tone-success rounded-xl border px-3 py-2 text-sm">
+            {controlNotice}
+          </div>
+        </div>
+      ) : null}
+
+      {controlError ? (
+        <div className="border-b border-border px-8 py-3">
+          <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {controlError}
+          </div>
+        </div>
+      ) : null}
 
       {quoteReviewState === "loading" && selectedConversation.pendingQuote ? (
         <QuoteReviewSkeleton />
@@ -994,58 +1207,53 @@ export function DetailPanel() {
           <MessageSkeleton />
         </div>
       ) : state === "unauthorized" ? (
-        <div className="flex flex-1 items-center justify-center px-6 py-10">
-          <div className="max-w-md text-center">
-            <MessageSquare className="mx-auto h-12 w-12 text-muted-foreground/50" />
-            <p className="mt-4 text-sm font-medium text-foreground">
-              Tu sesion expiro
-            </p>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Redirigiendo al acceso del CRM.
-            </p>
-          </div>
-        </div>
+        <DetailStateCard
+          title="Tu sesion expiro"
+          description="Redirigiendo al acceso del CRM."
+        />
       ) : state === "error" ? (
-        <div className="flex flex-1 items-center justify-center px-6 py-10">
-          <div className="max-w-md text-center">
-            <MessageSquare className="mx-auto h-12 w-12 text-muted-foreground/50" />
-            <p className="mt-4 text-sm font-medium text-foreground">
-              No se pudo cargar el historial
-            </p>
-            <p className="mt-2 text-sm text-muted-foreground">
-              {isApiError(error)
-                ? `El backend respondio con estado ${error.status}.`
-                : "Intenta recargar la pagina."}
-            </p>
-          </div>
-        </div>
+        <DetailStateCard
+          title="No se pudo cargar el historial"
+          description={
+            isApiError(error)
+              ? `El backend respondio con estado ${error.status}.`
+              : "Intenta recargar la pagina."
+          }
+        />
       ) : state === "empty" ? (
-        <div className="flex flex-1 items-center justify-center px-6 py-10">
-          <div className="max-w-md text-center">
-            <MessageSquare className="mx-auto h-12 w-12 text-muted-foreground/50" />
-            <p className="mt-4 text-sm font-medium text-foreground">
-              Sin mensajes en esta conversacion
-            </p>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Cuando exista historial, aparecera aqui en orden cronologico.
-            </p>
-          </div>
-        </div>
+        <DetailStateCard
+          title="Sin mensajes en esta conversacion"
+          description="Cuando exista historial, aparecera aqui en orden cronologico."
+        />
       ) : (
-        <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-6 py-6">
+        <div className="flex flex-1 flex-col gap-6 overflow-y-auto px-6 py-6">
+          <div className="flex justify-center">
+            <span className="rounded-full border border-border/70 bg-card px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              Today
+            </span>
+          </div>
           {messages.map((message) => {
             const isOutbound = message.direction === "outbound";
 
             return (
               <div
                 key={message.id}
-                className={isOutbound ? "flex justify-end" : "flex justify-start"}
+                className={
+                  isOutbound
+                    ? "flex justify-end"
+                    : "flex items-start gap-3 justify-start"
+                }
               >
+                {!isOutbound ? (
+                  <span className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-card text-[11px] font-semibold text-foreground">
+                    {getInitials(selectedConversation.contactName)}
+                  </span>
+                ) : null}
                 <div
                   className={
                     isOutbound
-                      ? "max-w-xl rounded-2xl rounded-br-md bg-primary px-4 py-3 text-sm text-primary-foreground"
-                      : "max-w-xl rounded-2xl rounded-bl-md border border-border bg-card px-4 py-3 text-sm text-foreground"
+                      ? "max-w-xl rounded-2xl rounded-br-md bg-primary px-4 py-3 text-sm text-primary-foreground shadow-sm"
+                      : "max-w-xl rounded-2xl rounded-bl-md border border-border/70 bg-card px-4 py-3 text-sm text-foreground shadow-sm"
                   }
                 >
                   <p>{message.body?.trim() || "Sin contenido de texto."}</p>
@@ -1056,21 +1264,111 @@ export function DetailPanel() {
                         : "mt-2 text-xs text-muted-foreground"
                     }
                   >
-                    {formatTimestamp(message.createdAt)}
+                    {formatTimeOnly(message.createdAt)}
                   </p>
                 </div>
               </div>
             );
           })}
+          {quoteReview ? (
+            <div className="flex justify-end">
+              <div className="w-full max-w-xl space-y-3">
+                <div className="rounded-2xl rounded-tr-md bg-primary px-4 py-3 text-sm text-primary-foreground">
+                  AI prepared a commercial quote draft based on the current thread.
+                </div>
+                <div className="overflow-hidden rounded-xl border border-primary/30 bg-card shadow-sm">
+                  <div className="flex items-center justify-between border-b border-primary/20 bg-primary/10 px-4 py-3">
+                    <div className="flex items-center gap-2 text-primary">
+                      <FileText className="h-4 w-4" />
+                      <span className="text-xs font-semibold uppercase tracking-[0.12em]">
+                        AI Generated Quote
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-semibold text-primary">
+                      v{quoteReview.version}
+                    </span>
+                  </div>
+                  <div className="space-y-3 p-4">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Min estimate</span>
+                      <span className="font-semibold text-foreground">
+                        {formatCurrency(quoteReview.estimatedMinAmount)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Target estimate</span>
+                      <span className="font-semibold text-foreground">
+                        {formatCurrency(quoteReview.estimatedTargetAmount)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between border-t border-border pt-3">
+                      <span className="text-sm font-semibold text-foreground">
+                        Total estimate
+                      </span>
+                      <span className="text-base font-semibold text-primary">
+                        {formatCurrency(quoteTotal)}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-8 text-[11px] uppercase tracking-[0.08em]"
+                        onClick={() => {
+                          setAdjustmentsMode(true);
+                        }}
+                      >
+                        Review & Edit
+                      </Button>
+                      <Button
+                        type="button"
+                        className="h-8 text-[11px] uppercase tracking-[0.08em]"
+                        onClick={() => {
+                          void handleApproveQuote();
+                        }}
+                        disabled={reviewSubmitting}
+                      >
+                        Approve & Send
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+                <p className="text-right text-[10px] text-muted-foreground">
+                  {formatTimeOnly(selectedConversation.lastMessageAt)} • AI Representative
+                </p>
+              </div>
+            </div>
+          ) : null}
+          {quoteReview ? (
+            <div className="flex justify-center">
+              <div className="flex items-center gap-3 rounded-full border border-border bg-card px-4 py-2">
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-500 opacity-75" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500" />
+                </span>
+                <span className="text-[11px] font-medium text-muted-foreground">
+                  High lead heat: contact is reviewing the quote now.
+                </span>
+              </div>
+            </div>
+          ) : null}
         </div>
       )}
 
       {state !== "unauthorized" ? (
-        <div className="border-t border-border px-6 py-4">
-          <div className="flex items-end gap-3">
+        <div className="border-t border-border bg-card/50 px-6 py-4">
+          <div className="relative flex items-end gap-3">
+            <div className="absolute left-3 top-3 flex items-center gap-1">
+              <Button type="button" variant="ghost" size="icon" className="h-8 w-8">
+                <Paperclip className="h-4 w-4" />
+              </Button>
+              <Button type="button" variant="ghost" size="icon" className="h-8 w-8">
+                <SmilePlus className="h-4 w-4" />
+              </Button>
+            </div>
             <textarea
-              className="flex-1 resize-none rounded-lg border border-border bg-card px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-              placeholder="Escribe un mensaje..."
+              className="flex-1 resize-none rounded-2xl border border-border bg-background px-24 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              placeholder="Type a message or use '/' for AI commands..."
               rows={2}
               value={messageBody}
               onChange={(event) => {
@@ -1099,6 +1397,10 @@ export function DetailPanel() {
           {sendError ? (
             <p className="mt-2 text-sm text-destructive">{sendError}</p>
           ) : null}
+          <p className="mt-2 text-center text-[10px] text-muted-foreground">
+            AI is monitoring this thread. Mention{" "}
+            <span className="font-semibold text-primary">@agent</span> to trigger actions.
+          </p>
         </div>
       ) : null}
     </div>

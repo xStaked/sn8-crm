@@ -1,24 +1,37 @@
 "use client";
 
 import { Suspense } from "react";
+import { usePathname } from "next/navigation";
 import { AppSidebar } from "@/components/shell/app-sidebar";
 import { ConversationList } from "@/components/shell/conversation-list";
+import { TopNavbar } from "@/components/shell/top-navbar";
 
 export default function DashboardLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const pathname = usePathname();
+  const showConversationList =
+    pathname === "/dashboard/inbox" || pathname.startsWith("/dashboard/quotes/");
+
   return (
-    <div className="flex h-dvh overflow-hidden bg-background">
+    <div className="flex min-h-dvh bg-background">
       <AppSidebar />
-      <div className="flex flex-1 overflow-hidden">
-        <Suspense fallback={<div className="w-80 shrink-0 border-r border-border bg-background" />}>
-          <ConversationList />
-        </Suspense>
-        <main className="flex-1 overflow-auto border-l border-border">
-          {children}
-        </main>
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <TopNavbar />
+        <div className="flex min-h-0 flex-1 overflow-hidden">
+          {showConversationList ? (
+            <Suspense
+              fallback={
+                <div className="hidden w-96 shrink-0 border-r border-border bg-background lg:block" />
+              }
+            >
+              <ConversationList />
+            </Suspense>
+          ) : null}
+          <main className="min-w-0 flex-1 overflow-auto">{children}</main>
+        </div>
       </div>
     </div>
   );

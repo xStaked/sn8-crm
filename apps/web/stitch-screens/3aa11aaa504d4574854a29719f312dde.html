@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "inverse-primary": "#b2c5ff",
+                    "tertiary": "#7b2600",
+                    "surface-container-high": "#e0e8ff",
+                    "on-tertiary-fixed": "#380d00",
+                    "on-surface-variant": "#434654",
+                    "surface-container-highest": "#dbe2f9",
+                    "outline-variant": "#c3c6d6",
+                    "on-error-container": "#93000a",
+                    "on-primary-fixed-variant": "#0040a2",
+                    "secondary-container": "#d6e3fb",
+                    "tertiary-fixed-dim": "#ffb59b",
+                    "background": "#f9f9ff",
+                    "surface-dim": "#d2daf0",
+                    "surface-container-low": "#f1f3ff",
+                    "tertiary-container": "#a33500",
+                    "primary-fixed": "#dae2ff",
+                    "primary-fixed-dim": "#b2c5ff",
+                    "on-tertiary-fixed-variant": "#812800",
+                    "tertiary-fixed": "#ffdbcf",
+                    "error-container": "#ffdad6",
+                    "surface-container": "#e9edff",
+                    "on-primary": "#ffffff",
+                    "outline": "#737685",
+                    "on-background": "#141b2c",
+                    "surface-container-lowest": "#ffffff",
+                    "surface": "#f9f9ff",
+                    "on-secondary-container": "#586579",
+                    "on-secondary-fixed-variant": "#3b485a",
+                    "on-surface": "#141b2c",
+                    "on-secondary-fixed": "#0f1c2d",
+                    "inverse-on-surface": "#edf0ff",
+                    "primary-container": "#0052cc",
+                    "error": "#ba1a1a",
+                    "surface-variant": "#dbe2f9",
+                    "primary": "#003d9b",
+                    "on-primary-fixed": "#001848",
+                    "on-secondary": "#ffffff",
+                    "on-error": "#ffffff",
+                    "inverse-surface": "#293041",
+                    "on-primary-container": "#c4d2ff",
+                    "surface-tint": "#0c56d0",
+                    "on-tertiary": "#ffffff",
+                    "secondary-fixed": "#d6e3fb",
+                    "secondary-fixed-dim": "#bac7de",
+                    "secondary": "#525f73",
+                    "surface-bright": "#f9f9ff",
+                    "on-tertiary-container": "#ffc6b2"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "fontFamily": {
+                    "headline": ["Manrope"],
+                    "body": ["Inter"],
+                    "label": ["Inter"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body { font-family: 'Inter', sans-serif; }
+        h1, h2, h3, .brand-font { font-family: 'Manrope', sans-serif; }
+    </style>
+</head>
+<body class="bg-surface text-on-surface">
+<!-- SideNavBar Component -->
+<aside class="hidden md:flex h-screen w-64 flex-col fixed left-0 top-0 bg-slate-50 dark:bg-slate-950 font-manrope font-semibold text-sm z-50">
+<div class="flex flex-col h-full py-6">
+<div class="px-6 mb-8">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined text-white text-lg" style="font-variation-settings: 'FILL' 1;">architecture</span>
+</div>
+<div>
+<div class="text-lg font-black text-slate-900 dark:text-white leading-tight">sn8labs CRM</div>
+<div class="text-[10px] uppercase tracking-widest text-slate-400">Precision Curator</div>
+</div>
+</div>
+</div>
+<nav class="flex-1 space-y-1">
+<!-- Dashboard -->
+<a class="flex items-center px-6 py-3 text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-300 hover:bg-slate-100/50 dark:hover:bg-slate-800/50 transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined mr-3">dashboard</span>
+                    Dashboard
+                </a>
+<!-- Inbox -->
+<a class="flex items-center px-6 py-3 text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-300 hover:bg-slate-100/50 dark:hover:bg-slate-800/50 transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined mr-3">chat_bubble</span>
+                    Inbox
+                </a>
+<!-- Quotes (Active) -->
+<a class="flex items-center px-6 py-3 text-blue-700 dark:text-blue-400 border-r-2 border-blue-700 dark:border-blue-400 bg-blue-50/50 dark:bg-blue-900/10 transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined mr-3" style="font-variation-settings: 'FILL' 1;">request_quote</span>
+                    Quotes
+                </a>
+<!-- Customers -->
+<a class="flex items-center px-6 py-3 text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-300 hover:bg-slate-100/50 dark:hover:bg-slate-800/50 transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined mr-3">group</span>
+                    Customers
+                </a>
+<!-- Analytics -->
+<a class="flex items-center px-6 py-3 text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-300 hover:bg-slate-100/50 dark:hover:bg-slate-800/50 transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined mr-3">insights</span>
+                    Analytics
+                </a>
+</nav>
+<div class="px-6 pt-4 mb-6">
+<button class="w-full bg-gradient-to-br from-primary-container to-primary text-white py-3 px-4 rounded-xl font-bold flex items-center justify-center gap-2 active:scale-95 transition-all">
+<span class="material-symbols-outlined text-sm">add</span>
+                    Create New Quote
+                </button>
+</div>
+<div class="mt-auto space-y-1">
+<a class="flex items-center px-6 py-3 text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-300 hover:bg-slate-100/50 dark:hover:bg-slate-800/50 transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined mr-3">help_outline</span>
+                    Help
+                </a>
+<a class="flex items-center px-6 py-3 text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-300 hover:bg-slate-100/50 dark:hover:bg-slate-800/50 transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined mr-3">logout</span>
+                    Logout
+                </a>
+</div>
+</div>
+</aside>
+<div class="md:ml-64 flex flex-col min-h-screen">
+<!-- TopNavBar Component -->
+<header class="w-full h-16 sticky top-0 z-40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl flex justify-between items-center px-6 font-manrope text-sm font-medium">
+<div class="flex items-center flex-1 max-w-xl">
+<div class="relative w-full max-w-md">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
+<input class="w-full bg-slate-100 dark:bg-slate-800/50 border-none rounded-full py-2 pl-10 pr-4 focus:ring-2 focus:ring-primary/20 text-on-surface" placeholder="Search pending quotes..." type="text"/>
+</div>
+</div>
+<div class="flex items-center space-x-4">
+<button class="p-2 rounded-full text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-colors active:scale-95">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="p-2 rounded-full text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-colors active:scale-95">
+<span class="material-symbols-outlined">settings</span>
+</button>
+<div class="h-8 w-[1px] bg-slate-200 dark:bg-slate-700 mx-2"></div>
+<div class="flex items-center gap-3">
+<span class="hidden lg:block font-semibold text-slate-900 dark:text-slate-100">Alex Sterling</span>
+<img alt="User profile" class="w-8 h-8 rounded-full border border-slate-200" data-alt="Professional portrait of a business executive in a modern office setting with soft natural light" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD3XJ5JshM1fOs8b0Kzjb13Ubs0t4kwll8HEho7y-wzZe8s9d2s-eQpi4UoLJABPyJREntiGn7wPBpHbsv45sN-7xaTL0UL7Z_3mtjFtVE6nizFEcwjoUJWortG0CTJn5but0NVKXXqREEQQCPB1813Cw19kob3iKkBGoz7Hn8sduaG4E377di7ruO6AZ4C4iXRZmEKFIGYBNCzsvglT8bFRIHbSIA8snRMsaJinh03MxHIqlNTl0ofXk0bUR4GJFciyRU-OYW5vu0"/>
+</div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-1 p-6 md:p-10">
+<!-- Breadcrumbs & Header -->
+<div class="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
+<div>
+<div class="flex items-center gap-2 text-slate-500 mb-2 font-label text-xs tracking-wide">
+<span>MANAGEMENT</span>
+<span class="material-symbols-outlined text-[10px]">chevron_right</span>
+<span class="text-primary font-semibold">PENDING APPROVALS</span>
+</div>
+<h1 class="text-4xl font-extrabold tracking-tight text-on-surface">Quote Approvals</h1>
+<p class="text-on-surface-variant mt-2 max-w-lg">Review and validate quotes generated by your precision AI. High-confidence drafts require a single click to finalize.</p>
+</div>
+<div class="flex gap-3">
+<div class="bg-surface-container-low px-4 py-3 rounded-xl flex items-center gap-4">
+<div class="flex flex-col">
+<span class="text-[10px] font-bold text-slate-400 uppercase">Avg. Accuracy</span>
+<span class="font-headline font-bold text-lg text-primary">98.4%</span>
+</div>
+<div class="h-8 w-[1px] bg-outline-variant/30"></div>
+<div class="flex flex-col">
+<span class="text-[10px] font-bold text-slate-400 uppercase">Pending Approval</span>
+<span class="font-headline font-bold text-lg text-primary">12</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Dashboard Card Container -->
+<section class="bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden border border-outline-variant/10">
+<div class="p-6 bg-surface-container-low/50 flex items-center justify-between">
+<h2 class="text-sm font-bold text-slate-900 uppercase tracking-widest flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-tertiary animate-pulse"></span>
+                        Awaiting Verification
+                    </h2>
+<div class="flex gap-2">
+<button class="bg-white px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">filter_list</span> Filter
+                        </button>
+<button class="bg-white px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">download</span> Export
+                        </button>
+</div>
+</div>
+<!-- Precision Table -->
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low/30 border-b border-outline-variant/10">
+<th class="px-6 py-4 font-label text-xs font-bold text-slate-500 uppercase tracking-wider">Customer Name</th>
+<th class="px-6 py-4 font-label text-xs font-bold text-slate-500 uppercase tracking-wider">Generated Date</th>
+<th class="px-6 py-4 font-label text-xs font-bold text-slate-500 uppercase tracking-wider">Quote Amount</th>
+<th class="px-6 py-4 font-label text-xs font-bold text-slate-500 uppercase tracking-wider">AI Confidence</th>
+<th class="px-6 py-4 font-label text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-100">
+<!-- Row 1 -->
+<tr class="hover:bg-slate-50 transition-colors group">
+<td class="px-6 py-5">
+<div class="flex items-center gap-3">
+<div class="w-9 h-9 rounded-full bg-secondary-container text-primary font-bold flex items-center justify-center text-xs">NL</div>
+<div>
+<div class="font-bold text-slate-900">Novalis Logistics</div>
+<div class="text-xs text-slate-500">Enterprise Solution</div>
+</div>
+</div>
+</td>
+<td class="px-6 py-5 text-sm text-slate-600 font-medium">Oct 12, 2023 <span class="block text-[10px] text-slate-400">14:20 PM</span></td>
+<td class="px-6 py-5">
+<span class="font-headline font-bold text-slate-900 text-base">$42,500.00</span>
+</td>
+<td class="px-6 py-5">
+<div class="flex items-center gap-2">
+<div class="w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+<div class="bg-primary h-full w-[98%]"></div>
+</div>
+<span class="text-xs font-bold text-primary">98%</span>
+</div>
+</td>
+<td class="px-6 py-5 text-right">
+<div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="h-9 px-4 rounded-lg bg-primary-container text-white text-xs font-bold hover:bg-primary transition-all active:scale-95">Accept</button>
+<button class="h-9 w-9 rounded-lg bg-error-container text-error flex items-center justify-center hover:bg-error hover:text-white transition-all active:scale-95">
+<span class="material-symbols-outlined text-sm">close</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-slate-50 transition-colors group">
+<td class="px-6 py-5">
+<div class="flex items-center gap-3">
+<div class="w-9 h-9 rounded-full bg-tertiary-fixed text-on-tertiary-fixed font-bold flex items-center justify-center text-xs">AS</div>
+<div>
+<div class="font-bold text-slate-900">Aura Studio</div>
+<div class="text-xs text-slate-500">Consulting Phase I</div>
+</div>
+</div>
+</td>
+<td class="px-6 py-5 text-sm text-slate-600 font-medium">Oct 11, 2023 <span class="block text-[10px] text-slate-400">09:45 AM</span></td>
+<td class="px-6 py-5">
+<span class="font-headline font-bold text-slate-900 text-base">$8,200.00</span>
+</td>
+<td class="px-6 py-5">
+<div class="flex items-center gap-2">
+<div class="w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+<div class="bg-primary h-full w-[94%]"></div>
+</div>
+<span class="text-xs font-bold text-primary">94%</span>
+</div>
+</td>
+<td class="px-6 py-5 text-right">
+<div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="h-9 px-4 rounded-lg bg-primary-container text-white text-xs font-bold hover:bg-primary transition-all active:scale-95">Accept</button>
+<button class="h-9 w-9 rounded-lg bg-error-container text-error flex items-center justify-center hover:bg-error hover:text-white transition-all active:scale-95">
+<span class="material-symbols-outlined text-sm">close</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-slate-50 transition-colors group">
+<td class="px-6 py-5">
+<div class="flex items-center gap-3">
+<div class="w-9 h-9 rounded-full bg-blue-100 text-blue-700 font-bold flex items-center justify-center text-xs">MT</div>
+<div>
+<div class="font-bold text-slate-900">Meridian Tech</div>
+<div class="text-xs text-slate-500">Cloud Infrastructure</div>
+</div>
+</div>
+</td>
+<td class="px-6 py-5 text-sm text-slate-600 font-medium">Oct 10, 2023 <span class="block text-[10px] text-slate-400">17:10 PM</span></td>
+<td class="px-6 py-5">
+<span class="font-headline font-bold text-slate-900 text-base">$128,000.00</span>
+</td>
+<td class="px-6 py-5">
+<div class="flex items-center gap-2">
+<div class="w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+<div class="bg-tertiary h-full w-[72%]"></div>
+</div>
+<span class="text-xs font-bold text-tertiary">72%</span>
+</div>
+</td>
+<td class="px-6 py-5 text-right">
+<div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="h-9 px-4 rounded-lg bg-primary-container text-white text-xs font-bold hover:bg-primary transition-all active:scale-95">Accept</button>
+<button class="h-9 w-9 rounded-lg bg-error-container text-error flex items-center justify-center hover:bg-error hover:text-white transition-all active:scale-95">
+<span class="material-symbols-outlined text-sm">close</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr class="hover:bg-slate-50 transition-colors group">
+<td class="px-6 py-5">
+<div class="flex items-center gap-3">
+<div class="w-9 h-9 rounded-full bg-slate-200 text-slate-700 font-bold flex items-center justify-center text-xs">VG</div>
+<div>
+<div class="font-bold text-slate-900">Vanguard Group</div>
+<div class="text-xs text-slate-500">Security Audit</div>
+</div>
+</div>
+</td>
+<td class="px-6 py-5 text-sm text-slate-600 font-medium">Oct 10, 2023 <span class="block text-[10px] text-slate-400">11:05 AM</span></td>
+<td class="px-6 py-5">
+<span class="font-headline font-bold text-slate-900 text-base">$19,450.00</span>
+</td>
+<td class="px-6 py-5">
+<div class="flex items-center gap-2">
+<div class="w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+<div class="bg-primary h-full w-[89%]"></div>
+</div>
+<span class="text-xs font-bold text-primary">89%</span>
+</div>
+</td>
+<td class="px-6 py-5 text-right">
+<div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="h-9 px-4 rounded-lg bg-primary-container text-white text-xs font-bold hover:bg-primary transition-all active:scale-95">Accept</button>
+<button class="h-9 w-9 rounded-lg bg-error-container text-error flex items-center justify-center hover:bg-error hover:text-white transition-all active:scale-95">
+<span class="material-symbols-outlined text-sm">close</span>
+</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="p-4 bg-surface-container-low/20 border-t border-outline-variant/5 flex items-center justify-between text-xs font-label">
+<span class="text-slate-500">Showing 1-4 of 12 pending quotes</span>
+<div class="flex gap-1">
+<button class="w-8 h-8 flex items-center justify-center rounded bg-white border border-slate-200 text-slate-400"><span class="material-symbols-outlined text-sm">chevron_left</span></button>
+<button class="w-8 h-8 flex items-center justify-center rounded bg-primary text-white font-bold">1</button>
+<button class="w-8 h-8 flex items-center justify-center rounded bg-white border border-slate-200 text-slate-600">2</button>
+<button class="w-8 h-8 flex items-center justify-center rounded bg-white border border-slate-200 text-slate-600">3</button>
+<button class="w-8 h-8 flex items-center justify-center rounded bg-white border border-slate-200 text-slate-400"><span class="material-symbols-outlined text-sm">chevron_right</span></button>
+</div>
+</div>
+</section>
+<!-- Bottom Insights Asymmetric Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-10">
+<div class="lg:col-span-2 bg-gradient-to-br from-blue-700 to-blue-900 rounded-xl p-8 text-white relative overflow-hidden shadow-xl">
+<div class="relative z-10 flex flex-col h-full">
+<h3 class="text-2xl font-extrabold mb-4">Precision Intelligence Report</h3>
+<p class="text-blue-100/80 mb-6 max-w-md">Our AI analysis suggests that 8 of your pending quotes match recent high-performance closures. Bulk approval is recommended for these items to maintain workflow velocity.</p>
+<div class="mt-auto">
+<button class="bg-white text-blue-700 px-6 py-3 rounded-xl font-bold text-sm shadow-lg hover:bg-blue-50 transition-colors active:scale-95">Apply AI Recommendations</button>
+</div>
+</div>
+<!-- Decorative Element -->
+<div class="absolute -right-10 -bottom-10 w-64 h-64 bg-blue-600/20 rounded-full blur-3xl"></div>
+<div class="absolute right-10 top-10 opacity-20">
+<span class="material-symbols-outlined text-[120px]" style="font-variation-settings: 'FILL' 1;">insights</span>
+</div>
+</div>
+<div class="bg-white rounded-xl p-6 shadow-sm border border-outline-variant/10">
+<h3 class="text-sm font-bold text-slate-400 uppercase tracking-widest mb-6">Quote Status Mix</h3>
+<div class="space-y-6">
+<div>
+<div class="flex justify-between text-xs font-bold mb-2">
+<span>High Confidence (90%+)</span>
+<span>65%</span>
+</div>
+<div class="w-full h-2 bg-slate-100 rounded-full">
+<div class="h-full w-[65%] bg-primary rounded-full"></div>
+</div>
+</div>
+<div>
+<div class="flex justify-between text-xs font-bold mb-2">
+<span>Moderate Confidence (70-89%)</span>
+<span>25%</span>
+</div>
+<div class="w-full h-2 bg-slate-100 rounded-full">
+<div class="h-full w-[25%] bg-tertiary rounded-full"></div>
+</div>
+</div>
+<div>
+<div class="flex justify-between text-xs font-bold mb-2">
+<span>Requires Review (&lt;70%)</span>
+<span>10%</span>
+</div>
+<div class="w-full h-2 bg-slate-100 rounded-full">
+<div class="h-full w-[10%] bg-error rounded-full"></div>
+</div>
+</div>
+</div>
+<p class="mt-8 text-[11px] text-slate-400 italic">Distributions calculated based on historical conversion data and current market variables.</p>
+</div>
+</div>
+</main>
+</div>
+<!-- Mobile Navigation (Visible only on small screens) -->
+<nav class="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-slate-200 flex items-center justify-around z-50">
+<a class="flex flex-col items-center text-slate-400" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="text-[10px] font-medium">Dash</span>
+</a>
+<a class="flex flex-col items-center text-primary" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">request_quote</span>
+<span class="text-[10px] font-bold">Quotes</span>
+</a>
+<div class="w-12 h-12 -mt-10 bg-primary rounded-full flex items-center justify-center shadow-lg text-white">
+<span class="material-symbols-outlined">add</span>
+</div>
+<a class="flex flex-col items-center text-slate-400" href="#">
+<span class="material-symbols-outlined">group</span>
+<span class="text-[10px] font-medium">Clients</span>
+</a>
+<a class="flex flex-col items-center text-slate-400" href="#">
+<span class="material-symbols-outlined">person</span>
+<span class="text-[10px] font-medium">Profile</span>
+</a>
+</nav>
+</body></html>

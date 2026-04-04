@@ -20,6 +20,12 @@ const DEV_FALLBACK_CONVERSATIONS: Conversation[] =
           lastMessageAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
           unreadCount: 2,
           pendingQuote: null,
+          conversationControl: {
+            state: "QUALIFYING",
+            control: "ai_control",
+            updatedAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+            updatedBy: "system",
+          },
         },
         {
           id: "dev-2",
@@ -28,6 +34,12 @@ const DEV_FALLBACK_CONVERSATIONS: Conversation[] =
           lastMessageAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
           unreadCount: 0,
           pendingQuote: null,
+          conversationControl: {
+            state: "HUMAN_HANDOFF",
+            control: "human_control",
+            updatedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+            updatedBy: "owner@sn8.co",
+          },
         },
       ]
     : [];

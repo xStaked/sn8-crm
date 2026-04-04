@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "error-container": "#93000a",
+                    "secondary-fixed": "#dce1ff",
+                    "on-secondary-container": "#a3b5ff",
+                    "surface-container-lowest": "#0c0e17",
+                    "on-primary-container": "#e3e6ff",
+                    "inverse-primary": "#004dea",
+                    "surface-bright": "#373943",
+                    "on-secondary": "#0e2976",
+                    "inverse-on-surface": "#2e303a",
+                    "outline-variant": "#434656",
+                    "on-background": "#e1e1ef",
+                    "surface-dim": "#11131c",
+                    "surface-container-low": "#191b25",
+                    "primary-container": "#0055ff",
+                    "on-error": "#690005",
+                    "on-surface": "#e1e1ef",
+                    "surface-variant": "#32343f",
+                    "primary": "#b6c4ff",
+                    "tertiary-fixed": "#ffdbd1",
+                    "on-primary-fixed": "#001551",
+                    "tertiary-container": "#c13301",
+                    "surface-container-high": "#282933",
+                    "on-primary-fixed-variant": "#0039b3",
+                    "secondary-container": "#2d4490",
+                    "secondary-fixed-dim": "#b6c4ff",
+                    "on-error-container": "#ffdad6",
+                    "outline": "#8d90a2",
+                    "primary-fixed": "#dce1ff",
+                    "on-primary": "#002780",
+                    "on-tertiary-container": "#ffe1d9",
+                    "on-tertiary-fixed": "#3b0900",
+                    "background": "#11131c",
+                    "on-secondary-fixed-variant": "#2b418d",
+                    "tertiary": "#ffb5a0",
+                    "on-secondary-fixed": "#001551",
+                    "on-tertiary": "#601400",
+                    "on-surface-variant": "#c3c5d9",
+                    "on-tertiary-fixed-variant": "#872100",
+                    "secondary": "#b6c4ff",
+                    "error": "#ffb4ab",
+                    "surface": "#11131c",
+                    "inverse-surface": "#e1e1ef",
+                    "surface-container": "#1d1f29",
+                    "surface-tint": "#b6c4ff",
+                    "surface-container-highest": "#32343f",
+                    "primary-fixed-dim": "#b6c4ff",
+                    "tertiary-fixed-dim": "#ffb5a0"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "fontFamily": {
+                    "headline": ["Manrope"],
+                    "body": ["Manrope"],
+                    "label": ["Manrope"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body { font-family: 'Manrope', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .data-strip {
+            border-left: 2px solid #0055ff;
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface selection:bg-primary-container selection:text-on-primary-container">
+<!-- SideNavBar -->
+<aside class="h-screen w-64 flex-col fixed left-0 top-0 bg-slate-950 font-manrope font-semibold text-sm hidden md:flex z-50">
+<div class="flex flex-col h-full py-6 space-y-2">
+<!-- Header/Logo -->
+<div class="px-6 mb-8">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 bg-primary-container rounded flex items-center justify-center">
+<span class="material-symbols-outlined text-white" style="font-variation-settings: 'FILL' 1;">dataset</span>
+</div>
+<div>
+<h1 class="text-lg font-black text-white font-manrope">sn8labs CRM</h1>
+<p class="text-[10px] text-slate-500 uppercase tracking-widest">Precision Curator</p>
+</div>
+</div>
+</div>
+<!-- Main Nav -->
+<nav class="flex-1 px-4 space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 text-slate-500 hover:text-blue-400 hover:bg-slate-900/50 transition-all duration-200 ease-in-out group" href="#">
+<span class="material-symbols-outlined text-xl">dashboard</span>
+<span>Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-slate-500 hover:text-blue-400 hover:bg-slate-900/50 transition-all duration-200 ease-in-out group" href="#">
+<span class="material-symbols-outlined text-xl">chat_bubble</span>
+<span>Inbox</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-slate-500 hover:text-blue-400 hover:bg-slate-900/50 transition-all duration-200 ease-in-out group" href="#">
+<span class="material-symbols-outlined text-xl">request_quote</span>
+<span>Quotes</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-slate-500 hover:text-blue-400 hover:bg-slate-900/50 transition-all duration-200 ease-in-out group" href="#">
+<span class="material-symbols-outlined text-xl">group</span>
+<span>Customers</span>
+</a>
+<!-- Active Tab: Analytics -->
+<a class="flex items-center gap-3 px-3 py-2 text-blue-500 border-r-2 border-blue-500 bg-blue-500/10 transition-all duration-200 ease-in-out group" href="#">
+<span class="material-symbols-outlined text-xl" style="font-variation-settings: 'FILL' 1;">insights</span>
+<span>Analytics</span>
+</a>
+</nav>
+<div class="px-4 py-4 mt-auto">
+<button class="w-full py-2.5 bg-primary-container text-on-primary-container rounded-lg font-bold text-xs uppercase tracking-tighter hover:brightness-110 transition-all">
+                    Create New Quote
+                </button>
+</div>
+<!-- Footer Nav -->
+<nav class="px-4 border-t border-slate-900 pt-4">
+<a class="flex items-center gap-3 px-3 py-2 text-slate-500 hover:text-blue-400 transition-all" href="#">
+<span class="material-symbols-outlined text-xl">help_outline</span>
+<span>Help</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-slate-500 hover:text-blue-400 transition-all" href="#">
+<span class="material-symbols-outlined text-xl">logout</span>
+<span>Logout</span>
+</a>
+</nav>
+</div>
+</aside>
+<div class="md:pl-64 flex flex-col min-h-screen">
+<!-- TopNavBar -->
+<header class="w-full h-16 sticky top-0 z-40 bg-slate-950/80 backdrop-blur-xl flex justify-between items-center px-6 w-full">
+<div class="flex items-center gap-8">
+<span class="text-xl font-bold tracking-tight text-blue-600 dark:text-blue-500 font-manrope">sn8labs</span>
+<div class="relative group hidden sm:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">search</span>
+<input class="bg-slate-900 border-none rounded-lg pl-10 pr-4 py-1.5 text-sm text-on-surface focus:ring-1 focus:ring-blue-600 w-64 transition-all" placeholder="Search analytics data..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2 text-slate-400 hover:bg-slate-900/50 rounded-lg transition-colors active:scale-95 duration-150">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="p-2 text-slate-400 hover:bg-slate-900/50 rounded-lg transition-colors active:scale-95 duration-150">
+<span class="material-symbols-outlined">settings</span>
+</button>
+<div class="h-8 w-8 rounded-full overflow-hidden border border-slate-800">
+<img alt="User profile" data-alt="professional portrait of a high-tech curator with a minimalist aesthetic and soft cinematic blue lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAlf7YjsdQw2lhGiSVCHOhMFMgJ64Nj1oUum3DQ8M-BaoFDs7EbyoOh7O0OPYCEMXqrl-vtcHaG9pZJysaGb4BF0FTb7YU9S7ak0gCV3syyqZw5e6HWfS5estCNjrKj0DoGa7dHBwJr-YIFh-w8HZUBBOaDrb8EoWFczl7_sw9_JzeCxcQzLCOvEQcyyKsj9JBRrfp4XGTmAUHFisPim2wf1OHg0fP3_NVVAySsxfbr76d5ubRILtHLwTKqg5R-1Uoc68lD4pniLqI"/>
+</div>
+</div>
+</header>
+<main class="flex-1 p-8">
+<!-- Header Section -->
+<div class="mb-10">
+<div class="flex items-center gap-4 mb-2">
+<div class="h-10 w-1 bg-primary-container"></div>
+<h2 class="text-3xl font-extrabold tracking-tighter text-on-surface font-headline uppercase">Deep Intelligence</h2>
+</div>
+<p class="text-on-surface-variant max-w-2xl font-body">Real-time performance metrics and predictive modeling for the sn8labs ecosystem. Architecting data into actionable intelligence.</p>
+</div>
+<!-- Bento Grid - Overall Growth -->
+<div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-12">
+<!-- Large Revenue Chart -->
+<div class="lg:col-span-3 bg-surface-container rounded-xl p-8 relative overflow-hidden group">
+<div class="flex justify-between items-end mb-8">
+<div>
+<h3 class="text-on-surface-variant text-xs font-bold uppercase tracking-widest mb-1">Overall Growth</h3>
+<div class="text-4xl font-black tracking-tighter text-on-surface">$14,290,000.00</div>
+</div>
+<div class="text-right">
+<span class="text-primary-container flex items-center justify-end font-bold text-sm">
+<span class="material-symbols-outlined text-sm">arrow_upward</span> 12.4%
+                            </span>
+<span class="text-on-surface-variant text-[10px] uppercase">vs previous quarter</span>
+</div>
+</div>
+<!-- Mock Line Chart -->
+<div class="h-64 flex items-end gap-1 px-2">
+<div class="flex-1 bg-primary-container/10 h-[40%] hover:bg-primary-container/30 transition-all rounded-t-sm"></div>
+<div class="flex-1 bg-primary-container/10 h-[45%] hover:bg-primary-container/30 transition-all rounded-t-sm"></div>
+<div class="flex-1 bg-primary-container/10 h-[42%] hover:bg-primary-container/30 transition-all rounded-t-sm"></div>
+<div class="flex-1 bg-primary-container/20 h-[55%] hover:bg-primary-container/30 transition-all rounded-t-sm"></div>
+<div class="flex-1 bg-primary-container/20 h-[65%] hover:bg-primary-container/30 transition-all rounded-t-sm"></div>
+<div class="flex-1 bg-primary-container/30 h-[75%] hover:bg-primary-container/40 transition-all rounded-t-sm"></div>
+<div class="flex-1 bg-primary-container/40 h-[70%] hover:bg-primary-container/50 transition-all rounded-t-sm"></div>
+<div class="flex-1 bg-primary-container/50 h-[85%] hover:bg-primary-container/60 transition-all rounded-t-sm"></div>
+<div class="flex-1 bg-primary-container/70 h-[92%] hover:bg-primary-container/80 transition-all rounded-t-sm"></div>
+<div class="flex-1 bg-primary-container h-full transition-all rounded-t-sm"></div>
+</div>
+</div>
+<!-- AI Efficiency Gauge -->
+<div class="bg-surface-container rounded-xl p-8 flex flex-col justify-between">
+<div>
+<h3 class="text-on-surface-variant text-xs font-bold uppercase tracking-widest mb-1">AI Efficiency</h3>
+<div class="text-2xl font-black text-on-surface">98.2%</div>
+</div>
+<!-- Radial Gauge Placeholder -->
+<div class="relative h-32 w-32 mx-auto my-6">
+<svg class="w-full h-full transform -rotate-90">
+<circle class="text-surface-container-high" cx="64" cy="64" fill="transparent" r="58" stroke="currentColor" stroke-width="8"></circle>
+<circle class="text-primary-container" cx="64" cy="64" fill="transparent" r="58" stroke="currentColor" stroke-dasharray="364.4" stroke-dashoffset="3.6" stroke-width="8"></circle>
+</svg>
+<div class="absolute inset-0 flex items-center justify-center">
+<span class="material-symbols-outlined text-primary-container text-4xl" style="font-variation-settings: 'FILL' 1;">bolt</span>
+</div>
+</div>
+<p class="text-[11px] text-center text-on-surface-variant leading-relaxed">System precision remains above benchmark for 18 consecutive days.</p>
+</div>
+</div>
+<!-- Conversion and Geographic distribution -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+<!-- Conversion Funnel -->
+<div class="bg-surface-container rounded-xl p-8">
+<h3 class="text-on-surface-variant text-xs font-bold uppercase tracking-widest mb-6">Conversion Funnel</h3>
+<div class="space-y-6">
+<div class="space-y-2">
+<div class="flex justify-between text-xs font-bold uppercase">
+<span>Awareness</span>
+<span class="text-primary-container">1.2M</span>
+</div>
+<div class="h-2 w-full bg-surface-container-high overflow-hidden">
+<div class="h-full bg-primary-container w-[100%]"></div>
+</div>
+</div>
+<div class="space-y-2">
+<div class="flex justify-between text-xs font-bold uppercase">
+<span>Engagement</span>
+<span class="text-primary-container">450K</span>
+</div>
+<div class="h-2 w-full bg-surface-container-high overflow-hidden">
+<div class="h-full bg-primary-container w-[65%]"></div>
+</div>
+</div>
+<div class="space-y-2">
+<div class="flex justify-between text-xs font-bold uppercase">
+<span>Quote Generation</span>
+<span class="text-primary-container">82K</span>
+</div>
+<div class="h-2 w-full bg-surface-container-high overflow-hidden">
+<div class="h-full bg-primary-container w-[40%]"></div>
+</div>
+</div>
+<div class="space-y-2">
+<div class="flex justify-between text-xs font-bold uppercase">
+<span>Conversion</span>
+<span class="text-primary-container">14K</span>
+</div>
+<div class="h-2 w-full bg-surface-container-high overflow-hidden">
+<div class="h-full bg-primary-container w-[22%]"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Geographic/Sector Distribution -->
+<div class="bg-surface-container rounded-xl overflow-hidden flex flex-col">
+<div class="p-8 pb-4">
+<h3 class="text-on-surface-variant text-xs font-bold uppercase tracking-widest mb-1">Global Sector Distribution</h3>
+<p class="text-xl font-bold text-on-surface">Dominance in APAC Tech</p>
+</div>
+<!-- Map/Visual Section -->
+<div class="flex-1 relative min-h-[300px]">
+<div class="absolute inset-0 bg-slate-900 overflow-hidden">
+<!-- Visual placeholder for a map with tech data points -->
+<img class="w-full h-full object-cover opacity-20" data-alt="abstract dark world map with neon blue glowing nodes and interconnected data lines on a deep navy background" data-location="Global" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAjJf91mv81OruZM1MiQlysBFtmZgnf9QAYQ3nDMXwdfP4c6UAQhNL_h7Xr1wxME9TYMtfB4yfVS-nWxaywU_4gIw4jHLgHQF8MUCFfEfnk5h59A0xmLxB1QxdfAmTDNzv04kd-x2QqTqFfXdn6nFM6OY7Hw1koOnAo12GyEVUnhEEv_FzJ85RfS3fl1rzD2uSp_FXcqQYssbhpYIc0orrze_FGhLoVz6RcqQ3L9lHi_P0k-84nGACxNiBoSLl773f0kHhskeKqzS4"/>
+<!-- Floating Data Tooltip -->
+<div class="absolute top-1/4 right-1/4 bg-surface-container-highest/80 backdrop-blur-md p-3 rounded border border-blue-500/20 shadow-2xl">
+<div class="text-[10px] font-bold text-primary-container uppercase">North America</div>
+<div class="text-lg font-black text-white">42%</div>
+</div>
+<div class="absolute bottom-1/3 left-1/3 bg-surface-container-highest/80 backdrop-blur-md p-3 rounded border border-blue-500/20 shadow-2xl">
+<div class="text-[10px] font-bold text-primary-container uppercase">APAC Cluster</div>
+<div class="text-lg font-black text-white">58%</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- AI Efficiency Details Table -->
+<div class="mt-12 bg-surface-container rounded-xl overflow-hidden">
+<div class="p-8 border-b border-outline-variant/15">
+<h3 class="text-on-surface-variant text-xs font-bold uppercase tracking-widest mb-1">AI Performance Audit</h3>
+<p class="text-sm text-on-surface-variant">Detailed breakdown of neural agent response accuracy by sector.</p>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left">
+<thead>
+<tr class="text-[10px] font-black uppercase tracking-wider text-on-surface-variant bg-surface-container-low">
+<th class="px-8 py-4">Agent ID</th>
+<th class="px-8 py-4">Sector</th>
+<th class="px-8 py-4">Accuracy</th>
+<th class="px-8 py-4">Response Time</th>
+<th class="px-8 py-4">Status</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant/10">
+<tr class="hover:bg-surface-container-high transition-colors">
+<td class="px-8 py-4 font-mono text-xs text-primary-container">#NEO-742</td>
+<td class="px-8 py-4 text-sm font-semibold">Financial Services</td>
+<td class="px-8 py-4 text-sm">99.42%</td>
+<td class="px-8 py-4 text-sm text-on-surface-variant">14ms</td>
+<td class="px-8 py-4">
+<span class="px-2 py-0.5 rounded-full bg-green-500/10 text-green-500 text-[10px] font-bold uppercase">Optimal</span>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-high transition-colors">
+<td class="px-8 py-4 font-mono text-xs text-primary-container">#ORC-911</td>
+<td class="px-8 py-4 text-sm font-semibold">Global Logistics</td>
+<td class="px-8 py-4 text-sm">98.15%</td>
+<td class="px-8 py-4 text-sm text-on-surface-variant">22ms</td>
+<td class="px-8 py-4">
+<span class="px-2 py-0.5 rounded-full bg-green-500/10 text-green-500 text-[10px] font-bold uppercase">Optimal</span>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-high transition-colors">
+<td class="px-8 py-4 font-mono text-xs text-primary-container">#VUL-404</td>
+<td class="px-8 py-4 text-sm font-semibold">Healthcare Tech</td>
+<td class="px-8 py-4 text-sm">97.89%</td>
+<td class="px-8 py-4 text-sm text-on-surface-variant">104ms</td>
+<td class="px-8 py-4">
+<span class="px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-500 text-[10px] font-bold uppercase">Lagging</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</main>
+</div>
+</body></html>

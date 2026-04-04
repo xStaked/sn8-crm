@@ -13,6 +13,25 @@ export type PendingQuoteSummary = {
   updatedAt?: string | null;
 };
 
+export type ConversationControlMode =
+  | "ai_control"
+  | "human_control"
+  | "pending_resume";
+
+export type ConversationControlState =
+  | "GREETING"
+  | "INFO_SERVICES"
+  | "QUALIFYING"
+  | "HUMAN_HANDOFF"
+  | "AI_SALES";
+
+export type ConversationControlSummary = {
+  state: ConversationControlState;
+  control: ConversationControlMode;
+  updatedAt: string;
+  updatedBy: string;
+};
+
 export type Conversation = {
   id: string;
   contactName: string;
@@ -20,6 +39,7 @@ export type Conversation = {
   lastMessageAt: string;
   unreadCount: number;
   pendingQuote?: PendingQuoteSummary | null;
+  conversationControl: ConversationControlSummary;
 };
 
 export type ConversationSummaryDto = Conversation;

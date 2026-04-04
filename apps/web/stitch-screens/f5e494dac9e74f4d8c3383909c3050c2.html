@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Inbox - sn8labs CRM</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Manrope:wght@500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "primary": "#0055FF",
+                    "primary-container": "#0044CC",
+                    "on-primary": "#ffffff",
+                    "background": "#020617", /* slate-950 */
+                    "surface": "#020617", /* slate-950 */
+                    "surface-variant": "#0f172a", /* slate-900 */
+                    "on-surface": "#f1f5f9", /* slate-100 */
+                    "on-surface-variant": "#94a3b8", /* slate-400 */
+                    "outline": "#475569", /* slate-600 */
+                    "outline-variant": "#334155", /* slate-700 */
+                    "surface-container-lowest": "#020617",
+                    "surface-container-low": "#0f172a",
+                    "surface-container": "#1e293b",
+                    "surface-container-high": "#334155",
+                    "surface-container-highest": "#475569",
+                    "tertiary": "#ffb59b",
+                    "error": "#ffb4ab"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "fontFamily": {
+                    "headline": ["Manrope"],
+                    "body": ["Inter"],
+                    "label": ["Inter"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body { font-family: 'Inter', sans-serif; }
+        h1, h2, h3, .font-manrope { font-family: 'Manrope', sans-serif; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+        .glass-header { backdrop-filter: blur(20px); }
+    </style>
+</head>
+<body class="bg-surface text-on-surface flex min-h-screen">
+<!-- SideNavBar Component -->
+<aside class="h-screen w-64 flex-col fixed left-0 top-0 bg-slate-950 flex flex-col h-full py-6 space-y-2 z-50">
+<div class="px-6 mb-8">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">architecture</span>
+</div>
+<div>
+<div class="text-lg font-black text-white font-manrope">sn8labs CRM</div>
+<div class="text-xs text-slate-500 font-medium">Precision Curator</div>
+</div>
+</div>
+</div>
+<nav class="flex-1 px-4 space-y-1">
+<a class="flex items-center gap-3 px-3 py-2.5 text-slate-500 font-manrope font-semibold text-sm hover:text-blue-400 hover:bg-slate-900/50 transition-all duration-200 ease-in-out rounded-lg" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span>Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 text-blue-500 border-r-2 border-blue-500 bg-blue-500/10 font-manrope font-semibold text-sm transition-all duration-200 ease-in-out rounded-l-lg" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">chat_bubble</span>
+<span>Inbox</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 text-slate-500 font-manrope font-semibold text-sm hover:text-blue-400 hover:bg-slate-900/50 transition-all duration-200 ease-in-out rounded-lg" href="#">
+<span class="material-symbols-outlined">request_quote</span>
+<span>Quotes</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 text-slate-500 font-manrope font-semibold text-sm hover:text-blue-400 hover:bg-slate-900/50 transition-all duration-200 ease-in-out rounded-lg" href="#">
+<span class="material-symbols-outlined">group</span>
+<span>Customers</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 text-slate-500 font-manrope font-semibold text-sm hover:text-blue-400 hover:bg-slate-900/50 transition-all duration-200 ease-in-out rounded-lg" href="#">
+<span class="material-symbols-outlined">insights</span>
+<span>Analytics</span>
+</a>
+</nav>
+<div class="px-4 py-4">
+<button class="w-full bg-primary text-white py-3 rounded-xl font-manrope font-bold text-sm shadow-sm hover:shadow-lg hover:bg-blue-600 transition-all active:scale-95">
+                Create New Quote
+            </button>
+</div>
+<div class="px-4 border-t border-slate-900 pt-4 space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 text-slate-500 font-manrope font-semibold text-sm hover:text-blue-400 rounded-lg transition-all" href="#">
+<span class="material-symbols-outlined">help_outline</span>
+<span>Help</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-slate-500 font-manrope font-semibold text-sm hover:text-red-400 rounded-lg transition-all" href="#">
+<span class="material-symbols-outlined">logout</span>
+<span>Logout</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="ml-64 flex-1 flex flex-col min-h-screen relative">
+<!-- TopNavBar Component -->
+<header class="w-full h-16 sticky top-0 z-40 bg-slate-950/80 backdrop-blur-xl flex justify-between items-center px-6 w-full">
+<div class="flex items-center gap-4 flex-1">
+<div class="relative w-full max-w-md group">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-500 transition-colors">search</span>
+<input class="w-full bg-slate-900 border-none rounded-full py-2 pl-10 pr-4 text-sm font-body text-slate-200 focus:ring-2 focus:ring-blue-500/20 transition-all outline-none" placeholder="Search conversations..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<button class="p-2 text-slate-400 hover:bg-slate-900/50 transition-colors rounded-full active:scale-95 duration-150">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="p-2 text-slate-400 hover:bg-slate-900/50 transition-colors rounded-full active:scale-95 duration-150">
+<span class="material-symbols-outlined">settings</span>
+</button>
+<div class="h-8 w-[1px] bg-slate-900 mx-2"></div>
+<button class="flex items-center gap-2 pl-2 pr-1 py-1 hover:bg-slate-900/50 rounded-full transition-colors active:scale-95 duration-150">
+<span class="text-sm font-medium font-manrope text-slate-300">Alex Chen</span>
+<img alt="User profile" class="w-8 h-8 rounded-full border border-slate-800 object-cover shadow-sm" data-alt="professional headshot of a smiling young man in a clean office setting with soft natural light" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAIbnmC0sGQ2ffz6y62Zx9o2KtDSjoyMNoKZzFt3I8LmC3RWJLKVDDHoPEUM6hJsaiTczPwjCFuxGAMreovOLS87UCvnM_fGNHtc9zCvJEdevaxSHLKTBwxNyIA_9gFqZ3jzHOSCgItPhYO1JPgABkD9WH5ggu3bIpg2Yoihyo3AZoavokA3CfCb0JPk4waS0MEckMzK3EuI19CwwLTLGANwP_Eddstk5COSoVYtyYHqGbNhCPAb-G3sIO5iLwGnYokILSuK1yHKds"/>
+</button>
+</div>
+</header>
+<!-- Inbox Grid -->
+<div class="flex-1 flex overflow-hidden">
+<!-- Left Column: Conversation List -->
+<section class="w-96 flex flex-col bg-slate-950 border-r border-slate-900">
+<div class="p-6">
+<h2 class="text-xl font-extrabold font-manrope tracking-tight text-slate-100">Conversations</h2>
+<div class="flex gap-2 mt-4 overflow-x-auto pb-1 no-scrollbar">
+<button class="bg-primary text-white px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap">All Chats</button>
+<button class="bg-slate-900 text-slate-300 px-4 py-1.5 rounded-full text-xs font-semibold border border-slate-800 whitespace-nowrap">Unread</button>
+<button class="bg-slate-900 text-slate-300 px-4 py-1.5 rounded-full text-xs font-semibold border border-slate-800 whitespace-nowrap">AI Managed</button>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto px-3 space-y-2">
+<!-- Conversation Item: Active/Selected -->
+<div class="p-4 rounded-xl bg-slate-900 shadow-sm cursor-pointer group transition-all duration-200 border-l-4 border-primary">
+<div class="flex justify-between items-start mb-1">
+<span class="text-xs font-bold font-manrope text-blue-400 tracking-wide uppercase">AI Replied</span>
+<span class="text-[10px] text-slate-500">12:45 PM</span>
+</div>
+<h4 class="font-bold text-slate-100 font-manrope">Marcus Aurelius</h4>
+<p class="text-sm text-slate-400 line-clamp-1 mt-0.5">I've generated a new architectural quote based on your recent floorplans.</p>
+<div class="flex items-center gap-2 mt-3">
+<span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+<span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Active Thread</span>
+</div>
+</div>
+<!-- Conversation Item: Pending Action -->
+<div class="p-4 rounded-xl hover:bg-slate-900/50 transition-all cursor-pointer group">
+<div class="flex justify-between items-start mb-1">
+<span class="text-xs font-bold font-manrope text-orange-400 tracking-wide uppercase">Awaiting Action</span>
+<span class="text-[10px] text-slate-500">Yesterday</span>
+</div>
+<h4 class="font-bold text-slate-100 font-manrope">Sarah Jenkins</h4>
+<p class="text-sm text-slate-400 line-clamp-1 mt-0.5">When can we expect the final structural analysis reports?</p>
+</div>
+<!-- Conversation Item: Regular -->
+<div class="p-4 rounded-xl hover:bg-slate-900/50 transition-all cursor-pointer group">
+<div class="flex justify-between items-start mb-1">
+<span class="text-xs font-bold font-manrope text-slate-500 tracking-wide uppercase">Closed</span>
+<span class="text-[10px] text-slate-500">Oct 24</span>
+</div>
+<h4 class="font-bold text-slate-100 font-manrope">BuildCore Group</h4>
+<p class="text-sm text-slate-400 line-clamp-1 mt-0.5">Thank you for the update. We will review this tomorrow.</p>
+</div>
+<!-- Conversation Item: Regular -->
+<div class="p-4 rounded-xl hover:bg-slate-900/50 transition-all cursor-pointer group">
+<div class="flex justify-between items-start mb-1">
+<span class="text-xs font-bold font-manrope text-blue-400 tracking-wide uppercase">AI Replied</span>
+<span class="text-[10px] text-slate-500">Oct 22</span>
+</div>
+<h4 class="font-bold text-slate-100 font-manrope">Elena Rodriguez</h4>
+<p class="text-sm text-slate-400 line-clamp-1 mt-0.5">The agent clarified the material costs for the marble facade.</p>
+</div>
+</div>
+</section>
+<!-- Right Column: Chat History -->
+<section class="flex-1 flex flex-col bg-slate-950 overflow-hidden relative">
+<!-- Chat Header -->
+<div class="h-16 px-8 flex items-center justify-between bg-slate-950/80 glass-header sticky top-0 z-10 border-b border-slate-900">
+<div class="flex items-center gap-3">
+<div class="relative">
+<img alt="Marcus" class="w-10 h-10 rounded-full object-cover" data-alt="close-up portrait of a thoughtful older man with grey hair and beard against a neutral studio background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD_4U6rlaUESxSsfBZwhe5Q7M4ebQFg9UKzYZBmbGiWFUXfsQww8HRgjL3DvpXqPfUz5vuieAbLyjcqjUHYIKJ1hX9DJgPG4ZlIaz7a2GFBZw_V27GmBEPa3cy1D_rgfvmP1Gd1sRUr0DJ4OeZJmq7NyGa8xs53CNwMrfzc6NuQILLVMBXsu-mPluIxU_zJQSfNAN3bNYTCGomDRLEb_Lz25Miqfu69evB6SpCwBah3I054y3rFS5eVM7ngHlOziT7qDl7WXU8s2Lk"/>
+<div class="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-slate-950 rounded-full"></div>
+</div>
+<div>
+<h3 class="font-bold text-slate-100 font-manrope leading-tight">Marcus Aurelius</h3>
+<p class="text-xs text-slate-400 font-medium">Principal Architect at Rome Studio</p>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="flex items-center gap-2 text-primary font-bold text-sm px-4 py-2 hover:bg-primary/10 rounded-lg transition-colors">
+<span class="material-symbols-outlined text-lg">call</span>
+<span>Direct Call</span>
+</button>
+<button class="p-2 text-slate-500 hover:text-slate-300 transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+</div>
+<!-- Chat Messages -->
+<div class="flex-1 overflow-y-auto p-8 space-y-8">
+<!-- Date Stamp -->
+<div class="flex justify-center">
+<span class="bg-slate-900 px-3 py-1 rounded-full text-[10px] font-bold text-slate-400 uppercase tracking-widest border border-slate-800">Today, October 26</span>
+</div>
+<!-- Customer Message -->
+<div class="flex gap-4 max-w-2xl">
+<img alt="Marcus" class="w-8 h-8 rounded-full flex-shrink-0 mt-1" data-alt="close-up portrait of a thoughtful older man with grey hair and beard against a neutral studio background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAsROwo9BQkerYtEcBmK6MHPpK17m3YMHGcAjBtQktVvcj_ZNBOTY-0yKZ_XT6cIeSZFdoki7IoFH6Mw1jmall1J2vWbEvEZZCd1t5J3Ok-dnehXfRvIwtkq9PphyTE5UdsYfsMAqZ_d1CCjBT7d1fTNhvmASLA8w1r9nWMXOVN7HOFUCY3LwEah1r1c-3n2BoGkbnyzvRda4fxpnWHV-rWIeAH0X13C75GzwkgKfI8JetpBkIA30q_RdbivqiItez-CL68P0TvqE0"/>
+<div>
+<div class="bg-slate-900 p-4 rounded-2xl rounded-tl-none shadow-sm border border-slate-800">
+<p class="text-sm leading-relaxed text-slate-200">Hello Alex, I've just uploaded the revised floorplans for the Capitol Project. Can you give me a preliminary quote for the structural glass and steel reinforcement based on these new specs?</p>
+</div>
+<span class="text-[10px] text-slate-500 mt-1 inline-block px-1">12:30 PM</span>
+</div>
+</div>
+<!-- AI Message with Generated Quote -->
+<div class="flex gap-4 max-w-2xl ml-auto flex-row-reverse">
+<div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0 mt-1 shadow-md">
+<span class="material-symbols-outlined text-sm text-white" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
+</div>
+<div class="flex flex-col items-end">
+<div class="bg-primary p-4 rounded-2xl rounded-tr-none shadow-lg shadow-primary/20">
+<p class="text-sm leading-relaxed text-white">Hi Marcus! I've analyzed your new floorplans. The total surface area for structural glass has increased by 14%. I've prepared a revised quote below including the high-tensile steel reinforcements required for the larger spans.</p>
+</div>
+<!-- Quote Card Integration -->
+<div class="mt-4 w-full max-w-sm bg-slate-900 rounded-xl border border-primary/30 overflow-hidden shadow-xl">
+<div class="bg-primary/10 px-4 py-3 border-b border-primary/20 flex justify-between items-center">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-lg">receipt_long</span>
+<span class="font-manrope font-bold text-xs text-primary uppercase tracking-wider">AI Generated Quote</span>
+</div>
+<span class="text-[10px] font-bold text-primary">#QT-2024-882</span>
+</div>
+<div class="p-5">
+<div class="space-y-3">
+<div class="flex justify-between text-xs">
+<span class="text-slate-400">Structural Glass (Clear-V)</span>
+<span class="font-bold text-slate-100">$42,500.00</span>
+</div>
+<div class="flex justify-between text-xs">
+<span class="text-slate-400">Reinforced Steel Beams</span>
+<span class="font-bold text-slate-100">$18,750.00</span>
+</div>
+<div class="flex justify-between text-xs">
+<span class="text-slate-400">Precision Install Labor</span>
+<span class="font-bold text-slate-100">$12,000.00</span>
+</div>
+<div class="pt-3 border-t border-slate-800 flex justify-between items-center">
+<span class="text-sm font-bold font-manrope text-slate-100">Total Estimate</span>
+<span class="text-lg font-extrabold font-manrope text-primary tracking-tight">$73,250.00</span>
+</div>
+</div>
+<div class="mt-5 grid grid-cols-2 gap-3">
+<button class="py-2 text-[11px] font-bold uppercase tracking-wider text-primary border border-primary/30 rounded-lg hover:bg-primary/10 transition-all">Review &amp; Edit</button>
+<button class="py-2 text-[11px] font-bold uppercase tracking-wider text-white bg-primary rounded-lg shadow-md active:scale-95 transition-all">Approve &amp; Send</button>
+</div>
+</div>
+</div>
+<span class="text-[10px] text-slate-500 mt-2 inline-block px-1">12:45 PM • AI Representative</span>
+</div>
+</div>
+<!-- Relationship Pulse indicator in chat -->
+<div class="flex justify-center">
+<div class="flex items-center gap-3 bg-slate-900 px-4 py-2 rounded-full border border-slate-800">
+<span class="relative flex h-2 w-2">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2 w-2 bg-orange-400"></span>
+</span>
+<span class="text-[11px] font-bold text-slate-400">High Lead Heat: Marcus is reviewing the quote now.</span>
+</div>
+</div>
+</div>
+<!-- Input Area -->
+<div class="p-6 bg-slate-950 border-t border-slate-900">
+<div class="max-w-4xl mx-auto relative">
+<div class="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
+<button class="p-1.5 text-slate-500 hover:text-primary transition-colors">
+<span class="material-symbols-outlined">attach_file</span>
+</button>
+<button class="p-1.5 text-slate-500 hover:text-primary transition-colors">
+<span class="material-symbols-outlined">mood</span>
+</button>
+</div>
+<input class="w-full bg-slate-900 border-none rounded-2xl py-4 pl-24 pr-16 text-sm font-body text-slate-200 focus:ring-2 focus:ring-primary/20 transition-all outline-none shadow-inner" placeholder="Type a message or use '/' for AI commands..." type="text"/>
+<button class="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-primary text-white rounded-xl flex items-center justify-center shadow-lg active:scale-90 transition-all">
+<span class="material-symbols-outlined">send</span>
+</button>
+</div>
+<p class="text-center text-[10px] text-slate-500 mt-3">AI is monitoring this thread. Mention <span class="font-bold text-primary">@agent</span> to trigger specific actions.</p>
+</div>
+</section>
+</div>
+</main>
+</body></html>

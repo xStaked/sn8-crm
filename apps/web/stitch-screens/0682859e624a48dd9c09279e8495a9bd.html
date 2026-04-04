@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Login | sn8labs CRM</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary-fixed": "#ffdbd1",
+                        "surface": "#11131c",
+                        "primary-container": "#0055ff",
+                        "on-secondary": "#0e2976",
+                        "error-container": "#93000a",
+                        "inverse-on-surface": "#2e303a",
+                        "surface-container-high": "#282933",
+                        "background": "#11131c",
+                        "error": "#ffb4ab",
+                        "surface-container-low": "#191b25",
+                        "outline-variant": "#434656",
+                        "tertiary": "#ffb5a0",
+                        "on-secondary-fixed-variant": "#2b418d",
+                        "on-secondary-container": "#a3b5ff",
+                        "on-primary": "#002780",
+                        "tertiary-fixed-dim": "#ffb5a0",
+                        "secondary": "#b6c4ff",
+                        "inverse-surface": "#e1e1ef",
+                        "primary-fixed": "#dce1ff",
+                        "primary": "#b6c4ff",
+                        "on-surface": "#e1e1ef",
+                        "surface-container-lowest": "#0c0e17",
+                        "surface-bright": "#373943",
+                        "surface-dim": "#11131c",
+                        "secondary-container": "#2d4490",
+                        "on-error": "#690005",
+                        "surface-container-highest": "#32343f",
+                        "on-error-container": "#ffdad6",
+                        "tertiary-container": "#c13301",
+                        "on-tertiary-container": "#ffe1d9",
+                        "on-surface-variant": "#c3c5d9",
+                        "on-primary-container": "#e3e6ff",
+                        "primary-fixed-dim": "#b6c4ff",
+                        "on-primary-fixed-variant": "#0039b3",
+                        "surface-container": "#1d1f29",
+                        "surface-variant": "#32343f",
+                        "on-tertiary-fixed-variant": "#872100",
+                        "secondary-fixed-dim": "#b6c4ff",
+                        "on-tertiary": "#601400",
+                        "inverse-primary": "#004dea",
+                        "outline": "#8d90a2",
+                        "on-tertiary-fixed": "#3b0900",
+                        "on-secondary-fixed": "#001551",
+                        "on-primary-fixed": "#001551",
+                        "on-background": "#e1e1ef",
+                        "surface-tint": "#b6c4ff",
+                        "secondary-fixed": "#dce1ff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Manrope"],
+                        "body": ["Manrope"],
+                        "label": ["Manrope"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Manrope', sans-serif;
+            background-color: #11131c;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-panel {
+            background: rgba(32, 34, 47, 0.7);
+            backdrop-filter: blur(20px);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface antialiased min-h-screen flex items-center justify-center p-4 md:p-0">
+<main class="w-full max-w-[1200px] h-full md:h-[800px] flex overflow-hidden rounded-lg bg-surface-container relative">
+<!-- Left Side: Login Form (The Curator's Interface) -->
+<section class="w-full md:w-1/2 p-8 md:p-16 flex flex-col justify-center z-10">
+<!-- Brand Logo -->
+<div class="mb-12">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 bg-primary-container rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined text-white text-lg" data-icon="layers">layers</span>
+</div>
+<span class="text-xl font-bold tracking-tighter text-on-surface">sn8labs</span>
+</div>
+<p class="mt-4 text-on-surface-variant text-sm font-light tracking-wide leading-relaxed max-w-[280px]">
+                    Precision Curator for sn8labs operations
+                </p>
+</div>
+<div class="space-y-8">
+<header>
+<h1 class="text-3xl font-extrabold tracking-tight text-on-surface mb-2">Systems Access</h1>
+<p class="text-on-surface-variant text-sm">Enter your credentials to manage the architectural grid.</p>
+</header>
+<form class="space-y-6">
+<div class="space-y-2">
+<label class="block text-xs font-bold uppercase tracking-[0.2em] text-on-surface-variant" for="email">Email Identity</label>
+<div class="relative group">
+<input class="w-full bg-surface-container-low border-none rounded-lg py-4 px-4 text-on-surface placeholder:text-outline/40 focus:ring-1 focus:ring-primary-container transition-all" id="email" placeholder="operator@sn8labs.io" type="email"/>
+<div class="absolute inset-y-0 right-4 flex items-center pointer-events-none opacity-40 group-focus-within:text-primary-container group-focus-within:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-sm" data-icon="alternate_email">alternate_email</span>
+</div>
+</div>
+</div>
+<div class="space-y-2">
+<div class="flex justify-between items-center">
+<label class="block text-xs font-bold uppercase tracking-[0.2em] text-on-surface-variant" for="password">Secure Key</label>
+<a class="text-xs font-medium text-primary hover:text-primary-container transition-colors tracking-tight" href="#">Forgot Password?</a>
+</div>
+<div class="relative group">
+<input class="w-full bg-surface-container-low border-none rounded-lg py-4 px-4 text-on-surface placeholder:text-outline/40 focus:ring-1 focus:ring-primary-container transition-all" id="password" placeholder="••••••••••••" type="password"/>
+<div class="absolute inset-y-0 right-4 flex items-center pointer-events-none opacity-40 group-focus-within:text-primary-container group-focus-within:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-sm" data-icon="lock">lock</span>
+</div>
+</div>
+</div>
+<button class="w-full bg-primary-container text-on-primary-container py-4 px-6 rounded-lg font-bold tracking-tight hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-2 group" type="submit">
+                        Sign In
+                        <span class="material-symbols-outlined text-lg group-hover:translate-x-1 transition-transform" data-icon="arrow_forward">arrow_forward</span>
+</button>
+</form>
+</div>
+<footer class="mt-16 pt-8 border-t border-outline-variant/10">
+<div class="flex items-center gap-6">
+<div class="flex flex-col">
+<span class="text-[10px] uppercase tracking-widest text-outline">System Status</span>
+<div class="flex items-center gap-2 mt-1">
+<div class="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]"></div>
+<span class="text-[11px] font-bold text-on-surface">ALL CORE NODES OPERATIONAL</span>
+</div>
+</div>
+</div>
+</footer>
+</section>
+<!-- Right Side: Architectural Visual (The Precision Visual) -->
+<section class="hidden md:block md:w-1/2 relative bg-surface-container-lowest overflow-hidden">
+<!-- Background Image with Tonal Overlay -->
+<div class="absolute inset-0 z-0">
+<img alt="Architectural Visual" class="w-full h-full object-cover grayscale opacity-20" data-alt="Close-up of high-tech futuristic server circuitry with blue neon light paths and complex architectural geometric patterns in deep shadow" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAXn_-CMC08kY3v8sLaqmqavux58ZapjwNoePI0SkWCzMOWe0woQyhJrWeLyDw1oxwj8Dtmo3Iy9EFqxYphRfIYf6aPvZZ5F-ZfGD8s0P1njS_AJ99zqkseAEV-aO9lvoVxs2thO8nyApeHPRzMUhrzjO9Ak0dku5FNEAzJEQT4fEgDKo80aA-ioxmebR-nCNDJmsbaLagcIwZMS37bTTRvPdY2_NsrewpwskVEQlbyc0LKoUJPDY4fkRQ7WGXPbkAlKZNzt8Rx7Sg"/>
+<div class="absolute inset-0 bg-gradient-to-tr from-surface via-surface/60 to-transparent"></div>
+</div>
+<!-- Content Overlay -->
+<div class="relative z-10 h-full flex flex-col justify-end p-12 space-y-6">
+<!-- Data Strip Visual -->
+<div class="w-1 h-24 bg-primary-container"></div>
+<div class="max-w-md">
+<h2 class="text-4xl font-light tracking-tight text-on-surface leading-tight">
+                        Engineered for <span class="font-bold text-primary-container">Decision Intelligence.</span>
+</h2>
+<p class="mt-4 text-on-surface-variant leading-relaxed font-light">
+                        The sn8labs CRM environment utilizes architectural precision to streamline data pipelines, ensuring your operations are curated with absolute clarity.
+                    </p>
+</div>
+<!-- Floating Data Points (Bento-style elements) -->
+<div class="grid grid-cols-2 gap-4 mt-8">
+<div class="glass-panel p-4 rounded-lg border-l-2 border-primary-container">
+<span class="block text-[10px] uppercase tracking-widest text-on-surface-variant mb-1">Latency</span>
+<span class="text-xl font-bold tracking-tighter text-on-surface">0.042ms</span>
+</div>
+<div class="glass-panel p-4 rounded-lg">
+<span class="block text-[10px] uppercase tracking-widest text-on-surface-variant mb-1">Integrity</span>
+<span class="text-xl font-bold tracking-tighter text-on-surface">99.99%</span>
+</div>
+</div>
+</div>
+<!-- Abstract Grid Lines -->
+<div class="absolute top-0 right-0 w-full h-full pointer-events-none opacity-5">
+<div class="h-full w-full" style="background-image: radial-gradient(circle, #434656 1px, transparent 1px); background-size: 32px 32px;"></div>
+</div>
+</section>
+</main>
+<!-- Background Decorative Elements -->
+<div class="fixed top-[-10%] right-[-10%] w-[40%] h-[40%] bg-primary-container/5 rounded-full blur-[120px] -z-10"></div>
+<div class="fixed bottom-[-5%] left-[-5%] w-[30%] h-[30%] bg-primary-container/10 rounded-full blur-[100px] -z-10"></div>
+</body></html>

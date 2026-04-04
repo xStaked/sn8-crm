@@ -20,6 +20,45 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Stitch MCP Integration
+
+This workspace includes a Stitch pull script to import generated HTML from your Stitch project.
+
+1. Add Stitch credentials in `apps/web/.env.local`:
+
+```bash
+STITCH_API_KEY=your_stitch_api_key
+STITCH_PROJECT_ID=your_project_id
+STITCH_SCREEN_ID=your_screen_id
+```
+
+The pull script automatically loads `.env.local` when present.
+
+If you only have `STITCH_API_KEY`, discover IDs first:
+
+```bash
+npm run stitch:discover
+```
+
+This prints all accessible project and screen IDs so you can copy values into:
+`STITCH_PROJECT_ID` and `STITCH_SCREEN_ID`.
+
+2. Pull the screen HTML into the dashboard folder:
+
+```bash
+npm run stitch:pull
+```
+
+By default this writes to `src/app/dashboard/stitch-generated.html`.
+
+Optional output override:
+
+```bash
+STITCH_OUTPUT_PATH=src/app/dashboard/landing-v2.html npm run stitch:pull
+```
+
+After pulling, map the exported markup into React components under `src/components` and keep only layout/content patterns from Stitch (do not ship raw generated HTML directly).
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Quote Detail | sn8labs CRM</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "inverse-primary": "#b2c5ff",
+                        "tertiary": "#7b2600",
+                        "surface-container-high": "#e0e8ff",
+                        "on-tertiary-fixed": "#380d00",
+                        "on-surface-variant": "#434654",
+                        "surface-container-highest": "#dbe2f9",
+                        "outline-variant": "#c3c6d6",
+                        "on-error-container": "#93000a",
+                        "on-primary-fixed-variant": "#0040a2",
+                        "secondary-container": "#d6e3fb",
+                        "tertiary-fixed-dim": "#ffb59b",
+                        "background": "#f9f9ff",
+                        "surface-dim": "#d2daf0",
+                        "surface-container-low": "#f1f3ff",
+                        "tertiary-container": "#a33500",
+                        "primary-fixed": "#dae2ff",
+                        "primary-fixed-dim": "#b2c5ff",
+                        "on-tertiary-fixed-variant": "#812800",
+                        "tertiary-fixed": "#ffdbcf",
+                        "error-container": "#ffdad6",
+                        "surface-container": "#e9edff",
+                        "on-primary": "#ffffff",
+                        "outline": "#737685",
+                        "on-background": "#141b2c",
+                        "surface-container-lowest": "#ffffff",
+                        "surface": "#f9f9ff",
+                        "on-secondary-container": "#586579",
+                        "on-secondary-fixed-variant": "#3b485a",
+                        "on-surface": "#141b2c",
+                        "on-secondary-fixed": "#0f1c2d",
+                        "inverse-on-surface": "#edf0ff",
+                        "primary-container": "#0052cc",
+                        "error": "#ba1a1a",
+                        "surface-variant": "#dbe2f9",
+                        "primary": "#003d9b",
+                        "on-primary-fixed": "#001848",
+                        "on-secondary": "#ffffff",
+                        "on-error": "#ffffff",
+                        "inverse-surface": "#293041",
+                        "on-primary-container": "#c4d2ff",
+                        "surface-tint": "#0c56d0",
+                        "on-tertiary": "#ffffff",
+                        "secondary-fixed": "#d6e3fb",
+                        "secondary-fixed-dim": "#bac7de",
+                        "secondary": "#525f73",
+                        "surface-bright": "#f9f9ff",
+                        "on-tertiary-container": "#ffc6b2"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Manrope"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body { font-family: 'Inter', sans-serif; }
+        h1, h2, h3, .brand-font { font-family: 'Manrope', sans-serif; }
+    </style>
+</head>
+<body class="bg-surface text-on-surface flex min-h-screen">
+<!-- SideNavBar (Predicted Anchor) -->
+<aside class="bg-slate-50 dark:bg-slate-950 h-screen w-64 flex-col fixed left-0 top-0 flex flex-col h-full py-6 space-y-2 z-50">
+<div class="px-6 mb-8">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white">
+<span class="material-symbols-outlined text-lg">data_object</span>
+</div>
+<div>
+<div class="text-lg font-black text-slate-900 dark:text-white font-manrope">sn8labs CRM</div>
+<div class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Precision Curator</div>
+</div>
+</div>
+</div>
+<nav class="flex-1 px-4 space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 text-slate-500 dark:text-slate-400 font-manrope font-semibold text-sm hover:text-blue-600 dark:hover:text-blue-300 hover:bg-slate-100/50 dark:hover:bg-slate-800/50 transition-all duration-200 ease-in-out rounded-xl" href="#">
+<span class="material-symbols-outlined">dashboard</span> Dashboard
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-slate-500 dark:text-slate-400 font-manrope font-semibold text-sm hover:text-blue-600 dark:hover:text-blue-300 hover:bg-slate-100/50 dark:hover:bg-slate-800/50 transition-all duration-200 ease-in-out rounded-xl" href="#">
+<span class="material-symbols-outlined">chat_bubble</span> Inbox
+            </a>
+<!-- ACTIVE TAB: Quotes -->
+<a class="flex items-center gap-3 px-3 py-2 text-blue-700 dark:text-blue-400 border-r-2 border-blue-700 dark:border-blue-400 bg-blue-50/50 dark:bg-blue-900/10 font-manrope font-semibold text-sm transition-all duration-200 ease-in-out rounded-xl" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">request_quote</span> Quotes
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-slate-500 dark:text-slate-400 font-manrope font-semibold text-sm hover:text-blue-600 dark:hover:text-blue-300 hover:bg-slate-100/50 dark:hover:bg-slate-800/50 transition-all duration-200 ease-in-out rounded-xl" href="#">
+<span class="material-symbols-outlined">group</span> Customers
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-slate-500 dark:text-slate-400 font-manrope font-semibold text-sm hover:text-blue-600 dark:hover:text-blue-300 hover:bg-slate-100/50 dark:hover:bg-slate-800/50 transition-all duration-200 ease-in-out rounded-xl" href="#">
+<span class="material-symbols-outlined">insights</span> Analytics
+            </a>
+</nav>
+<div class="px-4 mt-auto space-y-1">
+<button class="w-full mb-4 bg-primary text-white py-3 rounded-xl font-manrope font-bold text-sm shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all">
+                Create New Quote
+            </button>
+<a class="flex items-center gap-3 px-3 py-2 text-slate-500 dark:text-slate-400 font-manrope font-semibold text-sm hover:text-blue-600 rounded-xl" href="#">
+<span class="material-symbols-outlined">help_outline</span> Help
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-slate-500 dark:text-slate-400 font-manrope font-semibold text-sm hover:text-blue-600 rounded-xl" href="#">
+<span class="material-symbols-outlined">logout</span> Logout
+            </a>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="flex-1 ml-64 min-h-screen flex flex-col">
+<!-- TopNavBar (Predicted Anchor) -->
+<header class="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl w-full h-16 sticky top-0 z-40 flex justify-between items-center px-6 w-full">
+<div class="flex items-center gap-4">
+<div class="font-manrope text-sm font-medium text-slate-500 flex items-center gap-2">
+<span>Quotes</span>
+<span class="material-symbols-outlined text-xs">chevron_right</span>
+<span class="text-on-surface font-semibold">QT-8829-AI</span>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<div class="relative hidden md:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-sm">search</span>
+<input class="bg-slate-100 dark:bg-slate-800 border-none rounded-full pl-10 pr-4 py-1.5 text-sm w-64 focus:ring-2 focus:ring-primary/20 transition-all" placeholder="Search orders, clients..." type="text"/>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/80 rounded-full transition-colors active:scale-95 duration-150">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="p-2 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/80 rounded-full transition-colors active:scale-95 duration-150">
+<span class="material-symbols-outlined">settings</span>
+</button>
+<div class="w-8 h-8 rounded-full bg-slate-200 overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="professional headshot of a smiling male executive in a blue shirt with soft studio lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCimTubmSAZaOYhihrYsX-9Lhw8FEyv14yPGJMsntg1EBf0cSkrtcR3YNci1TfWM6--AI-tT8Q1eBlinFTfgXAqUTsbjHMPFtal3oxSNZvzNgiawiv_FFqCtNUYcAowEfMRmnQIQJOpVjhaTcP1SShiTaD6G9so-mT7EKlNnDqYvZ6inLqkDzAWouJHQ6Mh66OO06eZupMLbU44LzKISweU_vtq86WiALW5wYPKeXXFR1Nru5FRntXg5wGR3YmFY-wzesMsdvPsC-c"/>
+</div>
+</div>
+</div>
+</header>
+<!-- Quote Detail Content -->
+<div class="p-8 max-w-7xl mx-auto w-full space-y-8">
+<!-- Hero Header Section -->
+<div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+<div>
+<div class="flex items-center gap-3 mb-2">
+<span class="bg-primary-fixed text-on-primary-fixed-variant px-3 py-0.5 rounded-full text-xs font-bold font-manrope">AI GENERATED</span>
+<span class="text-outline text-sm font-medium">Created Oct 24, 2023</span>
+</div>
+<h1 class="text-4xl font-extrabold tracking-tight text-on-surface mb-2">Quote for Global Logistics Corp</h1>
+<p class="text-on-surface-variant font-medium">Enterprise Cloud Infrastructure Migration &amp; Security Audit</p>
+</div>
+<div class="flex items-center gap-3">
+<button class="px-6 py-3 border border-outline-variant text-on-surface-variant font-manrope font-bold rounded-xl hover:bg-surface-container-low transition-colors">
+                        Edit Quote
+                    </button>
+<button class="px-6 py-3 bg-error text-on-error font-manrope font-bold rounded-xl shadow-lg shadow-error/20 hover:opacity-90 active:scale-95 transition-all">
+                        Reject Quote
+                    </button>
+<button class="px-8 py-3 bg-gradient-to-br from-primary-container to-primary text-white font-manrope font-bold rounded-xl shadow-lg shadow-primary/30 hover:opacity-90 active:scale-95 transition-all">
+                        Accept Quote
+                    </button>
+</div>
+</div>
+<!-- Bento Grid Layout -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+<!-- Left Column: Itemized Costs & Totals (Col 8) -->
+<div class="lg:col-span-8 space-y-6">
+<!-- Itemized Card -->
+<div class="bg-surface-container-lowest rounded-xl p-8 shadow-sm">
+<h3 class="text-lg font-bold mb-6 flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">list_alt</span>
+                            Itemized Services
+                        </h3>
+<div class="space-y-1">
+<div class="grid grid-cols-12 px-4 py-3 text-xs font-bold text-outline uppercase tracking-wider">
+<div class="col-span-6">Description</div>
+<div class="col-span-2 text-right">Qty</div>
+<div class="col-span-2 text-right">Rate</div>
+<div class="col-span-2 text-right">Total</div>
+</div>
+<!-- Row 1 -->
+<div class="grid grid-cols-12 px-4 py-5 bg-surface-container-low/50 rounded-xl items-center">
+<div class="col-span-6">
+<div class="font-bold text-on-surface">Cloud Architecture Re-design</div>
+<div class="text-xs text-on-surface-variant mt-1">Multi-region AWS landing zone setup with Terraform</div>
+</div>
+<div class="col-span-2 text-right font-medium">1</div>
+<div class="col-span-2 text-right font-medium">$12,500</div>
+<div class="col-span-2 text-right font-bold text-primary">$12,500</div>
+</div>
+<!-- Row 2 -->
+<div class="grid grid-cols-12 px-4 py-5 items-center">
+<div class="col-span-6">
+<div class="font-bold text-on-surface">Data Migration Service</div>
+<div class="text-xs text-on-surface-variant mt-1">50TB on-premise to S3/Glacier with validation</div>
+</div>
+<div class="col-span-2 text-right font-medium">50</div>
+<div class="col-span-2 text-right font-medium">$150</div>
+<div class="col-span-2 text-right font-bold text-primary">$7,500</div>
+</div>
+<!-- Row 3 -->
+<div class="grid grid-cols-12 px-4 py-5 bg-surface-container-low/50 rounded-xl items-center">
+<div class="col-span-6">
+<div class="font-bold text-on-surface">Security &amp; Compliance Audit</div>
+<div class="text-xs text-on-surface-variant mt-1">SOC2 readiness and vulnerability assessment</div>
+</div>
+<div class="col-span-2 text-right font-medium">2</div>
+<div class="col-span-2 text-right font-medium">$4,000</div>
+<div class="col-span-2 text-right font-bold text-primary">$8,000</div>
+</div>
+</div>
+<!-- Summary -->
+<div class="mt-8 border-t-2 border-surface-container border-dashed pt-8 flex justify-end">
+<div class="w-64 space-y-3">
+<div class="flex justify-between text-on-surface-variant">
+<span>Subtotal</span>
+<span class="font-bold">$28,000.00</span>
+</div>
+<div class="flex justify-between text-on-surface-variant">
+<span>AI Volume Discount (5%)</span>
+<span class="font-bold text-tertiary">-$1,400.00</span>
+</div>
+<div class="flex justify-between text-2xl font-black text-on-surface pt-3">
+<span>Total</span>
+<span class="text-primary">$26,600.00</span>
+</div>
+</div>
+</div>
+</div>
+<!-- AI Rationale Card -->
+<div class="bg-primary-container text-white rounded-xl p-8 overflow-hidden relative">
+<div class="relative z-10">
+<h3 class="text-lg font-bold mb-4 flex items-center gap-2">
+<span class="material-symbols-outlined">psychology</span>
+                                AI Rationale &amp; Confidence
+                            </h3>
+<div class="space-y-4 text-on-primary-container leading-relaxed font-medium">
+<p>This quote was generated based on the chat history where the client emphasized "security above all" and a "strict 60-day timeline." </p>
+<ul class="list-disc pl-5 space-y-2 text-sm opacity-90">
+<li>Pricing for Migration was adjusted +15% to account for urgent weekend deployment requirements mentioned by Sarah.</li>
+<li>Automated discount applied due to existing relationship with Global Logistics (3 successful previous contracts).</li>
+<li>Compliance audit included as mandatory based on the client's mentioned Fintech expansion.</li>
+</ul>
+</div>
+</div>
+<!-- Abstract background element -->
+<div class="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-20 -mt-20"></div>
+</div>
+</div>
+<!-- Right Column: Customer info & Context (Col 4) -->
+<div class="lg:col-span-4 space-y-6">
+<!-- Customer Card -->
+<div class="bg-surface-container-lowest rounded-xl p-6 shadow-sm">
+<h3 class="text-sm font-bold text-outline uppercase tracking-widest mb-6">Customer Profile</h3>
+<div class="flex items-center gap-4 mb-6">
+<div class="w-16 h-16 rounded-xl bg-secondary-container flex items-center justify-center text-primary text-2xl font-bold">
+                                GL
+                            </div>
+<div>
+<div class="font-bold text-lg">Global Logistics Corp</div>
+<div class="text-sm text-on-surface-variant">New York, NY</div>
+</div>
+</div>
+<div class="space-y-4">
+<div class="flex items-start gap-3">
+<span class="material-symbols-outlined text-outline">person</span>
+<div>
+<div class="text-xs text-outline font-bold">Primary Contact</div>
+<div class="text-sm font-semibold">Sarah Jenkins • CTO</div>
+</div>
+</div>
+<div class="flex items-start gap-3">
+<span class="material-symbols-outlined text-outline">mail</span>
+<div>
+<div class="text-xs text-outline font-bold">Email</div>
+<div class="text-sm font-semibold">s.jenkins@globallogistics.com</div>
+</div>
+</div>
+<div class="flex items-start gap-3">
+<span class="material-symbols-outlined text-outline">history</span>
+<div>
+<div class="text-xs text-outline font-bold">Account Health</div>
+<div class="flex items-center gap-1.5 mt-0.5">
+<div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+<span class="text-sm font-bold text-on-surface">Excellent</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Chat Context Card -->
+<div class="bg-surface-container-low rounded-xl p-6 relative overflow-hidden">
+<div class="flex justify-between items-center mb-4">
+<h3 class="text-sm font-bold text-outline uppercase tracking-widest">Chat Context</h3>
+<span class="text-[10px] bg-white px-2 py-1 rounded-md shadow-sm font-bold">LAST 24H</span>
+</div>
+<div class="space-y-4">
+<!-- Snippet 1 -->
+<div class="bg-white/60 p-3 rounded-lg text-xs leading-relaxed border-l-4 border-primary">
+<span class="font-bold text-primary">Sarah:</span> "We really need this live before the Q4 peak. Can we expedite the data migration phase?"
+                            </div>
+<!-- Snippet 2 -->
+<div class="bg-white/60 p-3 rounded-lg text-xs leading-relaxed border-l-4 border-primary">
+<span class="font-bold text-primary">AI Agent:</span> "Understood. I'll prioritize the migration workstreams. Does the budget permit for weekend labor?"
+                            </div>
+<!-- Snippet 3 -->
+<div class="bg-white/60 p-3 rounded-lg text-xs leading-relaxed border-l-4 border-primary">
+<span class="font-bold text-primary">Sarah:</span> "Yes, as long as it's within the $30k ballpark total."
+                            </div>
+</div>
+<button class="w-full mt-6 text-sm font-bold text-primary hover:underline flex items-center justify-center gap-1">
+                            View Full Transcript
+                            <span class="material-symbols-outlined text-sm">open_in_new</span>
+</button>
+</div>
+<!-- Stats Card -->
+<div class="grid grid-cols-2 gap-4">
+<div class="bg-surface-container-lowest p-4 rounded-xl shadow-sm">
+<div class="text-xs text-outline font-bold mb-1">PROFIT MARGIN</div>
+<div class="text-xl font-black text-on-surface">32.4%</div>
+</div>
+<div class="bg-surface-container-lowest p-4 rounded-xl shadow-sm">
+<div class="text-xs text-outline font-bold mb-1">EST. DELIVERY</div>
+<div class="text-xl font-black text-on-surface">45 Days</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Floating Action Button (Suppressed as per rules for Detail screens) -->
+</body></html>

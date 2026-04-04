@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Customer Directory | sn8labs CRM</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "primary": "#0055FF",
+                    "primary-container": "#003daa",
+                    "inverse-primary": "#b2c5ff",
+                    "tertiary": "#ffb59b",
+                    "surface-container-high": "#2d3446",
+                    "on-tertiary-fixed": "#380d00",
+                    "on-surface-variant": "#c3c6d6",
+                    "outline-variant": "#434654",
+                    "on-error-container": "#ffdad6",
+                    "on-primary-fixed-variant": "#0040a2",
+                    "secondary-container": "#3b485a",
+                    "tertiary-fixed-dim": "#ffb59b",
+                    "background": "#020617",
+                    "surface-dim": "#0f172a",
+                    "surface-container-low": "#1e293b",
+                    "tertiary-container": "#812800",
+                    "primary-fixed": "#dae2ff",
+                    "primary-fixed-dim": "#b2c5ff",
+                    "on-tertiary-fixed-variant": "#812800",
+                    "tertiary-fixed": "#ffdbcf",
+                    "error-container": "#93000a",
+                    "surface-container": "#0f172a",
+                    "on-primary": "#ffffff",
+                    "outline": "#8e919f",
+                    "on-background": "#f1f3ff",
+                    "surface-container-lowest": "#020617",
+                    "surface": "#020617",
+                    "on-secondary-container": "#d6e3fb",
+                    "on-secondary-fixed-variant": "#3b485a",
+                    "on-surface": "#f1f3ff",
+                    "on-secondary-fixed": "#0f1c2d",
+                    "inverse-on-surface": "#141b2c",
+                    "error": "#ffb4ab",
+                    "surface-variant": "#434654",
+                    "on-primary-fixed": "#001848",
+                    "on-secondary": "#283141",
+                    "on-error": "#690005",
+                    "inverse-surface": "#f1f3ff",
+                    "on-primary-container": "#dbe2f9",
+                    "surface-tint": "#0055FF",
+                    "on-tertiary": "#4a1600",
+                    "secondary-fixed": "#d6e3fb",
+                    "secondary-fixed-dim": "#bac7de",
+                    "secondary": "#bac7de",
+                    "surface-bright": "#373e4e",
+                    "on-tertiary-container": "#ffdbcf"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "fontFamily": {
+                    "headline": ["Manrope"],
+                    "body": ["Inter"],
+                    "label": ["Inter"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        body { font-family: 'Inter', sans-serif; }
+        h1, h2, h3 { font-family: 'Manrope', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-950 text-on-surface antialiased">
+<!-- Sidebar Navigation -->
+<aside class="h-screen w-64 flex-col fixed left-0 top-0 bg-slate-950 flex flex-col h-full py-6 space-y-2 z-50 border-r border-slate-900">
+<div class="px-6 mb-8">
+<h2 class="text-lg font-black text-white font-manrope">sn8labs CRM</h2>
+<p class="text-xs text-slate-500 font-manrope">Precision Curator</p>
+</div>
+<nav class="flex-1 space-y-1">
+<a class="flex items-center px-6 py-3 space-x-3 text-slate-500 font-manrope font-semibold text-sm hover:text-blue-400 hover:bg-slate-900/50 transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span>Dashboard</span>
+</a>
+<a class="flex items-center px-6 py-3 space-x-3 text-slate-500 font-manrope font-semibold text-sm hover:text-blue-400 hover:bg-slate-900/50 transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined" data-icon="chat_bubble">chat_bubble</span>
+<span>Inbox</span>
+</a>
+<a class="flex items-center px-6 py-3 space-x-3 text-slate-500 font-manrope font-semibold text-sm hover:text-blue-400 hover:bg-slate-900/50 transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined" data-icon="request_quote">request_quote</span>
+<span>Quotes</span>
+</a>
+<a class="flex items-center px-6 py-3 space-x-3 text-blue-500 border-r-2 border-blue-500 bg-blue-500/10 font-manrope font-semibold text-sm transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined" data-icon="group">group</span>
+<span>Customers</span>
+</a>
+<a class="flex items-center px-6 py-3 space-x-3 text-slate-500 font-manrope font-semibold text-sm hover:text-blue-400 hover:bg-slate-900/50 transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined" data-icon="insights">insights</span>
+<span>Analytics</span>
+</a>
+</nav>
+<div class="px-4 mb-4">
+<button class="w-full bg-primary text-white py-3 rounded-xl font-manrope font-bold text-sm shadow-lg shadow-primary/20 active:scale-95 transition-all duration-150">
+                Create New Quote
+            </button>
+</div>
+<div class="pt-4 border-t border-slate-900">
+<a class="flex items-center px-6 py-2 space-x-3 text-slate-500 font-manrope font-semibold text-sm hover:text-blue-400 transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="help_outline">help_outline</span>
+<span>Help</span>
+</a>
+<a class="flex items-center px-6 py-2 space-x-3 text-slate-500 font-manrope font-semibold text-sm hover:text-blue-400 transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="logout">logout</span>
+<span>Logout</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="ml-64 min-h-screen">
+<!-- Top Navigation Bar -->
+<header class="w-full h-16 sticky top-0 z-40 bg-slate-950/80 backdrop-blur-xl flex justify-between items-center px-6 border-b border-slate-900">
+<div class="flex items-center flex-1 max-w-xl">
+<div class="relative w-full">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" data-icon="search">search</span>
+<input class="w-full bg-slate-900 border-none rounded-full py-2 pl-10 pr-4 text-sm focus:ring-2 focus:ring-primary/20 placeholder:text-slate-500 text-slate-200" placeholder="Search directory..." type="text"/>
+</div>
+</div>
+<div class="flex items-center space-x-4">
+<button class="p-2 text-slate-400 hover:bg-slate-900/50 rounded-full transition-colors relative active:scale-95 duration-150">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-slate-950"></span>
+</button>
+<button class="p-2 text-slate-400 hover:bg-slate-900/50 rounded-full transition-colors active:scale-95 duration-150">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+</button>
+<div class="h-8 w-8 rounded-full overflow-hidden bg-slate-800">
+<img alt="User profile" class="h-full w-full object-cover" data-alt="professional male portrait in business casual attire with soft office lighting and neutral background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCQ5OzBVEmrsvF6ZvGtViV-M5usdZB3miyJgd1TvAiNxX2WY1u4aMVl6UOiJBYvzdBG8yV54adMZCTtugFciyPNEh2o8dnYeaxHQAM8jgRJ09fDsHSXuvpnNdMRrnkjDt1CPznOO1ARh4jcAKXNPtkm9npIur6LDE4d8OUGRlPS1NrTQo5PdSlshVhPCHdyENu-Px_2OfDE52NK2gW_KYJEhI45nMQAHH12r1Vrpxm0Dd3uzPFOY1IQ3f0nNrQvrQ7FiJQvkvsHO-U"/>
+</div>
+</div>
+</header>
+<!-- Page Content -->
+<div class="p-8 space-y-8 bg-slate-950">
+<!-- Header Section -->
+<div class="flex justify-between items-end">
+<div>
+<h1 class="text-3xl font-extrabold tracking-tight text-white">Customer Directory</h1>
+<p class="text-slate-400 mt-1 font-body">Manage your architectural client portfolio and quote history.</p>
+</div>
+<div class="flex gap-3">
+<button class="flex items-center gap-2 px-4 py-2 bg-slate-900 text-primary font-semibold rounded-xl hover:bg-slate-800 transition-colors">
+<span class="material-symbols-outlined text-[20px]" data-icon="filter_list">filter_list</span>
+<span>Filters</span>
+</button>
+<button class="flex items-center gap-2 px-4 py-2 bg-slate-900 text-primary font-semibold rounded-xl hover:bg-slate-800 transition-colors">
+<span class="material-symbols-outlined text-[20px]" data-icon="download">download</span>
+<span>Export CSV</span>
+</button>
+</div>
+</div>
+<!-- Stats Overview -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+<div class="bg-slate-900 p-6 rounded-xl border border-slate-800/50 hover:border-primary/30 transition-all group">
+<div class="flex justify-between items-start mb-4">
+<div class="p-2 bg-primary/10 rounded-lg group-hover:bg-primary/20 transition-colors">
+<span class="material-symbols-outlined text-primary" data-icon="groups">groups</span>
+</div>
+<span class="text-xs font-bold text-orange-200 px-2 py-1 bg-orange-950/50 rounded-full border border-orange-800/30">Active</span>
+</div>
+<p class="text-sm font-medium text-slate-400 font-label">Total Customers</p>
+<h3 class="text-2xl font-extrabold mt-1 text-white">1,284</h3>
+</div>
+<div class="bg-slate-900 p-6 rounded-xl border border-slate-800/50 hover:border-primary/30 transition-all">
+<div class="flex justify-between items-start mb-4">
+<div class="p-2 bg-slate-800 rounded-lg">
+<span class="material-symbols-outlined text-slate-300" data-icon="pending_actions">pending_actions</span>
+</div>
+</div>
+<p class="text-sm font-medium text-slate-400 font-label">Open Quotes</p>
+<h3 class="text-2xl font-extrabold mt-1 text-white">42</h3>
+</div>
+<div class="bg-slate-900 p-6 rounded-xl border border-slate-800/50 hover:border-primary/30 transition-all">
+<div class="flex justify-between items-start mb-4">
+<div class="p-2 bg-slate-800/50 rounded-lg">
+<span class="material-symbols-outlined text-slate-300" data-icon="monetization_on">monetization_on</span>
+</div>
+</div>
+<p class="text-sm font-medium text-slate-400 font-label">Pipeline Value</p>
+<h3 class="text-2xl font-extrabold mt-1 text-white">$482.5k</h3>
+</div>
+<div class="bg-primary p-6 rounded-xl shadow-lg shadow-primary/20 flex flex-col justify-between">
+<div class="flex justify-between items-center text-blue-100">
+<span class="text-sm font-semibold">Growth Pulse</span>
+<span class="material-symbols-outlined" data-icon="trending_up">trending_up</span>
+</div>
+<div>
+<h3 class="text-3xl font-extrabold text-white">+12%</h3>
+<p class="text-xs text-blue-200/70 mt-1">Vs. last month</p>
+</div>
+</div>
+</div>
+<!-- Directory Table Container -->
+<div class="bg-slate-900 rounded-xl border border-slate-800/50 overflow-hidden">
+<!-- Table Controls -->
+<div class="p-6 border-b border-slate-800/30 flex flex-col md:flex-row justify-between items-center gap-4">
+<div class="flex items-center gap-4">
+<h4 class="font-bold text-lg text-white">All Records</h4>
+<div class="flex bg-slate-950 rounded-lg p-1">
+<button class="px-3 py-1 text-xs font-bold bg-slate-800 shadow-sm rounded-md text-primary">All</button>
+<button class="px-3 py-1 text-xs font-bold text-slate-500 hover:text-slate-200 transition-colors">Residential</button>
+<button class="px-3 py-1 text-xs font-bold text-slate-500 hover:text-slate-200 transition-colors">Commercial</button>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<span class="text-sm text-slate-500">Showing 1-10 of 1,284</span>
+<div class="flex gap-1">
+<button class="p-1 rounded hover:bg-slate-800 disabled:opacity-30 text-slate-400" disabled="">
+<span class="material-symbols-outlined" data-icon="chevron_left">chevron_left</span>
+</button>
+<button class="p-1 rounded hover:bg-slate-800 text-slate-400">
+<span class="material-symbols-outlined" data-icon="chevron_right">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Table Header -->
+<div class="grid grid-cols-12 px-6 py-4 bg-slate-950/50 text-[11px] font-extrabold uppercase tracking-widest text-slate-500">
+<div class="col-span-4">Customer Name</div>
+<div class="col-span-3">Email Address</div>
+<div class="col-span-2">Status</div>
+<div class="col-span-2">Total Quotes</div>
+<div class="col-span-1 text-right">Action</div>
+</div>
+<!-- Customer List -->
+<div class="divide-y divide-slate-800/30">
+<!-- Row 1 -->
+<div class="grid grid-cols-12 px-6 py-4 items-center hover:bg-slate-800/30 cursor-pointer transition-all group">
+<div class="col-span-4 flex items-center gap-3">
+<div class="h-10 w-10 rounded-full overflow-hidden bg-slate-800 flex-shrink-0">
+<img alt="Customer" class="h-full w-full object-cover" data-alt="close-up portrait of a middle-aged man with kind eyes and short grey hair in a minimalist studio setting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBe6xUKXRqdfxvQflUuUdmuGa234jBRPtA3veQb-_BTuGW8biE8EcTfuPCDuqquFWuBWN3Rcouw4u5QPJOgKr7AO-xuNFbQWMG3Ychq50dq7qdGG94eJDLwYqi8YyFphY3b9g8sw8QdxdQN7OvSyesX0T-0ka9kCt-fDSj3mR5BkLFGycunO9N_VkHWujWSn_9Oz3LlIaZM0VF9PlRjJRrMDsNzX4tlZJjq-Btw6rj0Ed682f2bZWGJoUPMK6d8C8lIhVo2i1CpVwU"/>
+</div>
+<div>
+<p class="font-bold text-slate-100 group-hover:text-primary transition-colors">Marcus Sterling</p>
+<p class="text-xs text-slate-500">Sterling &amp; Associates</p>
+</div>
+</div>
+<div class="col-span-3 text-sm text-slate-400 font-medium">m.sterling@sa-arch.com</div>
+<div class="col-span-2">
+<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/30 text-emerald-400 text-xs font-bold border border-emerald-900/50">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                Active
+                            </span>
+</div>
+<div class="col-span-2 text-sm font-bold text-slate-300">12 Quotes</div>
+<div class="col-span-1 text-right">
+<span class="material-symbols-outlined text-slate-600 group-hover:text-primary transition-colors" data-icon="more_vert">more_vert</span>
+</div>
+</div>
+<!-- Row 2 -->
+<div class="grid grid-cols-12 px-6 py-4 items-center hover:bg-slate-800/30 cursor-pointer transition-all group">
+<div class="col-span-4 flex items-center gap-3">
+<div class="h-10 w-10 rounded-full overflow-hidden bg-slate-800 flex-shrink-0">
+<img alt="Customer" class="h-full w-full object-cover" data-alt="portrait of a confident professional woman with long dark hair, wearing a navy blazer, smiling softly in a modern glass office background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB8Fbvt3BGTgqyn6gXvR6YscVc3j1VQJZGw7RaWdTF_UD9d61e01jU_WQOg8UzklYKdbn9h74tsk2Fup4d6Gbrl60OhuxhQ1mOxYeLFD68MpN4NbdKjVzFCtQ_oJ8KiEl8LgUxQrSFZnytvHzF7mOZ4z2jKatnuZ85aB-p8_VDCAxyNN61MPhnEq_IP9c6eGYHUujWyJdVQDZQX8Qj7Fe-ZcruxFqvOh1mm5cM7OO2DHbvVanR-dOZR8siXDfg4onmTHZ8DEZBh3_M"/>
+</div>
+<div>
+<p class="font-bold text-slate-100 group-hover:text-primary transition-colors">Elena Rodriguez</p>
+<p class="text-xs text-slate-500">EcoBuild Solutions</p>
+</div>
+</div>
+<div class="col-span-3 text-sm text-slate-400 font-medium">elena.r@ecobuild.dev</div>
+<div class="col-span-2">
+<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-950/30 text-blue-400 text-xs font-bold border border-blue-900/50">
+<span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                                Prospect
+                            </span>
+</div>
+<div class="col-span-2 text-sm font-bold text-slate-300">3 Quotes</div>
+<div class="col-span-1 text-right">
+<span class="material-symbols-outlined text-slate-600 group-hover:text-primary transition-colors" data-icon="more_vert">more_vert</span>
+</div>
+</div>
+<!-- Row 3 -->
+<div class="grid grid-cols-12 px-6 py-4 items-center hover:bg-slate-800/30 cursor-pointer transition-all group">
+<div class="col-span-4 flex items-center gap-3">
+<div class="h-10 w-10 rounded-full overflow-hidden bg-slate-800 flex-shrink-0">
+<img alt="Customer" class="h-full w-full object-cover" data-alt="portrait of a young man with glasses and a beard, wearing a casual sweater, clean indoor lighting, studio portrait" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBX8XtdVklSgYu9Hw27xN89kXxxjLgO1FTp_5Gh0ZPbb0st73kbZrSQvGcHAKYmL6Rhafm5To_TCI7DclSnnXXc88AjdiuUkdD4zHKFRYocw1WPJQknrAO8MJEKvLBYDiL0Ubqryx-wD2-U_eqXgOS7L9X-RknxFXu8OaBbfWGgsALJppMXxNP9W5m39aW4mH3zg1tA-Wx8xQhmtTXux5b9uiITduvcRDTSo9kZhKxxgmTPOJncEj01FQEp7a1JFvjSjaodcka7sNM"/>
+</div>
+<div>
+<p class="font-bold text-slate-100 group-hover:text-primary transition-colors">Julian Thorne</p>
+<p class="text-xs text-slate-500">Thorne Residential</p>
+</div>
+</div>
+<div class="col-span-3 text-sm text-slate-400 font-medium">julian@thorne.home</div>
+<div class="col-span-2">
+<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-800 text-slate-400 text-xs font-bold">
+<span class="w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+                                Inactive
+                            </span>
+</div>
+<div class="col-span-2 text-sm font-bold text-slate-300">24 Quotes</div>
+<div class="col-span-1 text-right">
+<span class="material-symbols-outlined text-slate-600 group-hover:text-primary transition-colors" data-icon="more_vert">more_vert</span>
+</div>
+</div>
+</div>
+<!-- Footer Pagination -->
+<div class="p-4 bg-slate-950/20 flex justify-center border-t border-slate-800/30">
+<nav class="flex gap-1">
+<button class="w-8 h-8 flex items-center justify-center rounded-lg bg-primary text-white font-bold text-xs">1</button>
+<button class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-800 font-bold text-xs transition-colors text-slate-400">2</button>
+<button class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-800 font-bold text-xs transition-colors text-slate-400">3</button>
+<span class="w-8 h-8 flex items-center justify-center text-xs text-slate-600">...</span>
+<button class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-800 font-bold text-xs transition-colors text-slate-400">128</button>
+</nav>
+</div>
+</div>
+<!-- Recent Activity -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8 pb-12">
+<div class="md:col-span-2 bg-slate-900 p-8 rounded-xl border border-slate-800/50 relative overflow-hidden">
+<div class="absolute top-0 right-0 p-8 opacity-5">
+<span class="material-symbols-outlined text-[120px] text-white" data-icon="history">history</span>
+</div>
+<h4 class="text-xl font-extrabold mb-6 text-white">Directory Insights</h4>
+<div class="space-y-6 relative z-10">
+<div class="flex gap-4">
+<div class="w-1 h-12 bg-primary rounded-full"></div>
+<div>
+<p class="font-bold text-slate-100">Client retention up 4.2%</p>
+<p class="text-sm text-slate-400">Architectural services for repeat residential clients have increased this quarter.</p>
+</div>
+</div>
+<div class="flex gap-4">
+<div class="w-1 h-12 bg-orange-500 rounded-full"></div>
+<div>
+<p class="font-bold text-slate-100">High-priority attention needed</p>
+<p class="text-sm text-slate-400">David Chen has an expired quote that requires follow-up within 24 hours.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="bg-slate-900/50 p-8 rounded-xl border border-slate-800/50 flex flex-col justify-center items-center text-center">
+<div class="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center shadow-xl mb-4">
+<span class="material-symbols-outlined text-primary text-3xl" data-icon="add_reaction">add_reaction</span>
+</div>
+<h4 class="font-bold text-lg mb-2 text-white">Grow your portfolio</h4>
+<p class="text-sm text-slate-400 mb-6 leading-relaxed">Our AI analyzes your customer interactions to suggest perfect timing for new quotes.</p>
+<button class="w-full py-3 bg-white text-slate-950 rounded-xl font-bold text-sm hover:bg-primary hover:text-white transition-colors shadow-lg">
+                        View Lead Suggestions
+                    </button>
+</div>
+</div>
+</div>
+</main>
+</body></html>
