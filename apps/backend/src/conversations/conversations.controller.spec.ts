@@ -10,6 +10,7 @@ describe('ConversationsController', () => {
     getConversationQuoteReviewPdf: jest.Mock;
     approveConversationQuote: jest.Mock;
     requestConversationQuoteChanges: jest.Mock;
+    applyOwnerAdjustments: jest.Mock;
   };
 
   beforeEach(() => {
@@ -20,6 +21,7 @@ describe('ConversationsController', () => {
       getConversationQuoteReviewPdf: jest.fn(),
       approveConversationQuote: jest.fn(),
       requestConversationQuoteChanges: jest.fn(),
+      applyOwnerAdjustments: jest.fn(),
     };
 
     controller = new ConversationsController(
@@ -245,6 +247,72 @@ describe('ConversationsController', () => {
     expect(service.requestConversationQuoteChanges).toHaveBeenCalledWith(
       '573001112233',
       { version: 2, feedback: 'Ajusta hitos' },
+      'socio@example.com',
+    );
+  });
+
+  it('delegates owner manual adjustments using the authenticated reviewer identity', async () => {
+    service.applyOwnerAdjustments.mockResolvedValue({
+      conversationId: '573001112233',
+      quoteDraftId: 'draft_2',
+      version: 2,
+      reviewStatus: 'ready_for_recheck',
+      renderedQuote: 'Quote body',
+      draftSummary: 'Executive summary',
+      ownerFeedbackSummary: null,
+      approvedAt: null,
+      deliveredToCustomerAt: null,
+      commercialBrief: {
+        customerName: 'ACME SAS',
+        summary: 'Need a CRM',
+        projectType: 'CRM',
+        budget: 'USD 10k',
+        urgency: 'High',
+      },
+      pdf: {
+        available: false,
+        fileName: null,
+        generatedAt: null,
+        sizeBytes: null,
+        version: 2,
+      },
+      complexityScore: 65,
+      confidence: 74,
+      ruleVersionUsed: 9,
+      estimatedMinAmount: 9500000,
+      estimatedTargetAmount: 12500000,
+      estimatedMaxAmount: 16000000,
+      pricingBreakdown: { baseAmount: 8000000 },
+      ownerAdjustments: [],
+    });
+
+    await expect(
+      controller.applyOwnerAdjustments(
+        '573001112233',
+        {
+          version: 2,
+          estimatedMinAmount: 9500000,
+          estimatedTargetAmount: 12500000,
+          estimatedMaxAmount: 16000000,
+          assumptions: ['Fase 1 sin ERP'],
+          reason: 'Ajuste comercial',
+        },
+        { user: { userId: 'user_1', email: 'socio@example.com' } } as any,
+      ),
+    ).resolves.toMatchObject({
+      conversationId: '573001112233',
+      estimatedTargetAmount: 12500000,
+    });
+    expect(service.applyOwnerAdjustments).toHaveBeenCalledWith(
+      '573001112233',
+      {
+        version: 2,
+        estimatedMinAmount: 9500000,
+        estimatedTargetAmount: 12500000,
+        estimatedMaxAmount: 16000000,
+        assumptions: ['Fase 1 sin ERP'],
+        reason: 'Ajuste comercial',
+      },
       'socio@example.com',
     );
   });

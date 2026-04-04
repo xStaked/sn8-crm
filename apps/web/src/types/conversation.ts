@@ -73,6 +73,28 @@ export type ConversationQuoteReview = {
     sizeBytes: number | null;
     version: number;
   };
+  pricingRule?: {
+    id: string | null;
+    version: number | null;
+    category: string | null;
+    complexity: string | null;
+    integrationType: string | null;
+  };
+  complexityScore: number | null;
+  confidence: number | null;
+  ruleVersionUsed: number | null;
+  estimatedMinAmount: number | null;
+  estimatedTargetAmount: number | null;
+  estimatedMaxAmount: number | null;
+  pricingBreakdown: Record<string, unknown> | null;
+  ownerAdjustments: Array<{
+    adjustedAt: string;
+    adjustedBy: string;
+    previousRange: { min: number; target: number; max: number };
+    adjustedRange: { min: number; target: number; max: number };
+    assumptions: string[];
+    reason: string | null;
+  }>;
 };
 
 export type ConversationQuoteReviewDto = ConversationQuoteReview;

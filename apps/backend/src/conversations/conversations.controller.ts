@@ -14,6 +14,7 @@ import {
 } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { ApplyOwnerAdjustmentsDto } from './dto/apply-owner-adjustments.dto';
 import { ApproveQuoteDto } from './dto/approve-quote.dto';
 import {
   ConversationMessageDto,
@@ -171,6 +172,41 @@ export class ConversationsController {
     @Req() req: AuthenticatedRequest,
   ) {
     return this.conversationsService.requestConversationQuoteChanges(
+      conversationId,
+      dto,
+      req.user.email,
+    );
+  }
+
+  @ApiOperation({
+    summary:
+      'Aplicar ajustes manuales del owner (rango/supuestos) sobre el quote activo desde CRM',
+  })
+  @ApiParam({
+    name: 'conversationId',
+    example: '573001112233',
+    description: 'Telefono normalizado usado como id estable de la conversacion.',
+  })
+  @ApiOkResponse({
+    description:
+      'Detalle refrescado del quote despues de registrar ajustes manuales y auditoria.',
+    type: ConversationQuoteReviewDto,
+  })
+  @ApiBadRequestResponse({
+    description:
+      'El rango no es valido, no hay cambios para aplicar o el draft no admite ajustes manuales.',
+  })
+  @ApiNotFoundResponse({
+    description: 'La conversacion no existe o la version no coincide con el draft activo.',
+  })
+  @Post('conversations/:conversationId/quote-review/owner-adjustments')
+  @UseGuards(JwtAuthGuard)
+  applyOwnerAdjustments(
+    @Param('conversationId') conversationId: string,
+    @Body() dto: ApplyOwnerAdjustmentsDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.conversationsService.applyOwnerAdjustments(
       conversationId,
       dto,
       req.user.email,

@@ -346,6 +346,21 @@ export class OwnerReviewService {
         where: { id: job.quoteDraftId },
         include: {
           commercialBrief: true,
+          pricingRule: {
+            select: {
+              id: true,
+              version: true,
+              currency: true,
+              minMarginPct: true,
+              targetMarginPct: true,
+              maxMarginPct: true,
+              scoreWeights: true,
+              confidenceWeights: true,
+              category: true,
+              complexity: true,
+              integrationType: true,
+            },
+          },
           reviewEvents: {
             where: { id: job.reviewEventId },
             take: 1,
@@ -391,6 +406,44 @@ export class OwnerReviewService {
       where: { conversationId: job.conversationId },
       orderBy: { version: 'desc' },
     });
+    const estimate = this.aiSalesService.buildDeterministicEstimate({
+      conversationId: job.conversationId,
+      transcript,
+      commercialBrief: {
+        projectType: sourceDraft.commercialBrief.projectType,
+        businessProblem: sourceDraft.commercialBrief.businessProblem,
+        desiredScope: sourceDraft.commercialBrief.desiredScope,
+        budget: sourceDraft.commercialBrief.budget,
+        urgency: sourceDraft.commercialBrief.urgency,
+        constraints: sourceDraft.commercialBrief.constraints,
+        summary: sourceDraft.commercialBrief.summary,
+      },
+      pricingRule: sourceDraft.pricingRule
+        ? {
+            id: sourceDraft.pricingRule.id,
+            version: sourceDraft.pricingRule.version,
+            currency: sourceDraft.pricingRule.currency,
+            minMarginPct: Number(sourceDraft.pricingRule.minMarginPct),
+            targetMarginPct: Number(sourceDraft.pricingRule.targetMarginPct),
+            maxMarginPct: Number(sourceDraft.pricingRule.maxMarginPct),
+            scoreWeights:
+              sourceDraft.pricingRule.scoreWeights &&
+              typeof sourceDraft.pricingRule.scoreWeights === 'object' &&
+              !Array.isArray(sourceDraft.pricingRule.scoreWeights)
+                ? (sourceDraft.pricingRule.scoreWeights as Record<string, number>)
+                : null,
+            confidenceWeights:
+              sourceDraft.pricingRule.confidenceWeights &&
+              typeof sourceDraft.pricingRule.confidenceWeights === 'object' &&
+              !Array.isArray(sourceDraft.pricingRule.confidenceWeights)
+                ? (sourceDraft.pricingRule.confidenceWeights as Record<string, number>)
+                : null,
+            category: sourceDraft.pricingRule.category,
+            complexity: sourceDraft.pricingRule.complexity,
+            integrationType: sourceDraft.pricingRule.integrationType,
+          }
+        : undefined,
+    });
 
     const regeneratedDraft = await this.prisma.$transaction(async (tx) => {
       const draftPayload: Prisma.InputJsonObject = {
@@ -400,6 +453,7 @@ export class OwnerReviewService {
         ownerReviewNotes: (result.ownerReviewNotes ?? []) as Prisma.InputJsonValue,
         customerSafeStatus: result.customerSafeStatus ?? null,
         model: result.model,
+        deterministicEstimate: estimate as Prisma.InputJsonValue,
         sourceDraftId: sourceDraft.id,
         reviewEventId: reviewEvent.id,
       };
@@ -412,10 +466,19 @@ export class OwnerReviewService {
           origin: 'regenerated',
           reviewStatus: 'pending_owner_review',
           templateVersion: sourceDraft.templateVersion,
+          pricingRuleId: sourceDraft.pricingRuleId,
+          pricingRuleVersion: sourceDraft.pricingRuleVersion,
           draftPayload,
           renderedQuote: result.renderedQuote,
           ownerFeedbackSummary: reviewEvent.feedback,
         },
+      });
+
+      await this.aiSalesService.createEstimateSnapshot(tx, {
+        conversationId: job.conversationId,
+        quoteDraftId: created.id,
+        pricingRuleId: sourceDraft.pricingRuleId,
+        estimate,
       });
 
       await tx.quoteReviewEvent.update({

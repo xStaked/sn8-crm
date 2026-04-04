@@ -63,6 +63,43 @@ describe('OwnerReviewService', () => {
     };
     aiSalesService = {
       regenerateQuoteDraft: jest.fn(),
+      buildDeterministicEstimate: jest.fn().mockReturnValue({
+        score: 62,
+        min: 9500000,
+        target: 12000000,
+        max: 14500000,
+        confidence: 74,
+        assumptions: ['estimacion de prueba'],
+        ruleVersionUsed: 4,
+        currency: 'COP',
+        breakdown: {
+          baseAmount: 9000000,
+          complexityAmount: 1000000,
+          integrationsAmount: 800000,
+          urgencyAmount: 700000,
+          riskAmount: 500000,
+          totalAdjustmentAmount: 3000000,
+          factors: {
+            complexity: 70,
+            integrations: 65,
+            urgency: 60,
+            risk: 50,
+          },
+          scoreWeights: {
+            complexity: 0.35,
+            integrations: 0.25,
+            urgency: 0.2,
+            risk: 0.2,
+          },
+          confidenceSignals: {
+            transcriptQuality: 80,
+            scopeClarity: 75,
+            budgetClarity: 70,
+            urgencyClarity: 72,
+          },
+        },
+      }),
+      createEstimateSnapshot: jest.fn().mockResolvedValue({ id: 'snapshot_1' }),
     };
 
     service = new OwnerReviewService(
@@ -561,6 +598,16 @@ describe('OwnerReviewService', () => {
       where: { id: 'evt_2' },
       data: { resolvedAt: expect.any(Date) },
     });
+    expect(aiSalesService.createEstimateSnapshot).toHaveBeenCalledWith(
+      prisma,
+      expect.objectContaining({
+        conversationId: '+573001234567',
+        quoteDraftId: 'draft_3',
+        estimate: expect.objectContaining({
+          target: 12000000,
+        }),
+      }),
+    );
     expect(messagingService.sendText).toHaveBeenCalledWith(
       '+573009998877',
       expect.stringContaining('SN8 APPROVE +573001234567 v3'),

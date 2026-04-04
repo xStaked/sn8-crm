@@ -16,7 +16,17 @@ describe('ConversationsService', () => {
     quoteDraft: {
       findMany: jest.Mock;
       findFirst: jest.Mock;
+      update: jest.Mock;
     };
+    quoteEstimateSnapshot: {
+      findFirst: jest.Mock;
+      create: jest.Mock;
+    };
+    quoteReviewEvent: {
+      findFirst: jest.Mock;
+      create: jest.Mock;
+    };
+    $transaction: jest.Mock;
   };
   let messagingService: { sendText: jest.Mock };
   let config: { get: jest.Mock };
@@ -37,7 +47,17 @@ describe('ConversationsService', () => {
       quoteDraft: {
         findMany: jest.fn(),
         findFirst: jest.fn(),
+        update: jest.fn(),
       },
+      quoteEstimateSnapshot: {
+        findFirst: jest.fn(),
+        create: jest.fn(),
+      },
+      quoteReviewEvent: {
+        findFirst: jest.fn(),
+        create: jest.fn(),
+      },
+      $transaction: jest.fn(async (callback) => callback(prisma)),
     };
 
     messagingService = {
@@ -405,6 +425,21 @@ describe('ConversationsService', () => {
         integrationType: 'erp',
       },
     });
+    prisma.quoteEstimateSnapshot.findFirst.mockResolvedValue({
+      complexityScore: 67.5,
+      confidencePct: 74,
+      estimatedMinAmount: 9500000,
+      estimatedTargetAmount: 12000000,
+      estimatedMaxAmount: 14500000,
+      breakdown: {
+        baseAmount: 8000000,
+        complexityAmount: 1350000,
+      },
+      inputPayload: {
+        source: 'deterministic_quote_estimator',
+        ruleVersionUsed: 7,
+      },
+    });
 
     await expect(service.getConversationQuoteReview(' 573001112233 ')).resolves.toEqual({
       conversationId: '573001112233',
@@ -437,6 +472,17 @@ describe('ConversationsService', () => {
         complexity: 'medium',
         integrationType: 'erp',
       },
+      complexityScore: 67.5,
+      confidence: 74,
+      ruleVersionUsed: 7,
+      estimatedMinAmount: 9500000,
+      estimatedTargetAmount: 12000000,
+      estimatedMaxAmount: 14500000,
+      pricingBreakdown: {
+        baseAmount: 8000000,
+        complexityAmount: 1350000,
+      },
+      ownerAdjustments: [],
     });
   });
 
@@ -684,6 +730,121 @@ describe('ConversationsService', () => {
       conversationId: '573001112233',
       reviewStatus: 'changes_requested',
       ownerFeedbackSummary: 'Ajusta hitos',
+    });
+  });
+
+  it('applies owner manual adjustments and stores audit metadata for the active draft', async () => {
+    prisma.message.findFirst.mockResolvedValue({
+      id: 'msg_inbound',
+      direction: 'inbound',
+      fromPhone: '573001112233',
+      toPhone: '573009998877',
+    });
+    prisma.quoteDraft.findFirst
+      .mockResolvedValueOnce({
+        id: 'draft_9',
+        conversationId: '573001112233',
+        version: 9,
+        pricingRuleId: 'rule_9',
+        pricingRuleVersion: 9,
+        reviewStatus: 'pending_owner_review',
+        renderedQuote: 'Quote body',
+        draftPayload: { summary: 'Executive summary' },
+        ownerFeedbackSummary: null,
+        approvedAt: null,
+        deliveredToCustomerAt: null,
+        document: null,
+        commercialBrief: {
+          customerName: 'ACME SAS',
+          summary: 'Need a CRM',
+          projectType: 'CRM',
+          budget: 'USD 10k',
+          urgency: 'High',
+        },
+        pricingRule: null,
+      })
+      .mockResolvedValueOnce({
+        id: 'draft_9',
+        conversationId: '573001112233',
+        version: 9,
+        pricingRuleId: 'rule_9',
+        pricingRuleVersion: 9,
+        reviewStatus: 'ready_for_recheck',
+        renderedQuote: 'Quote body',
+        draftPayload: { summary: 'Executive summary' },
+        ownerFeedbackSummary: null,
+        approvedAt: null,
+        deliveredToCustomerAt: null,
+        document: null,
+        commercialBrief: {
+          customerName: 'ACME SAS',
+          summary: 'Need a CRM',
+          projectType: 'CRM',
+          budget: 'USD 10k',
+          urgency: 'High',
+        },
+        pricingRule: null,
+      });
+    prisma.quoteEstimateSnapshot.findFirst
+      .mockResolvedValueOnce({
+        id: 'snap_prev',
+        currency: 'COP',
+        effortHours: 120,
+        complexityScore: 62.5,
+        confidencePct: 76,
+        estimatedMinAmount: 9000000,
+        estimatedTargetAmount: 12000000,
+        estimatedMaxAmount: 15000000,
+        breakdown: { baseAmount: 8000000 },
+        inputPayload: {
+          assumptions: ['Alcance base de CRM'],
+          ruleVersionUsed: 9,
+        },
+      })
+      .mockResolvedValue({
+        complexityScore: 62.5,
+        confidencePct: 76,
+        estimatedMinAmount: 9500000,
+        estimatedTargetAmount: 12500000,
+        estimatedMaxAmount: 16000000,
+        breakdown: { baseAmount: 8000000, ownerAdjustedRange: { min: 9500000 } },
+        inputPayload: { ruleVersionUsed: 9 },
+      });
+    prisma.quoteReviewEvent.findFirst.mockResolvedValue({ iteration: 3 });
+
+    const response = await service.applyOwnerAdjustments(
+      '573001112233',
+      {
+        version: 9,
+        estimatedMinAmount: 9500000,
+        estimatedTargetAmount: 12500000,
+        estimatedMaxAmount: 16000000,
+        assumptions: ['Fase 1 sin ERP', 'Onboarding separado'],
+        reason: 'Ajuste comercial para cerrar este trimestre',
+      },
+      'socio@example.com',
+    );
+
+    expect(prisma.quoteDraft.update).toHaveBeenCalled();
+    expect(prisma.quoteEstimateSnapshot.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        quoteDraftId: 'draft_9',
+        estimatedMinAmount: 9500000,
+        estimatedTargetAmount: 12500000,
+        estimatedMaxAmount: 16000000,
+      }),
+    });
+    expect(prisma.quoteReviewEvent.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        quoteDraftId: 'draft_9',
+        reviewStatus: 'ready_for_recheck',
+      }),
+    });
+    expect(response).toMatchObject({
+      conversationId: '573001112233',
+      reviewStatus: 'ready_for_recheck',
+      estimatedTargetAmount: 12500000,
+      ruleVersionUsed: 9,
     });
   });
 });

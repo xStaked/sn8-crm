@@ -10,6 +10,7 @@ import {
   MessageSquare,
   PencilLine,
   Send,
+  SlidersHorizontal,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -41,6 +42,28 @@ function formatBytes(sizeBytes: number) {
   }
 
   return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatCurrency(value: number | null) {
+  if (typeof value !== "number" || Number.isNaN(value)) {
+    return "N/D";
+  }
+
+  return new Intl.NumberFormat("es-CO", {
+    style: "currency",
+    currency: "COP",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+function parseNumericInput(value: string): number | null {
+  const normalized = value.replace(/[^\d.,-]/g, "").replace(",", ".").trim();
+  if (!normalized) {
+    return null;
+  }
+
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function getReviewStatusLabel(status: ConversationQuoteReview["reviewStatus"]) {
@@ -102,6 +125,19 @@ function QuoteReviewCard({
   pdfOpening,
   onRequestChangesFeedbackChange,
   onToggleRequestChanges,
+  adjustmentsMode,
+  adjustmentReason,
+  adjustmentAssumptions,
+  adjustmentMinAmount,
+  adjustmentTargetAmount,
+  adjustmentMaxAmount,
+  onAdjustmentReasonChange,
+  onAdjustmentAssumptionsChange,
+  onAdjustmentMinAmountChange,
+  onAdjustmentTargetAmountChange,
+  onAdjustmentMaxAmountChange,
+  onToggleAdjustmentsMode,
+  onApplyAdjustments,
   onApprove,
   onOpenPdf,
 }: {
@@ -113,6 +149,19 @@ function QuoteReviewCard({
   pdfOpening: boolean;
   onRequestChangesFeedbackChange: (value: string) => void;
   onToggleRequestChanges: () => void;
+  adjustmentsMode: boolean;
+  adjustmentReason: string;
+  adjustmentAssumptions: string;
+  adjustmentMinAmount: string;
+  adjustmentTargetAmount: string;
+  adjustmentMaxAmount: string;
+  onAdjustmentReasonChange: (value: string) => void;
+  onAdjustmentAssumptionsChange: (value: string) => void;
+  onAdjustmentMinAmountChange: (value: string) => void;
+  onAdjustmentTargetAmountChange: (value: string) => void;
+  onAdjustmentMaxAmountChange: (value: string) => void;
+  onToggleAdjustmentsMode: () => void;
+  onApplyAdjustments: () => void;
   onApprove: () => void;
   onOpenPdf: () => void;
 }) {
@@ -159,6 +208,58 @@ function QuoteReviewCard({
       ? formatBytes(pdf.sizeBytes)
       : null,
   ].filter(Boolean);
+  const pricingBreakdown =
+    quoteReview.pricingBreakdown && typeof quoteReview.pricingBreakdown === "object"
+      ? quoteReview.pricingBreakdown
+      : null;
+  const breakdownItems = [
+    {
+      label: "Base",
+      value:
+        typeof pricingBreakdown?.baseAmount === "number"
+          ? formatCurrency(pricingBreakdown.baseAmount)
+          : "N/D",
+    },
+    {
+      label: "Complejidad",
+      value:
+        typeof pricingBreakdown?.complexityAmount === "number"
+          ? formatCurrency(pricingBreakdown.complexityAmount)
+          : "N/D",
+    },
+    {
+      label: "Integraciones",
+      value:
+        typeof pricingBreakdown?.integrationsAmount === "number"
+          ? formatCurrency(pricingBreakdown.integrationsAmount)
+          : "N/D",
+    },
+    {
+      label: "Urgencia",
+      value:
+        typeof pricingBreakdown?.urgencyAmount === "number"
+          ? formatCurrency(pricingBreakdown.urgencyAmount)
+          : "N/D",
+    },
+    {
+      label: "Riesgo",
+      value:
+        typeof pricingBreakdown?.riskAmount === "number"
+          ? formatCurrency(pricingBreakdown.riskAmount)
+          : "N/D",
+    },
+    {
+      label: "Ajuste total",
+      value:
+        typeof pricingBreakdown?.totalAdjustmentAmount === "number"
+          ? formatCurrency(pricingBreakdown.totalAdjustmentAmount)
+          : "N/D",
+    },
+  ];
+  const latestOwnerAdjustment =
+    quoteReview.ownerAdjustments.length > 0
+      ? quoteReview.ownerAdjustments[quoteReview.ownerAdjustments.length - 1]
+      : null;
 
   return (
     <div className="border-b border-border px-6 py-5">
@@ -210,6 +311,16 @@ function QuoteReviewCard({
             <Button
               type="button"
               variant="outline"
+              onClick={onToggleAdjustmentsMode}
+              disabled={!actionable || reviewSubmitting}
+              className="min-h-11"
+            >
+              <SlidersHorizontal className="mr-2 h-4 w-4" />
+              {adjustmentsMode ? "Cerrar ajustes" : "Ajustar rango"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
               onClick={onToggleRequestChanges}
               disabled={!actionable || reviewSubmitting}
               className="min-h-11"
@@ -253,6 +364,166 @@ function QuoteReviewCard({
             </p>
           </div>
         </div>
+
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-xl border border-border/80 bg-background/70 p-3">
+            <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+              Complejidad
+            </p>
+            <p className="mt-1 text-sm text-foreground">
+              {quoteReview.complexityScore ?? "N/D"}
+            </p>
+          </div>
+          <div className="rounded-xl border border-border/80 bg-background/70 p-3">
+            <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+              Confianza
+            </p>
+            <p className="mt-1 text-sm text-foreground">
+              {quoteReview.confidence !== null ? `${quoteReview.confidence}%` : "N/D"}
+            </p>
+          </div>
+          <div className="rounded-xl border border-border/80 bg-background/70 p-3">
+            <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+              Regla pricing
+            </p>
+            <p className="mt-1 text-sm text-foreground">
+              {quoteReview.pricingRule?.category ?? "general"}
+            </p>
+          </div>
+          <div className="rounded-xl border border-border/80 bg-background/70 p-3">
+            <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+              Version regla
+            </p>
+            <p className="mt-1 text-sm text-foreground">
+              {quoteReview.ruleVersionUsed ?? "N/D"}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-5 rounded-xl border border-border/80 bg-background/70 p-4">
+          <p className="text-sm font-medium text-foreground">Rango comercial actual</p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-lg border border-border px-3 py-2">
+              <p className="text-[11px] uppercase tracking-[0.1em] text-muted-foreground">Min</p>
+              <p className="mt-1 text-sm text-foreground">
+                {formatCurrency(quoteReview.estimatedMinAmount)}
+              </p>
+            </div>
+            <div className="rounded-lg border border-border px-3 py-2">
+              <p className="text-[11px] uppercase tracking-[0.1em] text-muted-foreground">
+                Target
+              </p>
+              <p className="mt-1 text-sm text-foreground">
+                {formatCurrency(quoteReview.estimatedTargetAmount)}
+              </p>
+            </div>
+            <div className="rounded-lg border border-border px-3 py-2">
+              <p className="text-[11px] uppercase tracking-[0.1em] text-muted-foreground">Max</p>
+              <p className="mt-1 text-sm text-foreground">
+                {formatCurrency(quoteReview.estimatedMaxAmount)}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-5 rounded-xl border border-border/80 bg-background/70 p-4">
+          <p className="text-sm font-medium text-foreground">Pricing breakdown</p>
+          <dl className="mt-3 grid gap-2 sm:grid-cols-2">
+            {breakdownItems.map((item) => (
+              <div
+                key={item.label}
+                className="flex items-center justify-between rounded-lg border border-border px-3 py-2"
+              >
+                <dt className="text-xs text-muted-foreground">{item.label}</dt>
+                <dd className="text-sm text-foreground">{item.value}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+
+        {latestOwnerAdjustment ? (
+          <div className="mt-5 rounded-xl border border-sky-500/20 bg-sky-500/5 px-4 py-3">
+            <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-sky-200">
+              Ultimo ajuste manual
+            </p>
+            <p className="mt-2 text-sm text-foreground">
+              {latestOwnerAdjustment.adjustedBy} •{" "}
+              {formatTimestamp(latestOwnerAdjustment.adjustedAt)}
+            </p>
+            <p className="mt-1 text-sm text-foreground">
+              Rango: {formatCurrency(latestOwnerAdjustment.previousRange.min)} /{" "}
+              {formatCurrency(latestOwnerAdjustment.previousRange.target)} /{" "}
+              {formatCurrency(latestOwnerAdjustment.previousRange.max)} →{" "}
+              {formatCurrency(latestOwnerAdjustment.adjustedRange.min)} /{" "}
+              {formatCurrency(latestOwnerAdjustment.adjustedRange.target)} /{" "}
+              {formatCurrency(latestOwnerAdjustment.adjustedRange.max)}
+            </p>
+          </div>
+        ) : null}
+
+        {adjustmentsMode ? (
+          <div className="mt-5 space-y-3 rounded-xl border border-border/80 bg-background/70 p-4">
+            <div>
+              <p className="text-sm font-medium text-foreground">Ajustes manuales del owner</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Define rango comercial y supuestos antes de aprobar.
+              </p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <label className="space-y-1 text-sm text-foreground">
+                <span>Min</span>
+                <input
+                  className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm"
+                  value={adjustmentMinAmount}
+                  onChange={(event) => onAdjustmentMinAmountChange(event.target.value)}
+                  disabled={reviewSubmitting}
+                />
+              </label>
+              <label className="space-y-1 text-sm text-foreground">
+                <span>Target</span>
+                <input
+                  className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm"
+                  value={adjustmentTargetAmount}
+                  onChange={(event) => onAdjustmentTargetAmountChange(event.target.value)}
+                  disabled={reviewSubmitting}
+                />
+              </label>
+              <label className="space-y-1 text-sm text-foreground">
+                <span>Max</span>
+                <input
+                  className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm"
+                  value={adjustmentMaxAmount}
+                  onChange={(event) => onAdjustmentMaxAmountChange(event.target.value)}
+                  disabled={reviewSubmitting}
+                />
+              </label>
+            </div>
+            <textarea
+              className="min-h-24 w-full resize-y rounded-xl border border-border bg-card px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              placeholder="Supuestos (uno por línea)"
+              value={adjustmentAssumptions}
+              onChange={(event) => onAdjustmentAssumptionsChange(event.target.value)}
+              disabled={reviewSubmitting}
+            />
+            <textarea
+              className="min-h-20 w-full resize-y rounded-xl border border-border bg-card px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              placeholder="Razón comercial del ajuste (opcional)"
+              value={adjustmentReason}
+              onChange={(event) => onAdjustmentReasonChange(event.target.value)}
+              disabled={reviewSubmitting}
+            />
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onApplyAdjustments}
+                disabled={reviewSubmitting}
+              >
+                Guardar ajustes
+              </Button>
+            </div>
+          </div>
+        ) : null}
 
         {briefFields.length > 0 ? (
           <dl className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -377,6 +648,12 @@ export function DetailPanel() {
   const [sendError, setSendError] = useState<string | null>(null);
   const [requestChangesMode, setRequestChangesMode] = useState(false);
   const [requestChangesFeedback, setRequestChangesFeedback] = useState("");
+  const [adjustmentsMode, setAdjustmentsMode] = useState(false);
+  const [adjustmentReason, setAdjustmentReason] = useState("");
+  const [adjustmentAssumptions, setAdjustmentAssumptions] = useState("");
+  const [adjustmentMinAmount, setAdjustmentMinAmount] = useState("");
+  const [adjustmentTargetAmount, setAdjustmentTargetAmount] = useState("");
+  const [adjustmentMaxAmount, setAdjustmentMaxAmount] = useState("");
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [pdfOpening, setPdfOpening] = useState(false);
@@ -384,8 +661,35 @@ export function DetailPanel() {
   useEffect(() => {
     setRequestChangesMode(false);
     setRequestChangesFeedback("");
+    setAdjustmentsMode(false);
+    setAdjustmentReason("");
+    setAdjustmentAssumptions("");
+    setAdjustmentMinAmount("");
+    setAdjustmentTargetAmount("");
+    setAdjustmentMaxAmount("");
     setReviewError(null);
   }, [selectedId]);
+
+  useEffect(() => {
+    if (!quoteReview) {
+      return;
+    }
+
+    setAdjustmentMinAmount(
+      quoteReview.estimatedMinAmount !== null ? String(quoteReview.estimatedMinAmount) : "",
+    );
+    setAdjustmentTargetAmount(
+      quoteReview.estimatedTargetAmount !== null
+        ? String(quoteReview.estimatedTargetAmount)
+        : "",
+    );
+    setAdjustmentMaxAmount(
+      quoteReview.estimatedMaxAmount !== null ? String(quoteReview.estimatedMaxAmount) : "",
+    );
+    const latest = quoteReview.ownerAdjustments[quoteReview.ownerAdjustments.length - 1];
+    setAdjustmentAssumptions(latest?.assumptions?.join("\n") ?? "");
+    setAdjustmentReason(latest?.reason ?? "");
+  }, [quoteReview]);
 
   async function handleSend() {
     if (!messageBody.trim() || !selectedId || sending) return;
@@ -553,6 +857,49 @@ export function DetailPanel() {
     }
   }
 
+  async function handleApplyOwnerAdjustments() {
+    if (!selectedId || !quoteReview || reviewSubmitting) {
+      return;
+    }
+
+    const assumptions = adjustmentAssumptions
+      .split("\n")
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+
+    setReviewSubmitting(true);
+    setReviewError(null);
+
+    try {
+      const updatedReview = await apiFetchJson<ConversationQuoteReviewDto>(
+        `/conversations/${encodeURIComponent(selectedId)}/quote-review/owner-adjustments`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            version: quoteReview.version,
+            estimatedMinAmount: parseNumericInput(adjustmentMinAmount),
+            estimatedTargetAmount: parseNumericInput(adjustmentTargetAmount),
+            estimatedMaxAmount: parseNumericInput(adjustmentMaxAmount),
+            assumptions,
+            reason: adjustmentReason.trim() || undefined,
+          }),
+        },
+      );
+
+      await mutateQuoteReview(updatedReview, { revalidate: false });
+      await mutateConversations();
+      setAdjustmentsMode(false);
+    } catch (reviewAttemptError) {
+      if (isApiError(reviewAttemptError)) {
+        setReviewError(reviewAttemptError.message);
+      } else {
+        setReviewError("No se pudieron guardar los ajustes manuales.");
+      }
+    } finally {
+      setReviewSubmitting(false);
+    }
+  }
+
   if (!selectedConversation) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -602,6 +949,23 @@ export function DetailPanel() {
           }}
           onToggleRequestChanges={() => {
             void handleRequestChanges();
+          }}
+          adjustmentsMode={adjustmentsMode}
+          adjustmentReason={adjustmentReason}
+          adjustmentAssumptions={adjustmentAssumptions}
+          adjustmentMinAmount={adjustmentMinAmount}
+          adjustmentTargetAmount={adjustmentTargetAmount}
+          adjustmentMaxAmount={adjustmentMaxAmount}
+          onAdjustmentReasonChange={setAdjustmentReason}
+          onAdjustmentAssumptionsChange={setAdjustmentAssumptions}
+          onAdjustmentMinAmountChange={setAdjustmentMinAmount}
+          onAdjustmentTargetAmountChange={setAdjustmentTargetAmount}
+          onAdjustmentMaxAmountChange={setAdjustmentMaxAmount}
+          onToggleAdjustmentsMode={() => {
+            setAdjustmentsMode((current) => !current);
+          }}
+          onApplyAdjustments={() => {
+            void handleApplyOwnerAdjustments();
           }}
           onApprove={() => {
             void handleApproveQuote();

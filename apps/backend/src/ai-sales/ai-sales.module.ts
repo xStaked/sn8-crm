@@ -14,6 +14,7 @@ import { ConversationFlowService } from './conversation-flow.service';
 import { OwnerReviewService } from './owner-review.service';
 import { MessageVariantService } from './message-variant.service';
 import { FollowUpService } from './follow-up.service';
+import { QuoteEstimatorService } from './quote-estimator.service';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { FollowUpService } from './follow-up.service';
   providers: [
     DeepSeekClient,
     AiSalesService,
+    QuoteEstimatorService,
     AiSalesOrchestrator,
     ConversationFlowService,
     OwnerReviewService,

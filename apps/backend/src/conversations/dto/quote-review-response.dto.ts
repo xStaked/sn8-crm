@@ -81,6 +81,46 @@ export class ConversationQuotePricingRuleDto {
   integrationType: string | null;
 }
 
+export class ConversationQuoteRangeDto {
+  @ApiProperty({ example: 9500000 })
+  min: number;
+
+  @ApiProperty({ example: 12000000 })
+  target: number;
+
+  @ApiProperty({ example: 15000000 })
+  max: number;
+}
+
+export class ConversationQuoteOwnerAdjustmentDto {
+  @ApiProperty({
+    example: '2026-04-04T00:00:00.000Z',
+    format: 'date-time',
+  })
+  adjustedAt: string;
+
+  @ApiProperty({ example: 'socio@sn8labs.com' })
+  adjustedBy: string;
+
+  @ApiProperty({ type: ConversationQuoteRangeDto })
+  previousRange: ConversationQuoteRangeDto;
+
+  @ApiProperty({ type: ConversationQuoteRangeDto })
+  adjustedRange: ConversationQuoteRangeDto;
+
+  @ApiProperty({
+    example: ['Se mantiene el alcance original de CRM', 'El onboarding se cotiza en una fase aparte'],
+    type: [String],
+  })
+  assumptions: string[];
+
+  @ApiProperty({
+    nullable: true,
+    example: 'Reducir target para cerrar esta semana sin perder margen minimo.',
+  })
+  reason: string | null;
+}
+
 export class ConversationQuoteReviewDto {
   @ApiProperty({ example: '573001112233' })
   conversationId: string;
@@ -143,4 +183,43 @@ export class ConversationQuoteReviewDto {
 
   @ApiProperty({ type: ConversationQuotePricingRuleDto })
   pricingRule: ConversationQuotePricingRuleDto;
+
+  @ApiProperty({ nullable: true, example: 68.5 })
+  complexityScore: number | null;
+
+  @ApiProperty({ nullable: true, example: 74 })
+  confidence: number | null;
+
+  @ApiProperty({ nullable: true, example: 4 })
+  ruleVersionUsed: number | null;
+
+  @ApiProperty({ nullable: true, example: 9500000 })
+  estimatedMinAmount: number | null;
+
+  @ApiProperty({ nullable: true, example: 12000000 })
+  estimatedTargetAmount: number | null;
+
+  @ApiProperty({ nullable: true, example: 14500000 })
+  estimatedMaxAmount: number | null;
+
+  @ApiProperty({
+    nullable: true,
+    type: 'object',
+    additionalProperties: true,
+    example: {
+      baseAmount: 8000000,
+      complexityAmount: 1350000,
+      integrationsAmount: 640000,
+      urgencyAmount: 360000,
+      riskAmount: 700000,
+      totalAdjustmentAmount: 3050000,
+    },
+  })
+  pricingBreakdown: Record<string, unknown> | null;
+
+  @ApiProperty({
+    type: ConversationQuoteOwnerAdjustmentDto,
+    isArray: true,
+  })
+  ownerAdjustments: ConversationQuoteOwnerAdjustmentDto[];
 }

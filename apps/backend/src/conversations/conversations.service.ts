@@ -1,6 +1,13 @@
-import { Inject, Injectable, Logger, NotFoundException, forwardRef } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  Logger,
+  NotFoundException,
+  forwardRef,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { QuoteReviewStatus } from '@prisma/client';
+import type { Prisma, QuoteReviewStatus } from '@prisma/client';
 import { AiSalesOrchestrator } from '../ai-sales/ai-sales.orchestrator';
 import { OwnerReviewAction } from '../ai-sales/dto/owner-review-command.dto';
 import { OwnerReviewService } from '../ai-sales/owner-review.service';
@@ -12,6 +19,7 @@ import {
   ConversationQuoteReviewDto,
   PendingQuoteSummaryDto,
 } from './dto/quote-review-response.dto';
+import { ApplyOwnerAdjustmentsDto } from './dto/apply-owner-adjustments.dto';
 import { RequestQuoteChangesDto } from './dto/request-quote-changes.dto';
 
 type ConversationDirection = 'inbound' | 'outbound';
@@ -57,6 +65,23 @@ type ConversationQuoteReviewPdfFile = {
   sizeBytes: number;
   generatedAt: string;
   content: Buffer;
+};
+
+type OwnerAdjustmentAuditEntry = {
+  adjustedAt: string;
+  adjustedBy: string;
+  previousRange: {
+    min: number;
+    target: number;
+    max: number;
+  };
+  adjustedRange: {
+    min: number;
+    target: number;
+    max: number;
+  };
+  assumptions: string[];
+  reason: string | null;
 };
 
 const messageProjection = {
@@ -185,6 +210,24 @@ export class ConversationsService {
       );
     }
 
+    const estimateSnapshot = await this.prisma.quoteEstimateSnapshot.findFirst({
+      where: {
+        conversationId: normalizedConversationId,
+        quoteDraftId: draft.id,
+      },
+      orderBy: [{ createdAt: 'desc' }, { updatedAt: 'desc' }],
+      select: {
+        complexityScore: true,
+        confidencePct: true,
+        estimatedMinAmount: true,
+        estimatedTargetAmount: true,
+        estimatedMaxAmount: true,
+        breakdown: true,
+        inputPayload: true,
+      },
+    });
+    const ownerAdjustments = this.extractOwnerAdjustments(draft.draftPayload);
+
     return {
       conversationId: draft.conversationId,
       quoteDraftId: draft.id,
@@ -216,6 +259,30 @@ export class ConversationsService {
         complexity: draft.pricingRule?.complexity ?? null,
         integrationType: draft.pricingRule?.integrationType ?? null,
       },
+      complexityScore:
+        estimateSnapshot?.complexityScore !== null &&
+        estimateSnapshot?.complexityScore !== undefined
+          ? Number(estimateSnapshot.complexityScore)
+          : null,
+      confidence: estimateSnapshot?.confidencePct ?? null,
+      ruleVersionUsed: this.extractRuleVersionUsed(estimateSnapshot?.inputPayload ?? null),
+      estimatedMinAmount:
+        estimateSnapshot?.estimatedMinAmount !== null &&
+        estimateSnapshot?.estimatedMinAmount !== undefined
+          ? Number(estimateSnapshot.estimatedMinAmount)
+          : null,
+      estimatedTargetAmount:
+        estimateSnapshot?.estimatedTargetAmount !== null &&
+        estimateSnapshot?.estimatedTargetAmount !== undefined
+          ? Number(estimateSnapshot.estimatedTargetAmount)
+          : null,
+      estimatedMaxAmount:
+        estimateSnapshot?.estimatedMaxAmount !== null &&
+        estimateSnapshot?.estimatedMaxAmount !== undefined
+          ? Number(estimateSnapshot.estimatedMaxAmount)
+          : null,
+      pricingBreakdown: this.extractPricingBreakdown(estimateSnapshot?.breakdown ?? null),
+      ownerAdjustments,
     };
   }
 
@@ -279,6 +346,178 @@ export class ConversationsService {
       version: dto.version,
       reviewerPhone: reviewerIdentity,
       feedback: dto.feedback.trim(),
+    });
+
+    return this.getConversationQuoteReview(normalizedConversationId);
+  }
+
+  async applyOwnerAdjustments(
+    conversationId: string,
+    dto: ApplyOwnerAdjustmentsDto,
+    reviewerIdentity: string,
+  ): Promise<ConversationQuoteReviewDto> {
+    const normalizedConversationId = this.normalizeParticipantPhone(conversationId);
+    await this.assertConversationExists(normalizedConversationId);
+
+    const draft = await this.findLatestReviewRelevantDraft(normalizedConversationId);
+    if (!draft || draft.version !== dto.version) {
+      throw new NotFoundException(
+        `Quote draft ${normalizedConversationId} v${dto.version} is not the active review version.`,
+      );
+    }
+
+    if (!isActionableReviewStatus(draft.reviewStatus)) {
+      throw new BadRequestException(
+        `Quote draft ${normalizedConversationId} v${dto.version} cannot accept owner adjustments from state ${draft.reviewStatus}.`,
+      );
+    }
+
+    const latestSnapshot = await this.prisma.quoteEstimateSnapshot.findFirst({
+      where: {
+        conversationId: normalizedConversationId,
+        quoteDraftId: draft.id,
+      },
+      orderBy: [{ createdAt: 'desc' }, { updatedAt: 'desc' }],
+      select: {
+        id: true,
+        currency: true,
+        effortHours: true,
+        complexityScore: true,
+        confidencePct: true,
+        estimatedMinAmount: true,
+        estimatedTargetAmount: true,
+        estimatedMaxAmount: true,
+        breakdown: true,
+        inputPayload: true,
+      },
+    });
+
+    if (!latestSnapshot) {
+      throw new BadRequestException(
+        `Quote draft ${normalizedConversationId} v${dto.version} has no estimate snapshot to adjust.`,
+      );
+    }
+
+    const previousRange = {
+      min: Number(latestSnapshot.estimatedMinAmount),
+      target: Number(latestSnapshot.estimatedTargetAmount),
+      max: Number(latestSnapshot.estimatedMaxAmount),
+    };
+    const adjustedRange = {
+      min: this.roundCurrency(dto.estimatedMinAmount ?? previousRange.min),
+      target: this.roundCurrency(dto.estimatedTargetAmount ?? previousRange.target),
+      max: this.roundCurrency(dto.estimatedMaxAmount ?? previousRange.max),
+    };
+
+    if (adjustedRange.min <= 0 || adjustedRange.target <= 0 || adjustedRange.max <= 0) {
+      throw new BadRequestException(
+        'estimatedMinAmount, estimatedTargetAmount and estimatedMaxAmount must be greater than zero.',
+      );
+    }
+
+    if (
+      adjustedRange.min > adjustedRange.target ||
+      adjustedRange.target > adjustedRange.max
+    ) {
+      throw new BadRequestException(
+        'Manual range is invalid. Expected min <= target <= max.',
+      );
+    }
+
+    const normalizedAssumptions = this.resolveAssumptionsForAdjustment(
+      dto.assumptions,
+      latestSnapshot.inputPayload,
+    );
+    const reason = dto.reason?.trim() || null;
+    const rangeChanged =
+      adjustedRange.min !== previousRange.min ||
+      adjustedRange.target !== previousRange.target ||
+      adjustedRange.max !== previousRange.max;
+    const assumptionsChanged =
+      JSON.stringify(normalizedAssumptions) !==
+      JSON.stringify(this.extractAssumptions(latestSnapshot.inputPayload));
+
+    if (!rangeChanged && !assumptionsChanged && !reason) {
+      throw new BadRequestException(
+        'No adjustment detected. Provide updated range, assumptions or reason.',
+      );
+    }
+
+    const adjustedAt = new Date();
+    const adjustmentAuditEntry: OwnerAdjustmentAuditEntry = {
+      adjustedAt: adjustedAt.toISOString(),
+      adjustedBy: reviewerIdentity,
+      previousRange,
+      adjustedRange,
+      assumptions: normalizedAssumptions,
+      reason,
+    };
+
+    const existingOwnerAdjustments = this.extractOwnerAdjustments(draft.draftPayload);
+    const ownerAdjustments = [...existingOwnerAdjustments, adjustmentAuditEntry].slice(-25);
+    const draftPayloadWithAdjustments = this.mergeDraftPayloadOwnerAdjustments(
+      draft.draftPayload,
+      ownerAdjustments,
+    );
+    const existingInputPayload = this.safeJsonObject(latestSnapshot.inputPayload);
+    const nextRuleVersionUsed =
+      this.extractRuleVersionUsed(latestSnapshot.inputPayload) ?? draft.pricingRuleVersion ?? null;
+    const adjustmentMetadata = {
+      ...existingInputPayload,
+      source: 'crm_owner_adjustment',
+      computedAt: adjustedAt.toISOString(),
+      ruleVersionUsed: nextRuleVersionUsed,
+      assumptions: normalizedAssumptions,
+      ownerAdjustments,
+    } as Prisma.InputJsonObject;
+    const breakdown = this.mergeBreakdownWithOwnerRange(
+      latestSnapshot.breakdown,
+      adjustedRange,
+      reason,
+    );
+
+    const latestIteration = await this.prisma.quoteReviewEvent.findFirst({
+      where: { quoteDraftId: draft.id },
+      orderBy: [{ iteration: 'desc' }, { createdAt: 'desc' }],
+      select: { iteration: true },
+    });
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.quoteDraft.update({
+        where: { id: draft.id },
+        data: {
+          reviewStatus: 'ready_for_recheck',
+          draftPayload: draftPayloadWithAdjustments,
+        },
+      });
+
+      await tx.quoteEstimateSnapshot.create({
+        data: {
+          conversationId: normalizedConversationId,
+          quoteDraftId: draft.id,
+          pricingRuleId: draft.pricingRuleId,
+          currency: latestSnapshot.currency,
+          effortHours: latestSnapshot.effortHours,
+          complexityScore: latestSnapshot.complexityScore,
+          confidencePct: latestSnapshot.confidencePct,
+          estimatedMinAmount: adjustedRange.min,
+          estimatedTargetAmount: adjustedRange.target,
+          estimatedMaxAmount: adjustedRange.max,
+          breakdown,
+          inputPayload: adjustmentMetadata,
+        },
+      });
+
+      await tx.quoteReviewEvent.create({
+        data: {
+          quoteDraftId: draft.id,
+          conversationId: normalizedConversationId,
+          iteration: (latestIteration?.iteration ?? 0) + 1,
+          reviewStatus: 'ready_for_recheck',
+          feedback: this.buildOwnerAdjustmentFeedback(adjustmentAuditEntry),
+          resolvedAt: adjustedAt,
+        },
+      });
     });
 
     return this.getConversationQuoteReview(normalizedConversationId);
@@ -520,6 +759,193 @@ export class ConversationsService {
       typeof draftPayload.summary === 'string' ? draftPayload.summary.trim() : '';
 
     return summary || null;
+  }
+
+  private extractPricingBreakdown(
+    breakdown: Prisma.JsonValue | null,
+  ): Record<string, unknown> | null {
+    if (!isRecord(breakdown)) {
+      return null;
+    }
+
+    return breakdown;
+  }
+
+  private extractRuleVersionUsed(inputPayload: Prisma.JsonValue | null): number | null {
+    if (!isRecord(inputPayload)) {
+      return null;
+    }
+
+    const raw = inputPayload.ruleVersionUsed;
+    if (typeof raw === 'number' && Number.isFinite(raw)) {
+      return raw;
+    }
+
+    if (typeof raw === 'string') {
+      const parsed = Number.parseInt(raw, 10);
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+
+    return null;
+  }
+
+  private extractAssumptions(inputPayload: Prisma.JsonValue | null): string[] {
+    if (!isRecord(inputPayload) || !Array.isArray(inputPayload.assumptions)) {
+      return [];
+    }
+
+    return inputPayload.assumptions
+      .filter((value): value is string => typeof value === 'string')
+      .map((value) => value.trim())
+      .filter((value) => value.length > 0);
+  }
+
+  private resolveAssumptionsForAdjustment(
+    assumptions: string[] | undefined,
+    snapshotInputPayload: Prisma.JsonValue | null,
+  ): string[] {
+    if (!assumptions) {
+      return this.extractAssumptions(snapshotInputPayload);
+    }
+
+    return Array.from(
+      new Set(
+        assumptions
+          .map((entry) => entry.trim())
+          .filter((entry) => entry.length > 0),
+      ),
+    );
+  }
+
+  private extractOwnerAdjustments(draftPayload: unknown): OwnerAdjustmentAuditEntry[] {
+    if (!isRecord(draftPayload) || !Array.isArray(draftPayload.ownerAdjustments)) {
+      return [];
+    }
+
+    return draftPayload.ownerAdjustments
+      .map((item) => this.parseOwnerAdjustmentEntry(item))
+      .filter((entry): entry is OwnerAdjustmentAuditEntry => !!entry);
+  }
+
+  private parseOwnerAdjustmentEntry(value: unknown): OwnerAdjustmentAuditEntry | null {
+    if (!isRecord(value)) {
+      return null;
+    }
+
+    const previousRange = this.parseRangeRecord(value.previousRange);
+    const adjustedRange = this.parseRangeRecord(value.adjustedRange);
+    if (!previousRange || !adjustedRange) {
+      return null;
+    }
+
+    const adjustedAt =
+      typeof value.adjustedAt === 'string' && value.adjustedAt.trim().length > 0
+        ? value.adjustedAt
+        : null;
+    const adjustedBy =
+      typeof value.adjustedBy === 'string' && value.adjustedBy.trim().length > 0
+        ? value.adjustedBy
+        : null;
+    if (!adjustedAt || !adjustedBy) {
+      return null;
+    }
+
+    const assumptions = Array.isArray(value.assumptions)
+      ? value.assumptions
+          .filter((item): item is string => typeof item === 'string')
+          .map((item) => item.trim())
+          .filter((item) => item.length > 0)
+      : [];
+    const reason = typeof value.reason === 'string' && value.reason.trim() ? value.reason : null;
+
+    return {
+      adjustedAt,
+      adjustedBy,
+      previousRange,
+      adjustedRange,
+      assumptions,
+      reason,
+    };
+  }
+
+  private parseRangeRecord(value: unknown):
+    | {
+        min: number;
+        target: number;
+        max: number;
+      }
+    | null {
+    if (!isRecord(value)) {
+      return null;
+    }
+
+    const min = this.parseNumber(value.min);
+    const target = this.parseNumber(value.target);
+    const max = this.parseNumber(value.max);
+    if (min === null || target === null || max === null) {
+      return null;
+    }
+
+    return { min, target, max };
+  }
+
+  private parseNumber(value: unknown): number | null {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return this.roundCurrency(value);
+    }
+
+    if (typeof value === 'string') {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? this.roundCurrency(parsed) : null;
+    }
+
+    return null;
+  }
+
+  private mergeDraftPayloadOwnerAdjustments(
+    draftPayload: unknown,
+    ownerAdjustments: OwnerAdjustmentAuditEntry[],
+  ): Prisma.InputJsonObject {
+    const payload = this.safeJsonObject(draftPayload);
+    return {
+      ...payload,
+      ownerAdjustments,
+    };
+  }
+
+  private safeJsonObject(value: unknown): Prisma.InputJsonObject {
+    if (!isRecord(value)) {
+      return {};
+    }
+
+    return value as Prisma.InputJsonObject;
+  }
+
+  private mergeBreakdownWithOwnerRange(
+    breakdown: Prisma.JsonValue | null,
+    adjustedRange: { min: number; target: number; max: number },
+    reason: string | null,
+  ): Prisma.InputJsonValue {
+    const base = this.safeJsonObject(breakdown);
+    return {
+      ...base,
+      ownerAdjustedRange: adjustedRange,
+      ownerAdjustmentReason: reason,
+    } as Prisma.InputJsonObject;
+  }
+
+  private buildOwnerAdjustmentFeedback(adjustment: OwnerAdjustmentAuditEntry): string {
+    const assumptionsText =
+      adjustment.assumptions.length > 0
+        ? ` Assumptions: ${adjustment.assumptions.join('; ')}.`
+        : '';
+    const reasonText = adjustment.reason ? ` Reason: ${adjustment.reason}.` : '';
+
+    return `CRM owner adjustment by ${adjustment.adjustedBy}. Range ${adjustment.previousRange.min}-${adjustment.previousRange.target}-${adjustment.previousRange.max} -> ${adjustment.adjustedRange.min}-${adjustment.adjustedRange.target}-${adjustment.adjustedRange.max}.${assumptionsText}${reasonText}`.trim();
+  }
+
+  private roundCurrency(value: number): number {
+    return Number(value.toFixed(2));
   }
 
   private async resolveSenderPhoneNumberId(
