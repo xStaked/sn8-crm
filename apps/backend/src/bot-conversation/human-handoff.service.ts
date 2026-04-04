@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { MessagingService } from '../messaging/messaging.service';
@@ -11,6 +11,8 @@ export type HumanHandoffNotificationInput = {
 
 @Injectable()
 export class HumanHandoffService {
+  private readonly logger = new Logger(HumanHandoffService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly messagingService: MessagingService,
@@ -19,6 +21,18 @@ export class HumanHandoffService {
 
   async notifyOwner(input: HumanHandoffNotificationInput): Promise<void> {
     const ownerPhone = this.getOwnerPhone();
+    if (!ownerPhone) {
+      this.logger.warn({
+        event: 'human_handoff_whatsapp_notification_skipped',
+        conversationId: input.conversationId,
+        inboundMessageId: input.inboundMessageId,
+        reason: 'missing_ai_sales_owner_phone',
+        message:
+          'Human handoff remains managed in CRM; legacy owner WhatsApp notification was skipped because AI_SALES_OWNER_PHONE is not configured.',
+      });
+      return;
+    }
+
     const senderPhoneNumberId =
       this.config.get<string>('KAPSO_PHONE_NUMBER_ID')?.trim() || undefined;
     const body = this.buildOwnerNotificationMessage(input);
@@ -51,15 +65,8 @@ export class HumanHandoffService {
     });
   }
 
-  private getOwnerPhone(): string {
-    const ownerPhone = this.config.get<string>('AI_SALES_OWNER_PHONE')?.trim();
-    if (!ownerPhone) {
-      throw new BadRequestException(
-        'AI_SALES_OWNER_PHONE is required to notify human handoff requests.',
-      );
-    }
-
-    return ownerPhone;
+  private getOwnerPhone(): string | null {
+    return this.config.get<string>('AI_SALES_OWNER_PHONE')?.trim() ?? null;
   }
 
   private buildOwnerNotificationMessage(input: HumanHandoffNotificationInput): string {
