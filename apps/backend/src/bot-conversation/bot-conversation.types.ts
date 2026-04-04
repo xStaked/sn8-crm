@@ -8,6 +8,19 @@ export enum BotConversationState {
   AI_SALES = 'AI_SALES',
 }
 
+export type ConversationControlMode =
+  | 'ai_control'
+  | 'human_control'
+  | 'pending_resume';
+
+export type ConversationControlMetadata = {
+  conversationControl?: {
+    mode: ConversationControlMode;
+    updatedAt: string;
+    actor: string;
+  };
+};
+
 export type GreetingStateMetadata = {
   greetingVariant?: 'first_contact' | 'returning_contact';
 };
@@ -30,6 +43,7 @@ export type AiSalesStateMetadata = {
 };
 
 export type BotConversationMetadata =
+  | ConversationControlMetadata
   | GreetingStateMetadata
   | InfoServicesStateMetadata
   | QualifyingStateMetadata

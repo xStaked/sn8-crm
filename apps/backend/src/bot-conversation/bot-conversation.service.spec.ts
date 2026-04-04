@@ -24,7 +24,7 @@ describe('BotConversationService', () => {
     offFlowCount: 1,
     lastInboundMessageId: 'msg_1',
     lastTransitionAt: new Date('2026-03-23T15:00:00.000Z'),
-    expiresAt: new Date('2026-03-24T15:00:00.000Z'),
+    expiresAt: new Date('2099-03-24T15:00:00.000Z'),
   };
 
   const normalizedMessage: NormalizedMessage = {
@@ -253,6 +253,53 @@ describe('BotConversationService', () => {
     });
   });
 
+  it('resumes AI flow on next inbound when HUMAN_HANDOFF control is pending_resume', async () => {
+    repository.loadState.mockResolvedValue({
+      ...snapshot,
+      state: BotConversationState.HUMAN_HANDOFF,
+      metadata: {
+        requestedAt: '2026-04-04T17:00:00.000Z',
+        ownerNotified: true,
+        conversationControl: {
+          mode: 'pending_resume',
+          updatedAt: '2026-04-04T17:05:00.000Z',
+          actor: 'owner@example.com',
+        },
+      },
+      expiresAt: new Date('2099-03-24T15:00:00.000Z'),
+    });
+    conversationFlowService.planReply.mockResolvedValue({
+      body: 'Retomemos el briefing para preparar tu propuesta.',
+      source: 'commercial-discovery',
+    });
+    repository.saveState.mockResolvedValue({
+      ...snapshot,
+      state: BotConversationState.QUALIFYING,
+      metadata: {
+        delegatedToAiSales: true,
+        conversationControl: {
+          mode: 'ai_control',
+          updatedAt: '2026-04-04T17:06:00.000Z',
+          actor: 'system',
+        },
+      },
+    });
+
+    await expect(service.handleInbound(normalizedMessage)).resolves.toMatchObject({
+      nextState: BotConversationState.QUALIFYING,
+      outbound: {
+        kind: 'text',
+        body: 'Retomemos el briefing para preparar tu propuesta.',
+      },
+    });
+
+    expect(conversationFlowService.planReply).toHaveBeenCalledWith({
+      conversationId: normalizedMessage.fromPhone,
+      inboundMessageId: normalizedMessage.externalMessageId,
+      inboundBody: normalizedMessage.body,
+    });
+  });
+
   it('classifies free-text greeting messages into the quote path and delegates to AI sales', async () => {
     repository.loadState.mockResolvedValue({
       ...snapshot,
@@ -292,7 +339,13 @@ describe('BotConversationService', () => {
       expect.objectContaining({
         state: BotConversationState.QUALIFYING,
         offFlowCount: 0,
-        metadata: { delegatedToAiSales: true },
+        metadata: expect.objectContaining({
+          delegatedToAiSales: true,
+          conversationControl: expect.objectContaining({
+            mode: 'ai_control',
+            actor: 'system',
+          }),
+        }),
       }),
       BOT_CONVERSATION_TTL_SECONDS,
     );

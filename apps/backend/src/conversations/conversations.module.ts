@@ -1,6 +1,7 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { AiSalesModule } from '../ai-sales/ai-sales.module';
 import { AuthModule } from '../auth/auth.module';
+import { BotConversationModule } from '../bot-conversation/bot-conversation.module';
 import { MessagingModule } from '../messaging/messaging.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { QuoteDocumentsModule } from '../quote-documents/quote-documents.module';
@@ -12,6 +13,7 @@ import { ConversationsService } from './conversations.service';
     AuthModule,
     PrismaModule,
     QuoteDocumentsModule,
+    forwardRef(() => BotConversationModule),
     forwardRef(() => MessagingModule),
     forwardRef(() => AiSalesModule),
   ],

@@ -11,6 +11,12 @@ import type { Prisma, QuoteReviewStatus } from '@prisma/client';
 import { AiSalesOrchestrator } from '../ai-sales/ai-sales.orchestrator';
 import { OwnerReviewAction } from '../ai-sales/dto/owner-review-command.dto';
 import { OwnerReviewService } from '../ai-sales/owner-review.service';
+import { BotConversationRepository } from '../bot-conversation/bot-conversation.repository';
+import {
+  BotConversationState,
+  type BotConversationSnapshot,
+  type ConversationControlMode,
+} from '../bot-conversation/bot-conversation.types';
 import { MessagingService } from '../messaging/messaging.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { QuotePdfService } from '../quote-documents/quote-pdf.service';
@@ -46,6 +52,12 @@ type ConversationSummary = {
   lastMessageAt: string;
   unreadCount: number;
   pendingQuote: PendingQuoteSummaryDto | null;
+  conversationControl: {
+    state: BotConversationState;
+    control: ConversationControlMode;
+    updatedAt: string;
+    updatedBy: string;
+  };
 };
 
 type ConversationMessage = {
@@ -65,6 +77,14 @@ type ConversationQuoteReviewPdfFile = {
   sizeBytes: number;
   generatedAt: string;
   content: Buffer;
+};
+
+type ConversationControlUpdate = {
+  conversationId: string;
+  state: BotConversationState;
+  control: ConversationControlMode;
+  updatedAt: string;
+  updatedBy: string;
 };
 
 type OwnerAdjustmentAuditEntry = {
@@ -124,6 +144,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 @Injectable()
 export class ConversationsService {
   private readonly logger = new Logger(ConversationsService.name);
+  private readonly botConversationTtlSeconds = 24 * 60 * 60;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -133,7 +154,22 @@ export class ConversationsService {
     private readonly quotePdfService: QuotePdfService,
     @Inject(forwardRef(() => AiSalesOrchestrator))
     private readonly aiSalesOrchestrator: AiSalesOrchestrator,
+    private readonly botConversationRepository: BotConversationRepository,
   ) {}
+
+  async transferControlToHuman(
+    conversationId: string,
+    actorIdentity: string,
+  ): Promise<ConversationControlUpdate> {
+    return this.updateConversationControl(conversationId, 'human_control', actorIdentity);
+  }
+
+  async returnControlToAi(
+    conversationId: string,
+    actorIdentity: string,
+  ): Promise<ConversationControlUpdate> {
+    return this.updateConversationControl(conversationId, 'pending_resume', actorIdentity);
+  }
 
   async listConversations(): Promise<ConversationSummary[]> {
     const messages = await this.prisma.message.findMany({
@@ -157,16 +193,26 @@ export class ConversationsService {
         lastMessageAt: message.createdAt.toISOString(),
         unreadCount: 0,
         pendingQuote: null,
+        conversationControl: {
+          state: BotConversationState.QUALIFYING,
+          control: 'ai_control',
+          updatedAt: message.createdAt.toISOString(),
+          updatedBy: 'system',
+        },
       });
     }
 
     const conversationIds = Array.from(summaries.keys());
     const pendingQuotesByConversationId =
       await this.getActionableQuoteSummariesByConversationIds(conversationIds);
+    const controlsByConversationId =
+      await this.getConversationControlsByConversationIds(conversationIds);
 
     return Array.from(summaries.values()).map((summary) => ({
       ...summary,
       pendingQuote: pendingQuotesByConversationId.get(summary.id) ?? null,
+      conversationControl:
+        controlsByConversationId.get(summary.id) ?? summary.conversationControl,
     }));
   }
 
@@ -649,6 +695,103 @@ export class ConversationsService {
     };
   }
 
+  private async updateConversationControl(
+    conversationId: string,
+    control: ConversationControlMode,
+    actorIdentity: string,
+  ): Promise<ConversationControlUpdate> {
+    const normalizedConversationId = this.normalizeParticipantPhone(conversationId);
+    await this.assertConversationExists(normalizedConversationId);
+
+    const existingState = await this.loadConversationState(normalizedConversationId);
+    const now = new Date();
+    const updatedAt = now.toISOString();
+    const updatedBy = actorIdentity.trim() || 'crm';
+
+    if (control === 'pending_resume' && existingState?.state !== BotConversationState.HUMAN_HANDOFF) {
+      this.logger.warn({
+        event: 'conversation_control_resume_failed',
+        conversationId: normalizedConversationId,
+        actor: updatedBy,
+        reason: 'resume_requires_human_handoff_state',
+        currentState: existingState?.state ?? null,
+      });
+      throw new BadRequestException(
+        'Conversation is not in human handoff state. Transfer control to human first.',
+      );
+    }
+
+    const existingMetadata = this.safeJsonObject(existingState?.metadata);
+    const existingRequestedAt =
+      typeof existingMetadata.requestedAt === 'string' ? existingMetadata.requestedAt : null;
+    const shouldStayOnHandoff =
+      control === 'human_control' || control === 'pending_resume';
+
+    const nextState =
+      shouldStayOnHandoff
+        ? BotConversationState.HUMAN_HANDOFF
+        : BotConversationState.QUALIFYING;
+    const nextMetadata: Prisma.InputJsonObject = {
+      ...existingMetadata,
+      conversationControl: {
+        mode: control,
+        updatedAt,
+        actor: updatedBy,
+      },
+      ...(shouldStayOnHandoff
+        ? {
+            requestedAt: existingRequestedAt ?? updatedAt,
+            ownerNotified: true,
+          }
+        : {}),
+    };
+
+    await this.botConversationRepository.saveState(
+      {
+        conversationId: normalizedConversationId,
+        state: nextState,
+        metadata: nextMetadata,
+        offFlowCount: 0,
+        lastInboundMessageId: existingState?.lastInboundMessageId ?? null,
+        lastTransitionAt: now,
+      },
+      this.botConversationTtlSeconds,
+    );
+
+    const eventName =
+      control === 'human_control'
+        ? 'conversation_control_transferred'
+        : control === 'pending_resume'
+          ? 'conversation_control_resumed_ai'
+          : 'conversation_control_updated';
+    this.logger.log({
+      event: eventName,
+      conversationId: normalizedConversationId,
+      state: nextState,
+      control,
+      actor: updatedBy,
+    });
+
+    return {
+      conversationId: normalizedConversationId,
+      state: nextState,
+      control,
+      updatedAt,
+      updatedBy,
+    };
+  }
+
+  private async loadConversationState(
+    conversationId: string,
+  ): Promise<BotConversationSnapshot | null> {
+    const cached = await this.botConversationRepository.loadState(conversationId);
+    if (cached) {
+      return cached;
+    }
+
+    return this.botConversationRepository.rebuildState(conversationId);
+  }
+
   private getStableConversationId(message: MessageIdentityRow): string {
     const participantPhone =
       this.normalizeDirection(message.direction) === 'outbound'
@@ -712,6 +855,51 @@ export class ConversationsService {
     }
 
     return summaries;
+  }
+
+  private async getConversationControlsByConversationIds(
+    conversationIds: string[],
+  ): Promise<Map<string, ConversationSummary['conversationControl']>> {
+    if (conversationIds.length === 0) {
+      return new Map();
+    }
+
+    const snapshots = await Promise.all(
+      conversationIds.map(async (conversationId) => ({
+        conversationId,
+        snapshot: await this.loadConversationState(conversationId),
+      })),
+    );
+    const controls = new Map<string, ConversationSummary['conversationControl']>();
+
+    for (const { conversationId, snapshot } of snapshots) {
+      if (!snapshot) {
+        continue;
+      }
+
+      const metadata = this.safeJsonObject(snapshot.metadata);
+      const controlMetadata = this.safeJsonObject(metadata.conversationControl);
+      const mode = controlMetadata.mode;
+      const control: ConversationControlMode =
+        mode === 'human_control' || mode === 'pending_resume' || mode === 'ai_control'
+          ? mode
+          : snapshot.state === BotConversationState.HUMAN_HANDOFF
+            ? 'human_control'
+            : 'ai_control';
+
+      controls.set(conversationId, {
+        state: snapshot.state,
+        control,
+        updatedAt:
+          typeof controlMetadata.updatedAt === 'string'
+            ? controlMetadata.updatedAt
+            : snapshot.lastTransitionAt.toISOString(),
+        updatedBy:
+          typeof controlMetadata.actor === 'string' ? controlMetadata.actor : 'system',
+      });
+    }
+
+    return controls;
   }
 
   private async findLatestReviewRelevantDraft(conversationId: string) {

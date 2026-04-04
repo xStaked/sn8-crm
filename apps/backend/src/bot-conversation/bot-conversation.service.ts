@@ -11,6 +11,7 @@ import {
 import {
   BotConversationState,
   type BotConversationSnapshot,
+  type ConversationControlMode,
   type SaveBotConversationStateInput,
 } from './bot-conversation.types';
 import {
@@ -146,10 +147,10 @@ export class BotConversationService {
       await this.transition({
         conversationId: normalized.fromPhone,
         state: BotConversationState.HUMAN_HANDOFF,
-        metadata: {
+        metadata: this.buildHumanHandoffMetadata({
           requestedAt: new Date().toISOString(),
           ownerNotified: true,
-        },
+        }),
         offFlowCount: 0,
         lastInboundMessageId: normalized.externalMessageId,
       });
@@ -178,7 +179,11 @@ export class BotConversationService {
       await this.transition({
         conversationId: normalized.fromPhone,
         state: BotConversationState.QUALIFYING,
-        metadata: { delegatedToAiSales: true },
+        metadata: this.mergeConversationControl(
+          { delegatedToAiSales: true },
+          'ai_control',
+          'system',
+        ),
         offFlowCount: 0,
         lastInboundMessageId: normalized.externalMessageId,
       });
@@ -227,10 +232,15 @@ export class BotConversationService {
     }
 
     if (existingState.state === BotConversationState.HUMAN_HANDOFF) {
+      const controlMode = this.resolveControlMode(existingState);
+      if (controlMode === 'pending_resume' || controlMode === 'ai_control') {
+        return this.delegateToQualifying(normalized);
+      }
+
       await this.transition({
         conversationId: normalized.fromPhone,
         state: BotConversationState.HUMAN_HANDOFF,
-        metadata: existingState.metadata,
+        metadata: this.mergeConversationControl(existingState.metadata, 'human_control', 'system'),
         offFlowCount: 0,
         lastInboundMessageId: normalized.externalMessageId,
       });
@@ -329,10 +339,10 @@ export class BotConversationService {
         await this.transition({
           conversationId: normalized.fromPhone,
           state: BotConversationState.HUMAN_HANDOFF,
-          metadata: {
+          metadata: this.buildHumanHandoffMetadata({
             requestedAt: new Date().toISOString(),
             ownerNotified: true,
-          },
+          }),
           offFlowCount: 0,
           lastInboundMessageId: normalized.externalMessageId,
         });
@@ -363,7 +373,11 @@ export class BotConversationService {
     await this.transition({
       conversationId: normalized.fromPhone,
       state: BotConversationState.QUALIFYING,
-      metadata: { delegatedToAiSales: true },
+      metadata: this.mergeConversationControl(
+        { delegatedToAiSales: true },
+        'ai_control',
+        'system',
+      ),
       offFlowCount: 0,
       lastInboundMessageId: normalized.externalMessageId,
     });
@@ -395,11 +409,11 @@ export class BotConversationService {
       await this.transition({
         conversationId: normalized.fromPhone,
         state: BotConversationState.HUMAN_HANDOFF,
-        metadata: {
+        metadata: this.buildHumanHandoffMetadata({
           requestedAt: new Date().toISOString(),
           ownerNotified: true,
           escalatedFrom: existingState.state,
-        },
+        }),
         offFlowCount: nextOffFlowCount,
         lastInboundMessageId: normalized.externalMessageId,
       });
@@ -462,6 +476,52 @@ export class BotConversationService {
         .toLowerCase()
         .trim() ?? ''
     );
+  }
+
+  private resolveControlMode(snapshot: BotConversationSnapshot): ConversationControlMode {
+    const metadata =
+      snapshot.metadata && typeof snapshot.metadata === 'object' ? snapshot.metadata : null;
+    const candidate =
+      metadata &&
+      'conversationControl' in metadata &&
+      metadata.conversationControl &&
+      typeof metadata.conversationControl === 'object' &&
+      'mode' in metadata.conversationControl
+        ? metadata.conversationControl.mode
+        : null;
+
+    if (
+      candidate === 'ai_control' ||
+      candidate === 'human_control' ||
+      candidate === 'pending_resume'
+    ) {
+      return candidate;
+    }
+
+    return snapshot.state === BotConversationState.HUMAN_HANDOFF
+      ? 'human_control'
+      : 'ai_control';
+  }
+
+  private mergeConversationControl(
+    metadata: Record<string, unknown> | null | undefined,
+    mode: ConversationControlMode,
+    actor: string,
+  ): Record<string, unknown> {
+    return {
+      ...(metadata ?? {}),
+      conversationControl: {
+        mode,
+        updatedAt: new Date().toISOString(),
+        actor,
+      },
+    };
+  }
+
+  private buildHumanHandoffMetadata(
+    metadata: Record<string, unknown>,
+  ): Record<string, unknown> {
+    return this.mergeConversationControl(metadata, 'human_control', 'system');
   }
 
   private async resolveState(

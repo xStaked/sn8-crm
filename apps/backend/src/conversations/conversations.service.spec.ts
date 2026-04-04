@@ -1,6 +1,7 @@
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { OwnerReviewService } from '../ai-sales/owner-review.service';
+import { BotConversationRepository } from '../bot-conversation/bot-conversation.repository';
 import { MessagingService } from '../messaging/messaging.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { QuotePdfService } from '../quote-documents/quote-pdf.service';
@@ -29,6 +30,11 @@ describe('ConversationsService', () => {
     $transaction: jest.Mock;
   };
   let messagingService: { sendText: jest.Mock };
+  let botConversationRepository: {
+    loadState: jest.Mock;
+    rebuildState: jest.Mock;
+    saveState: jest.Mock;
+  };
   let config: { get: jest.Mock };
   let ownerReviewService: {
     approveDraftFromCrm: jest.Mock;
@@ -36,6 +42,8 @@ describe('ConversationsService', () => {
   };
   let quotePdfService: { getOrCreateDraftPdf: jest.Mock };
   let service: ConversationsService;
+  let loggerLogSpy: jest.SpyInstance;
+  let loggerWarnSpy: jest.SpyInstance;
 
   beforeEach(() => {
     prisma = {
@@ -64,6 +72,12 @@ describe('ConversationsService', () => {
       sendText: jest.fn(),
     };
 
+    botConversationRepository = {
+      loadState: jest.fn(),
+      rebuildState: jest.fn(),
+      saveState: jest.fn(),
+    };
+
     config = {
       get: jest.fn(),
     };
@@ -83,7 +97,16 @@ describe('ConversationsService', () => {
       config as unknown as ConfigService,
       ownerReviewService as unknown as OwnerReviewService,
       quotePdfService as unknown as QuotePdfService,
+      undefined as any,
+      botConversationRepository as unknown as BotConversationRepository,
     );
+
+    loggerLogSpy = jest
+      .spyOn(service['logger'] as any, 'log')
+      .mockImplementation(() => undefined);
+    loggerWarnSpy = jest
+      .spyOn(service['logger'] as any, 'warn')
+      .mockImplementation(() => undefined);
   });
 
   it('groups multiple inbound messages from the same phone into one summary', async () => {
@@ -115,6 +138,12 @@ describe('ConversationsService', () => {
         lastMessageAt: '2026-03-18T12:00:00.000Z',
         unreadCount: 0,
         pendingQuote: null,
+        conversationControl: {
+          state: 'QUALIFYING',
+          control: 'ai_control',
+          updatedAt: '2026-03-18T12:00:00.000Z',
+          updatedBy: 'system',
+        },
       },
     ]);
   });
@@ -383,6 +412,12 @@ describe('ConversationsService', () => {
           quoteDraftId: 'draft_2',
           version: 2,
           reviewStatus: 'ready_for_recheck',
+        },
+        conversationControl: {
+          state: 'QUALIFYING',
+          control: 'ai_control',
+          updatedAt: '2026-03-18T12:00:00.000Z',
+          updatedBy: 'system',
         },
       },
     ]);
@@ -846,5 +881,148 @@ describe('ConversationsService', () => {
       estimatedTargetAmount: 12500000,
       ruleVersionUsed: 9,
     });
+  });
+
+  it('transfers a conversation to explicit human control in bot state', async () => {
+    prisma.message.findFirst.mockResolvedValue({
+      id: 'msg_inbound',
+      direction: 'inbound',
+      fromPhone: '573001112233',
+      toPhone: '573009998877',
+    });
+    botConversationRepository.loadState.mockResolvedValue(null);
+    botConversationRepository.rebuildState.mockResolvedValue({
+      conversationId: '573001112233',
+      state: 'INFO_SERVICES',
+      metadata: { topic: 'services_overview' },
+      offFlowCount: 2,
+      lastInboundMessageId: 'msg_9',
+      lastTransitionAt: new Date('2026-04-04T17:00:00.000Z'),
+      expiresAt: new Date('2026-04-05T17:00:00.000Z'),
+    });
+
+    const response = await service.transferControlToHuman(
+      '573001112233',
+      'owner@example.com',
+    );
+
+    expect(botConversationRepository.saveState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        conversationId: '573001112233',
+        state: 'HUMAN_HANDOFF',
+        offFlowCount: 0,
+        metadata: expect.objectContaining({
+          ownerNotified: true,
+          conversationControl: expect.objectContaining({
+            mode: 'human_control',
+            actor: 'owner@example.com',
+          }),
+        }),
+      }),
+      86400,
+    );
+    expect(response).toMatchObject({
+      conversationId: '573001112233',
+      state: 'HUMAN_HANDOFF',
+      control: 'human_control',
+      updatedBy: 'owner@example.com',
+    });
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: 'conversation_control_transferred',
+        conversationId: '573001112233',
+        actor: 'owner@example.com',
+      }),
+    );
+  });
+
+  it('marks the conversation as pending_resume when CRM returns control to AI', async () => {
+    prisma.message.findFirst.mockResolvedValue({
+      id: 'msg_inbound',
+      direction: 'inbound',
+      fromPhone: '573001112233',
+      toPhone: '573009998877',
+    });
+    botConversationRepository.loadState.mockResolvedValue({
+      conversationId: '573001112233',
+      state: 'HUMAN_HANDOFF',
+      metadata: {
+        requestedAt: '2026-04-04T16:40:00.000Z',
+        ownerNotified: true,
+      },
+      offFlowCount: 0,
+      lastInboundMessageId: 'msg_10',
+      lastTransitionAt: new Date('2026-04-04T16:40:00.000Z'),
+      expiresAt: new Date('2026-04-05T16:40:00.000Z'),
+    });
+
+    const response = await service.returnControlToAi(
+      '573001112233',
+      'owner@example.com',
+    );
+
+    expect(botConversationRepository.saveState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        conversationId: '573001112233',
+        state: 'HUMAN_HANDOFF',
+        metadata: expect.objectContaining({
+          conversationControl: expect.objectContaining({
+            mode: 'pending_resume',
+            actor: 'owner@example.com',
+          }),
+        }),
+      }),
+      86400,
+    );
+    expect(response).toMatchObject({
+      conversationId: '573001112233',
+      state: 'HUMAN_HANDOFF',
+      control: 'pending_resume',
+      updatedBy: 'owner@example.com',
+    });
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: 'conversation_control_resumed_ai',
+        conversationId: '573001112233',
+        actor: 'owner@example.com',
+      }),
+    );
+  });
+
+  it('rejects returning control to AI when the conversation is not in human handoff', async () => {
+    prisma.message.findFirst.mockResolvedValue({
+      id: 'msg_inbound',
+      direction: 'inbound',
+      fromPhone: '573001112233',
+      toPhone: '573009998877',
+    });
+    botConversationRepository.loadState.mockResolvedValue({
+      conversationId: '573001112233',
+      state: 'QUALIFYING',
+      metadata: {
+        conversationControl: {
+          mode: 'ai_control',
+        },
+      },
+      offFlowCount: 0,
+      lastInboundMessageId: 'msg_10',
+      lastTransitionAt: new Date('2026-04-04T16:40:00.000Z'),
+      expiresAt: new Date('2026-04-05T16:40:00.000Z'),
+    });
+
+    await expect(
+      service.returnControlToAi('573001112233', 'owner@example.com'),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(botConversationRepository.saveState).not.toHaveBeenCalled();
+    expect(loggerWarnSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: 'conversation_control_resume_failed',
+        conversationId: '573001112233',
+        actor: 'owner@example.com',
+        reason: 'resume_requires_human_handoff_state',
+        currentState: 'QUALIFYING',
+      }),
+    );
   });
 });

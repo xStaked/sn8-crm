@@ -20,6 +20,7 @@ import {
   ConversationMessageDto,
   ConversationSummaryDto,
 } from './dto/conversation-response.dto';
+import { ConversationControlResponseDto } from './dto/conversation-control-response.dto';
 import { ConversationQuoteReviewDto } from './dto/quote-review-response.dto';
 import { RequestQuoteChangesDto } from './dto/request-quote-changes.dto';
 import { SendMessageDto } from './dto/send-message.dto';
@@ -268,5 +269,56 @@ export class ConversationsController {
     @Body() dto: SendMessageDto,
   ) {
     return this.conversationsService.sendMessage(conversationId, dto.body);
+  }
+
+  @ApiOperation({
+    summary: 'Transferir una conversacion a control humano desde CRM',
+  })
+  @ApiParam({
+    name: 'conversationId',
+    example: '573001112233',
+    description: 'Telefono normalizado usado como id estable de la conversacion.',
+  })
+  @ApiOkResponse({
+    description: 'Control actualizado a humano correctamente.',
+    type: ConversationControlResponseDto,
+  })
+  @ApiNotFoundResponse({ description: 'La conversacion solicitada no existe.' })
+  @Post('conversations/:conversationId/control/human')
+  @UseGuards(JwtAuthGuard)
+  transferControlToHuman(
+    @Param('conversationId') conversationId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.conversationsService.transferControlToHuman(
+      conversationId,
+      req.user.email,
+    );
+  }
+
+  @ApiOperation({
+    summary: 'Devolver una conversacion a IA desde CRM',
+  })
+  @ApiParam({
+    name: 'conversationId',
+    example: '573001112233',
+    description: 'Telefono normalizado usado como id estable de la conversacion.',
+  })
+  @ApiOkResponse({
+    description:
+      'Control actualizado a pending_resume para que el siguiente inbound vuelva al flujo IA.',
+    type: ConversationControlResponseDto,
+  })
+  @ApiNotFoundResponse({ description: 'La conversacion solicitada no existe.' })
+  @Post('conversations/:conversationId/control/ai-resume')
+  @UseGuards(JwtAuthGuard)
+  returnControlToAi(
+    @Param('conversationId') conversationId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.conversationsService.returnControlToAi(
+      conversationId,
+      req.user.email,
+    );
   }
 }

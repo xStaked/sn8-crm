@@ -11,6 +11,8 @@ describe('ConversationsController', () => {
     approveConversationQuote: jest.Mock;
     requestConversationQuoteChanges: jest.Mock;
     applyOwnerAdjustments: jest.Mock;
+    transferControlToHuman: jest.Mock;
+    returnControlToAi: jest.Mock;
   };
 
   beforeEach(() => {
@@ -22,6 +24,8 @@ describe('ConversationsController', () => {
       approveConversationQuote: jest.fn(),
       requestConversationQuoteChanges: jest.fn(),
       applyOwnerAdjustments: jest.fn(),
+      transferControlToHuman: jest.fn(),
+      returnControlToAi: jest.fn(),
     };
 
     controller = new ConversationsController(
@@ -43,6 +47,12 @@ describe('ConversationsController', () => {
           version: 2,
           reviewStatus: 'ready_for_recheck',
         },
+        conversationControl: {
+          state: 'QUALIFYING',
+          control: 'ai_control',
+          updatedAt: '2026-03-18T13:00:00.000Z',
+          updatedBy: 'system',
+        },
       },
     ]);
 
@@ -58,6 +68,12 @@ describe('ConversationsController', () => {
           quoteDraftId: 'draft_2',
           version: 2,
           reviewStatus: 'ready_for_recheck',
+        },
+        conversationControl: {
+          state: 'QUALIFYING',
+          control: 'ai_control',
+          updatedAt: '2026-03-18T13:00:00.000Z',
+          updatedBy: 'system',
         },
       },
     ]);
@@ -313,6 +329,56 @@ describe('ConversationsController', () => {
         assumptions: ['Fase 1 sin ERP'],
         reason: 'Ajuste comercial',
       },
+      'socio@example.com',
+    );
+  });
+
+  it('delegates transfer-to-human control actions using the authenticated reviewer identity', async () => {
+    service.transferControlToHuman.mockResolvedValue({
+      conversationId: '573001112233',
+      state: 'HUMAN_HANDOFF',
+      control: 'human_control',
+      updatedAt: '2026-04-04T17:20:00.000Z',
+      updatedBy: 'socio@example.com',
+    });
+
+    await expect(
+      controller.transferControlToHuman(
+        '573001112233',
+        { user: { userId: 'user_1', email: 'socio@example.com' } } as any,
+      ),
+    ).resolves.toMatchObject({
+      conversationId: '573001112233',
+      control: 'human_control',
+    });
+
+    expect(service.transferControlToHuman).toHaveBeenCalledWith(
+      '573001112233',
+      'socio@example.com',
+    );
+  });
+
+  it('delegates return-to-ai control actions using the authenticated reviewer identity', async () => {
+    service.returnControlToAi.mockResolvedValue({
+      conversationId: '573001112233',
+      state: 'HUMAN_HANDOFF',
+      control: 'pending_resume',
+      updatedAt: '2026-04-04T17:25:00.000Z',
+      updatedBy: 'socio@example.com',
+    });
+
+    await expect(
+      controller.returnControlToAi(
+        '573001112233',
+        { user: { userId: 'user_1', email: 'socio@example.com' } } as any,
+      ),
+    ).resolves.toMatchObject({
+      conversationId: '573001112233',
+      control: 'pending_resume',
+    });
+
+    expect(service.returnControlToAi).toHaveBeenCalledWith(
+      '573001112233',
       'socio@example.com',
     );
   });

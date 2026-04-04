@@ -27,6 +27,23 @@ export class ConversationSummaryDto {
       'Resumen aditivo del draft de cotizacion que sigue pendiente de revision en CRM.',
   })
   pendingQuote: PendingQuoteSummaryDto | null;
+
+  @ApiProperty({
+    description:
+      'Estado/control actual de la conversacion para enrutar entre IA y takeover humano en CRM.',
+    example: {
+      state: 'HUMAN_HANDOFF',
+      control: 'pending_resume',
+      updatedAt: '2026-04-04T17:20:00.000Z',
+      updatedBy: 'owner@example.com',
+    },
+  })
+  conversationControl: {
+    state: string;
+    control: 'ai_control' | 'human_control' | 'pending_resume';
+    updatedAt: string;
+    updatedBy: string;
+  };
 }
 
 export class ConversationMessageDto {
