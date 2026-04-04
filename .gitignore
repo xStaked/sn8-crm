@@ -18,3 +18,5 @@ npm-debug.log*
   .claude
   .planning
   .pnpm-store
+
+/apps/web/test-results
