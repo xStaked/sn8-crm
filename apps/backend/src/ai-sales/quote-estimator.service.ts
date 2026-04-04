@@ -314,19 +314,20 @@ export class QuoteEstimatorService {
     source: Record<string, number> | null,
     defaults: T,
   ): T {
-    const merged = Object.keys(defaults).reduce((acc, key) => {
+    const merged = Object.keys(defaults).reduce<Record<string, number>>((acc, key) => {
       const raw = source?.[key];
       acc[key] = Number.isFinite(raw) && raw > 0 ? raw : defaults[key];
       return acc;
-    }, {} as Record<string, number>);
+    }, {});
 
     const total = Object.values(merged).reduce((acc, value) => acc + value, 0);
     const normalizedTotal = total > 0 ? total : 1;
 
-    return Object.keys(merged).reduce((acc, key) => {
+    const normalized = Object.keys(merged).reduce<Record<string, number>>((acc, key) => {
       acc[key] = Number((merged[key] / normalizedTotal).toFixed(4));
       return acc;
-    }, {} as T);
+    }, {});
+    return normalized as T;
   }
 
   private buildAssumptions(
