@@ -1,0 +1,256 @@
+{
+  "version": "2026-04-08.kb-commercial-v1",
+  "updatedAt": "2026-04-08T22:30:00.000Z",
+  "currency": "COP",
+  "taxonomies": {
+    "categories": [
+      "landing_marketing",
+      "web_operativa",
+      "crm_sales",
+      "vertical_saas",
+      "automation_ia"
+    ],
+    "complexity": ["low", "medium", "high"],
+    "integration": ["none", "standard", "advanced"]
+  },
+  "offerLadder": [
+    {
+      "tierId": "mvp_express",
+      "name": "MVP Express",
+      "durationWeeksMin": 1,
+      "durationWeeksMax": 2,
+      "priceMin": 1200000,
+      "priceMax": 2200000,
+      "notes": "Landing o flujo unico para validar demanda rapido."
+    },
+    {
+      "tierId": "mvp_operativo",
+      "name": "MVP Operativo",
+      "durationWeeksMin": 3,
+      "durationWeeksMax": 5,
+      "priceMin": 2800000,
+      "priceMax": 4800000,
+      "notes": "Operacion basica con panel administrativo acotado."
+    },
+    {
+      "tierId": "plataforma_core",
+      "name": "Plataforma Core",
+      "durationWeeksMin": 8,
+      "durationWeeksMax": 10,
+      "priceMin": 7500000,
+      "priceMax": 10500000,
+      "notes": "CRM comercial o plataforma de negocio con modulos criticos."
+    },
+    {
+      "tierId": "plataforma_expandida",
+      "name": "Plataforma Expandida",
+      "durationWeeksMin": 10,
+      "durationWeeksMax": 14,
+      "priceMin": 11500000,
+      "priceMax": 16000000,
+      "notes": "Roadmap multi-modulo e integraciones avanzadas por fases."
+    }
+  ],
+  "entries": [
+    {
+      "serviceId": "landing_mvp_leads_v1",
+      "category": "landing_marketing",
+      "complexity": "low",
+      "integration": "none",
+      "problemSolved": "Capturar leads y validar propuesta comercial sin esperar una plataforma completa.",
+      "scopeIncluded": [
+        "Landing page optimizada para conversion",
+        "Formulario de contacto con notificacion por correo",
+        "Panel minimo para revisar solicitudes"
+      ],
+      "scopeExcluded": [
+        "Hosting y dominio",
+        "Campanas de pauta",
+        "Integraciones CRM empresariales"
+      ],
+      "durationWeeksMin": 1,
+      "durationWeeksMax": 2,
+      "priceMin": 1200000,
+      "priceTarget": 1700000,
+      "priceMax": 2200000,
+      "paymentTerms": "50% inicio, 30% demo, 20% entrega",
+      "assumptions": [
+        "Cliente entrega branding y copy base en la semana 1",
+        "Un maximo de dos rondas de feedback"
+      ],
+      "risks": [
+        "Retrasos en aprobacion de contenido",
+        "Cambios de alcance hacia sitio multi-seccion"
+      ],
+      "upsells": [
+        "Automatizacion de nurturing por WhatsApp",
+        "Panel de analitica de conversion"
+      ],
+      "mvpFirst": true,
+      "source": {
+        "issue": "SNL-41",
+        "documentKey": "plan"
+      }
+    },
+    {
+      "serviceId": "web_operativa_reservas_v1",
+      "category": "web_operativa",
+      "complexity": "medium",
+      "integration": "standard",
+      "problemSolved": "Digitalizar reservas/pedidos y reducir trabajo manual operativo.",
+      "scopeIncluded": [
+        "Sitio operativo con catalogo basico",
+        "Flujo de reservas o pedidos con confirmaciones",
+        "Integracion pasarela o API comun"
+      ],
+      "scopeExcluded": [
+        "ERP corporativo",
+        "Aplicacion movil nativa",
+        "Automatizaciones IA de postventa"
+      ],
+      "durationWeeksMin": 3,
+      "durationWeeksMax": 5,
+      "priceMin": 2800000,
+      "priceTarget": 3600000,
+      "priceMax": 4800000,
+      "paymentTerms": "40% inicio, 40% hito funcional, 20% salida a produccion",
+      "assumptions": [
+        "API externa con credenciales disponibles",
+        "Stack homologado por SN8 sin requerimientos legacy"
+      ],
+      "risks": [
+        "Cambios en API de terceros",
+        "Aumento de modulos administrativos no contemplados"
+      ],
+      "upsells": [
+        "CRM liviano para seguimiento de conversion",
+        "Dashboard de funnel comercial"
+      ],
+      "mvpFirst": true,
+      "source": {
+        "issue": "SNL-41",
+        "documentKey": "plan"
+      }
+    },
+    {
+      "serviceId": "crm_sales_pipeline_v1",
+      "category": "crm_sales",
+      "complexity": "high",
+      "integration": "standard",
+      "problemSolved": "Ordenar pipeline comercial, trazabilidad de cotizaciones y seguimiento de cierre.",
+      "scopeIncluded": [
+        "Pipeline multi-etapa con roles",
+        "Modulo de cotizaciones y aprobacion interna",
+        "Integracion WhatsApp/API comercial estandar"
+      ],
+      "scopeExcluded": [
+        "Consumo de IA/LLM por volumen",
+        "Infraestructura cloud administrada",
+        "Integracion profunda con ERP legacy"
+      ],
+      "durationWeeksMin": 8,
+      "durationWeeksMax": 10,
+      "priceMin": 7500000,
+      "priceTarget": 9000000,
+      "priceMax": 10500000,
+      "paymentTerms": "35% inicio, 35% beta interna, 30% go-live",
+      "assumptions": [
+        "Equipo cliente define proceso comercial objetivo",
+        "Maximo dos integraciones estandar"
+      ],
+      "risks": [
+        "Cambios de proceso comercial durante implementacion",
+        "Requerimientos de reporteria avanzada fuera de MVP"
+      ],
+      "upsells": [
+        "Motor de pricing dinamico v2",
+        "Scoring predictivo de cierre"
+      ],
+      "mvpFirst": true,
+      "source": {
+        "issue": "SNL-41",
+        "documentKey": "plan"
+      }
+    },
+    {
+      "serviceId": "vertical_saas_core_v1",
+      "category": "vertical_saas",
+      "complexity": "high",
+      "integration": "advanced",
+      "problemSolved": "Construir plataforma core por industria con flujo multi-rol y operacion critica.",
+      "scopeIncluded": [
+        "Arquitectura modular por dominios",
+        "Backoffice multi-rol y trazabilidad",
+        "Integraciones avanzadas priorizadas en fase inicial"
+      ],
+      "scopeExcluded": [
+        "Data migration masiva historica",
+        "SLA de soporte 24/7",
+        "Integraciones no priorizadas en roadmap"
+      ],
+      "durationWeeksMin": 10,
+      "durationWeeksMax": 14,
+      "priceMin": 11500000,
+      "priceTarget": 13200000,
+      "priceMax": 16000000,
+      "paymentTerms": "30% inicio, 30% arquitectura validada, 20% piloto, 20% produccion",
+      "assumptions": [
+        "Priorizacion por fases definida por negocio",
+        "Acceso tecnico a sistemas legados"
+      ],
+      "risks": [
+        "Dependencias externas no controladas",
+        "Sobrecarga por alcance enterprise en fase 1"
+      ],
+      "upsells": [
+        "Data warehouse y BI por industria",
+        "Automatizacion de onboarding de clientes"
+      ],
+      "mvpFirst": true,
+      "source": {
+        "issue": "SNL-41",
+        "documentKey": "plan"
+      }
+    },
+    {
+      "serviceId": "automation_ia_ops_v1",
+      "category": "automation_ia",
+      "complexity": "medium",
+      "integration": "standard",
+      "problemSolved": "Reducir tareas repetitivas con automatizaciones y asistentes IA orientados a ROI.",
+      "scopeIncluded": [
+        "Flujos de automatizacion conectados a canales comerciales",
+        "Asistente IA para FAQ o pre-calificacion",
+        "Panel de trazabilidad de ejecuciones"
+      ],
+      "scopeExcluded": [
+        "Entrenamiento de modelos propietarios",
+        "Licenciamiento de proveedores IA",
+        "Soporte funcional fuera de horario"
+      ],
+      "durationWeeksMin": 4,
+      "durationWeeksMax": 6,
+      "priceMin": 4200000,
+      "priceTarget": 5600000,
+      "priceMax": 7600000,
+      "paymentTerms": "40% inicio, 30% pruebas de flujo, 30% estabilizacion",
+      "assumptions": [
+        "Cliente provee casos de uso priorizados",
+        "Capacidad para iterar prompts semanalmente"
+      ],
+      "risks": [
+        "Variabilidad de costos por consumo",
+        "Dependencia de calidad de datos de entrada"
+      ],
+      "upsells": [
+        "Orquestacion multi-canal de ventas",
+        "Modelo de scoring de leads con telemetria"
+      ],
+      "mvpFirst": true,
+      "source": {
+        "issue": "SNL-41",
+        "documentKey": "plan"
+      }
+    }
+  ]
+}
