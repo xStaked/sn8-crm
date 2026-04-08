@@ -1,33 +1,77 @@
 # Monthly Pricing Recalibration Cycle
 
-This runbook defines the monthly feedback loop for quote estimation quality.
+This runbook defines the operational monthly loop to improve quote precision and sales review quality.
 
-## Inputs
+Related baseline: `docs/commercial-quality-telemetry.md`.
+
+## Inputs (required)
 
 - Quote outcomes (`won`, `lost`, `pending`) captured from CRM.
-- Estimate snapshots linked to each closure (min/target/max).
-- Review events (`approved`, `changes_requested`) from owner review flow.
+- Estimate snapshots (`estimatedMin/Target/Max`) linked to each closure.
+- Owner review events (`approved`, `changes_requested`).
+- Active pricing-rule versions by `category + complexity + integrationType`.
 
-## Monthly Procedure
+## Step 1 - Extract monthly KPI snapshot
 
-1. Export last-month outcomes grouped by `category + complexity + integrationType`.
-2. Compute KPIs:
-- Mean absolute error (%): `abs(final - target) / target`.
-- Average delta amount: `final - target`.
-- Approval and rework rates from review events.
-- Average quote turnaround hours: `draft.createdAt -> deliveredToCustomerAt|approvedAt`.
-3. Flag segments for rule update when either condition is true:
-- `MAE >= 5%`, or
-- sustained negative/positive average delta indicating systematic under/over-estimation.
-4. Create a new pricing rule version for flagged segments (do not edit historical versions).
-5. Activate the new rule version and archive previous active version for the same key.
-6. Publish a brief change log with:
-- affected segment(s),
-- previous vs new margins,
-- expected impact on approval/rework and precision.
+1. Query backend KPI summary:
 
-## Operational Notes
+```bash
+curl -s "http://localhost:3000/quote-metrics/summary?from=2026-03-01T00:00:00.000Z&to=2026-03-31T23:59:59.999Z"
+```
 
-- Keep at least 12 months of historical outcomes for trend analysis.
-- Never delete historical outcomes/snapshots; they are the audit trail for pricing decisions.
-- Run this process in the first business week of each month.
+2. Export raw closures and outcomes from CRM for the same window.
+3. Group results by `category + complexity + integrationType`.
+
+## Step 2 - Evaluate recalibration triggers
+
+For each segment, mark `needs_recalibration=true` when either is true:
+
+- `meanAbsoluteErrorPct >= 5` with at least 5 outcomes in the month.
+- `avgDeltaAmount` is consistently positive/negative for two consecutive monthly windows.
+
+Also escalate to review when:
+
+- `reworkRatePct >= 35`.
+- repeated `customer_delivery_pdf_link_failed` events show delivery friction.
+
+## Step 3 - Create new rule version
+
+1. Do not edit historical rules in place.
+2. Create a new version with adjusted margins/weights.
+3. Activate the new version and archive the previous active rule for that same segment key.
+
+API path:
+
+- `POST /pricing-rules` to create version `n+1`.
+- `POST /pricing-rules/:id/activate` to set active rule if needed.
+
+## Step 4 - Validate and publish
+
+1. Run test suite before release:
+
+```bash
+pnpm exec jest src/quote-metrics/quote-metrics.service.spec.ts src/ai-sales/commercial-quality.service.spec.ts --runInBand
+```
+
+2. Post change log for commercial/support:
+  - impacted segments
+  - old margins -> new margins
+  - KPI baseline before change
+  - expected impact (precision + approval/rework)
+
+3. Update this runbook if process or thresholds changed.
+
+## Step 5 - Operational checklist
+
+- [ ] KPI snapshot exported for full calendar month.
+- [ ] Segment-level thresholds evaluated.
+- [ ] New pricing-rule versions created for flagged segments.
+- [ ] Active versions switched without deleting history.
+- [ ] Regression tests passed.
+- [ ] Change log shared with sales/support.
+
+## Guardrails
+
+- Keep at least 12 months of outcome history.
+- Never delete `quote_outcome` or `quote_estimate_snapshot` records.
+- Execute this cycle in the first business week of each month.
