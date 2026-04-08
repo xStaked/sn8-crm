@@ -94,7 +94,7 @@ export class ConversationFlowService {
       include: {
         quoteDrafts: {
           orderBy: { version: 'desc' },
-          take: 1,
+          take: 10,
         },
       },
     });
@@ -102,25 +102,39 @@ export class ConversationFlowService {
     // If user explicitly requests a new/different project, reset the existing brief
     let newProjectStartMessageId: string | null = null;
     if (currentBrief && this.detectsNewProjectIntent(input.inboundBody)) {
-      await this.prisma.commercialBrief.delete({
-        where: { conversationId: normalizedConversationId },
+      await this.archiveQuoteContextForNewProject({
+        brief: currentBrief,
+        conversationId: normalizedConversationId,
+        triggerMessageId: input.inboundMessageId,
+        reason: 'explicit_new_project_intent',
       });
-      currentBrief = null;
+      currentBrief = await this.prisma.commercialBrief.findUnique({
+        where: { conversationId: normalizedConversationId },
+        include: {
+          quoteDrafts: {
+            orderBy: { version: 'desc' },
+            take: 10,
+          },
+        },
+      });
       newProjectStartMessageId = input.inboundMessageId;
     } else if (currentBrief?.conversationContext?.['newProjectStartMessageId']) {
       // Use persisted new project marker for subsequent messages
       newProjectStartMessageId = currentBrief.conversationContext['newProjectStartMessageId'];
     }
 
-    const latestDraft = currentBrief?.quoteDrafts[0];
+    const latestDraft = this.pickLatestActiveDraft(currentBrief?.quoteDrafts ?? []);
     if (latestDraft) {
       // Check if user wants to start a new project even when there's an existing draft
       const userIntent = this.detectUserIntent(input.inboundBody);
       
       if (userIntent === 'wants_new_project') {
-        // User explicitly wants to start fresh - delete the brief and all drafts
-        await this.prisma.commercialBrief.delete({
-          where: { conversationId: normalizedConversationId },
+        // User explicitly wants to start fresh - archive old drafts and reset brief safely.
+        await this.archiveQuoteContextForNewProject({
+          brief: currentBrief,
+          conversationId: normalizedConversationId,
+          triggerMessageId: input.inboundMessageId,
+          reason: 'explicit_new_project_intent',
         });
         // Continue to normal flow for new project
         return this.planReply({
@@ -169,9 +183,12 @@ export class ConversationFlowService {
       }
       
       if (userIntent === 'wants_new_project') {
-        // User explicitly wants to start fresh - reset brief
-        await this.prisma.commercialBrief.delete({
-          where: { conversationId: normalizedConversationId },
+        // User explicitly wants to start fresh - archive old drafts and reset brief safely.
+        await this.archiveQuoteContextForNewProject({
+          brief: currentBrief,
+          conversationId: normalizedConversationId,
+          triggerMessageId: input.inboundMessageId,
+          reason: 'explicit_new_project_intent',
         });
         // Continue to normal flow for new project
         return this.planReply({
@@ -535,13 +552,39 @@ export class ConversationFlowService {
       },
     );
 
-    // Simple closing without the lengthy summary (the brief is already in the system)
-    // Just invite to add more details if needed
-    const closing = brief.budget === 'a definir con SN8' || brief.urgency === 'flexible'
-      ? ' Si quieres ajustar algo del alcance o agregar detalles, aún estamos a tiempo.'
-      : ' Si se te ocurre algo más que quieras agregar, escríbeme antes de que cierre el brief.';
+    const budgetOpen = brief.budget === 'a definir con SN8' || brief.budget === 'presupuesto abierto';
+    const exclusions =
+      ' Como referencia comercial, no incluye hosting/infraestructura, consumo IA/LLM, mensajeria ni licencias/integraciones de terceros.';
+    const shouldRedirectToPhases = budgetOpen && this.looksLikeLargePlatformRequest(brief);
+
+    const closing = shouldRedirectToPhases
+      ? ' Para cuidar inversion y riesgo, arrancamos proponiendo MVP fase 1 y dejamos fase 2/3 en roadmap segun resultados.' +
+        exclusions
+      : budgetOpen || brief.urgency === 'flexible'
+        ? ' Si quieres ajustar algo del alcance o agregar detalles, aun estamos a tiempo.' + exclusions
+        : ' Si se te ocurre algo mas que quieras agregar, escribeme antes de que cierre el brief.';
 
     return `${baseMessage}${closing}`;
+  }
+
+  private looksLikeLargePlatformRequest(brief: MergedCommercialBrief): boolean {
+    const scopeText = `${brief.projectType || ''} ${brief.desiredScope || ''} ${brief.businessProblem || ''}`.toLowerCase();
+
+    const largeScopePatterns = [
+      /plataforma completa/i,
+      /sistema completo/i,
+      /multi[\s-]?modul/i,
+      /enterprise/i,
+      /todo en uno/i,
+      /marketplace/i,
+      /saas/i,
+      /erp/i,
+      /crm/i,
+      /app movil/i,
+      /aplicacion movil/i,
+    ];
+
+    return largeScopePatterns.some((pattern) => pattern.test(scopeText));
   }
 
   private pickMeaningfulValue(
@@ -880,5 +923,106 @@ export class ConversationFlowService {
       });
       return null;
     }
+  }
+
+  private pickLatestActiveDraft(drafts: QuoteDraft[]): QuoteDraft | null {
+    for (const draft of drafts) {
+      if (!this.isDraftArchived(draft.draftPayload)) {
+        return draft;
+      }
+    }
+
+    return null;
+  }
+
+  private async archiveQuoteContextForNewProject(input: {
+    brief: CommercialBriefWithLatestDraft;
+    conversationId: string;
+    triggerMessageId: string;
+    reason: string;
+  }): Promise<void> {
+    const archivedAt = new Date().toISOString();
+    const drafts = await this.prisma.quoteDraft.findMany({
+      where: { conversationId: input.conversationId },
+      select: {
+        id: true,
+        reviewStatus: true,
+        draftPayload: true,
+      },
+      orderBy: [{ version: 'desc' }, { updatedAt: 'desc' }],
+    });
+
+    const archivedDrafts = drafts.filter((draft) => !this.isDraftArchived(draft.draftPayload));
+    const existingContext = this.safeJsonObject(input.brief.conversationContext);
+    const existingLifecycle = this.safeJsonObject(existingContext.quoteLifecycle);
+    const nextContext = {
+      ...existingContext,
+      newProjectStartMessageId: input.triggerMessageId,
+      quoteLifecycle: {
+        ...existingLifecycle,
+        state: 'brief_collecting',
+        updatedAt: archivedAt,
+        lastIntentResetAt: archivedAt,
+        lastArchiveReason: input.reason,
+        archivedDraftCount: archivedDrafts.length,
+      },
+    };
+
+    await this.prisma.$transaction(async (tx) => {
+      for (const draft of archivedDrafts) {
+        const payload = this.safeJsonObject(draft.draftPayload);
+        const lifecycle = this.safeJsonObject(payload.lifecycle);
+
+        await tx.quoteDraft.update({
+          where: { id: draft.id },
+          data: {
+            reviewStatus:
+              draft.reviewStatus === 'pending_owner_review' ||
+              draft.reviewStatus === 'ready_for_recheck'
+                ? 'changes_requested'
+                : draft.reviewStatus,
+            draftPayload: {
+              ...payload,
+              lifecycle: {
+                ...lifecycle,
+                archivedAt,
+                archivedBy: 'conversation_flow',
+                archiveReason: input.reason,
+              },
+            },
+          },
+        });
+      }
+
+      await tx.commercialBrief.update({
+        where: { conversationId: input.conversationId },
+        data: {
+          status: 'collecting',
+          projectType: null,
+          businessProblem: null,
+          desiredScope: null,
+          budget: null,
+          urgency: null,
+          constraints: null,
+          summary: null,
+          sourceTranscript: null,
+          conversationContext: nextContext,
+        },
+      });
+    });
+  }
+
+  private isDraftArchived(payload: unknown): boolean {
+    const payloadObj = this.safeJsonObject(payload);
+    const lifecycle = this.safeJsonObject(payloadObj.lifecycle);
+    return typeof lifecycle.archivedAt === 'string' && lifecycle.archivedAt.trim().length > 0;
+  }
+
+  private safeJsonObject(value: unknown): Record<string, unknown> {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return {};
+    }
+
+    return value as Record<string, unknown>;
   }
 }

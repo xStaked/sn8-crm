@@ -3,7 +3,14 @@ import { MessageVariantService } from './message-variant.service';
 
 describe('ConversationFlowService', () => {
   let prisma: {
-    commercialBrief: { findUnique: jest.Mock; upsert: jest.Mock; delete: jest.Mock };
+    commercialBrief: {
+      findUnique: jest.Mock;
+      upsert: jest.Mock;
+      delete: jest.Mock;
+      update: jest.Mock;
+    };
+    quoteDraft: { findMany: jest.Mock; update: jest.Mock };
+    $transaction: jest.Mock;
   };
   let conversationsService: { listConversationMessages: jest.Mock };
   let aiSalesService: { extractCommercialBrief: jest.Mock; generateDiscoveryReply: jest.Mock };
@@ -17,8 +24,15 @@ describe('ConversationFlowService', () => {
         findUnique: jest.fn(),
         upsert: jest.fn(),
         delete: jest.fn(),
+        update: jest.fn(),
       },
+      quoteDraft: {
+        findMany: jest.fn(),
+        update: jest.fn(),
+      },
+      $transaction: jest.fn(async (callback) => callback(prisma)),
     };
+    prisma.quoteDraft.findMany.mockResolvedValue([]);
     conversationsService = {
       listConversationMessages: jest.fn(),
     };
@@ -162,6 +176,45 @@ describe('ConversationFlowService', () => {
     // Message should be natural and concise (no long summary anymore)
     expect(result.body).toContain('propuesta');
     expect(result.body.length).toBeLessThan(300); // Shorter, more natural message than before
+  });
+
+  it('redirects large-scope requests with open budget into phased MVP roadmap and explicit exclusions', async () => {
+    prisma.commercialBrief.findUnique.mockResolvedValue(null);
+    conversationsService.listConversationMessages.mockResolvedValue([
+      {
+        id: 'msg_platform_1',
+        conversationId: '573001998877',
+        direction: 'inbound',
+        body: 'Quiero una plataforma completa tipo CRM con app movil, pero todavia no tengo presupuesto cerrado',
+        createdAt: '2026-04-08T22:20:00.000Z',
+      },
+    ]);
+    aiSalesService.extractCommercialBrief.mockResolvedValue({
+      customerName: 'Laura',
+      projectType: 'Plataforma CRM',
+      businessProblem: 'Centralizar embudo comercial y operacion de seguimiento.',
+      desiredScope: 'Plataforma completa con CRM, app movil y automatizaciones.',
+      budget: 'No tengo presupuesto cerrado',
+      urgency: '6 a 8 semanas',
+      constraints: 'Integracion con WhatsApp',
+      summary: 'Cliente pide plataforma completa con presupuesto abierto.',
+      missingInformation: [],
+    });
+
+    const result = await service.planReply({
+      conversationId: '573001998877',
+      inboundMessageId: 'msg_platform_1',
+      inboundBody:
+        'Quiero una plataforma completa tipo CRM con app movil, pero todavia no tengo presupuesto cerrado',
+    });
+
+    expect(result.source).toBe('commercial-ready-for-quote');
+    expect(result.body).toContain('MVP fase 1');
+    expect(result.body).toContain('roadmap');
+    expect(result.body).toContain('no incluye hosting/infraestructura');
+    expect(result.body).toContain('consumo IA/LLM');
+    expect(result.body).toContain('mensajeria');
+    expect(result.body).toContain('licencias/integraciones de terceros');
   });
 
   it('returns a processing message when the brief is already ready_for_quote and the user sends another message', async () => {
@@ -341,40 +394,66 @@ describe('ConversationFlowService', () => {
   });
 
   it('returns review status when a draft already exists', async () => {
-    prisma.commercialBrief.findUnique.mockResolvedValue({
-      id: 'brief_1',
-      conversationId: '573001112233',
-      status: 'quote_in_review',
-      customerName: 'Sergio',
-      projectType: 'CRM',
-      businessProblem: 'Centralizar ventas',
-      desiredScope: 'Pipeline y reportes',
-      budget: 'USD 5k',
-      urgency: '1 mes',
-      constraints: 'Integracion con WhatsApp',
-      summary: 'CRM',
-      sourceTranscript: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      quoteDrafts: [
-        {
-          id: 'draft_1',
-          commercialBriefId: 'brief_1',
-          conversationId: '573001112233',
-          version: 1,
-          origin: 'initial',
-          reviewStatus: 'pending_owner_review',
-          templateVersion: 'v1',
-          draftPayload: {},
-          renderedQuote: null,
-          ownerFeedbackSummary: null,
-          approvedAt: null,
-          deliveredToCustomerAt: null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-      ],
-    });
+    prisma.commercialBrief.findUnique
+      .mockResolvedValueOnce({
+        id: 'brief_1',
+        conversationId: '573001112233',
+        status: 'quote_in_review',
+        customerName: 'Sergio',
+        projectType: 'CRM',
+        businessProblem: 'Centralizar ventas',
+        desiredScope: 'Pipeline y reportes',
+        budget: 'USD 5k',
+        urgency: '1 mes',
+        constraints: 'Integracion con WhatsApp',
+        summary: 'CRM',
+        sourceTranscript: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        quoteDrafts: [
+          {
+            id: 'draft_1',
+            commercialBriefId: 'brief_1',
+            conversationId: '573001112233',
+            version: 1,
+            origin: 'initial',
+            reviewStatus: 'pending_owner_review',
+            templateVersion: 'v1',
+            draftPayload: {},
+            renderedQuote: null,
+            ownerFeedbackSummary: null,
+            approvedAt: null,
+            deliveredToCustomerAt: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        ],
+      })
+      .mockResolvedValue({
+        id: 'brief_1',
+        conversationId: '573001112233',
+        status: 'collecting',
+        customerName: 'Sergio',
+        projectType: null,
+        businessProblem: null,
+        desiredScope: null,
+        budget: null,
+        urgency: null,
+        constraints: null,
+        summary: null,
+        sourceTranscript: null,
+        conversationContext: { newProjectStartMessageId: 'msg_2' },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        quoteDrafts: [],
+      });
+    prisma.quoteDraft.findMany.mockResolvedValue([
+      {
+        id: 'draft_1',
+        reviewStatus: 'pending_owner_review',
+        draftPayload: {},
+      },
+    ]);
 
     const result = await service.planReply({
       conversationId: '573001112233',
@@ -394,40 +473,66 @@ describe('ConversationFlowService', () => {
   });
 
   it('resets the previous brief when the customer explicitly asks to quote something else during review', async () => {
-    prisma.commercialBrief.findUnique.mockResolvedValue({
-      id: 'brief_1',
-      conversationId: '573001112233',
-      status: 'quote_in_review',
-      customerName: 'Sergio',
-      projectType: 'CRM',
-      businessProblem: 'Centralizar ventas',
-      desiredScope: 'Pipeline y reportes',
-      budget: 'USD 5k',
-      urgency: '1 mes',
-      constraints: 'Integracion con WhatsApp',
-      summary: 'CRM',
-      sourceTranscript: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      quoteDrafts: [
-        {
-          id: 'draft_1',
-          commercialBriefId: 'brief_1',
-          conversationId: '573001112233',
-          version: 1,
-          origin: 'initial',
-          reviewStatus: 'pending_owner_review',
-          templateVersion: 'v1',
-          draftPayload: {},
-          renderedQuote: null,
-          ownerFeedbackSummary: null,
-          approvedAt: null,
-          deliveredToCustomerAt: null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-      ],
-    });
+    prisma.commercialBrief.findUnique
+      .mockResolvedValueOnce({
+        id: 'brief_1',
+        conversationId: '573001112233',
+        status: 'quote_in_review',
+        customerName: 'Sergio',
+        projectType: 'CRM',
+        businessProblem: 'Centralizar ventas',
+        desiredScope: 'Pipeline y reportes',
+        budget: 'USD 5k',
+        urgency: '1 mes',
+        constraints: 'Integracion con WhatsApp',
+        summary: 'CRM',
+        sourceTranscript: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        quoteDrafts: [
+          {
+            id: 'draft_1',
+            commercialBriefId: 'brief_1',
+            conversationId: '573001112233',
+            version: 1,
+            origin: 'initial',
+            reviewStatus: 'pending_owner_review',
+            templateVersion: 'v1',
+            draftPayload: {},
+            renderedQuote: null,
+            ownerFeedbackSummary: null,
+            approvedAt: null,
+            deliveredToCustomerAt: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        ],
+      })
+      .mockResolvedValue({
+        id: 'brief_1',
+        conversationId: '573001112233',
+        status: 'collecting',
+        customerName: 'Sergio',
+        projectType: null,
+        businessProblem: null,
+        desiredScope: null,
+        budget: null,
+        urgency: null,
+        constraints: null,
+        summary: null,
+        sourceTranscript: null,
+        conversationContext: { newProjectStartMessageId: 'msg_2' },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        quoteDrafts: [],
+      });
+    prisma.quoteDraft.findMany.mockResolvedValue([
+      {
+        id: 'draft_1',
+        reviewStatus: 'pending_owner_review',
+        draftPayload: {},
+      },
+    ]);
     conversationsService.listConversationMessages.mockResolvedValue([
       {
         id: 'msg_2',
@@ -458,8 +563,11 @@ describe('ConversationFlowService', () => {
       inboundBody: 'quiero cotizar otra cosa',
     });
 
-    expect(prisma.commercialBrief.delete).toHaveBeenCalledWith({
-      where: { conversationId: '573001112233' },
+    expect(prisma.quoteDraft.update).toHaveBeenCalledWith({
+      where: { id: 'draft_1' },
+      data: expect.objectContaining({
+        reviewStatus: 'changes_requested',
+      }),
     });
     expect(conversationsService.listConversationMessages).toHaveBeenCalledWith(
       '573001112233',
@@ -708,40 +816,66 @@ describe('ConversationFlowService', () => {
   });
 
   it('resets brief when user wants new project even if a draft already exists', async () => {
-    prisma.commercialBrief.findUnique.mockResolvedValue({
-      id: 'brief_1',
-      conversationId: '573001112233',
-      status: 'quote_in_review',
-      customerName: 'Sergio',
-      projectType: 'CRM con IA',
-      businessProblem: 'Calificar leads',
-      desiredScope: 'MVP',
-      budget: '300 USD',
-      urgency: '1 mes',
-      constraints: null,
-      summary: 'CRM',
-      sourceTranscript: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      quoteDrafts: [
-        {
-          id: 'draft_1',
-          commercialBriefId: 'brief_1',
-          conversationId: '573001112233',
-          version: 1,
-          origin: 'initial',
-          reviewStatus: 'pending_owner_review',
-          templateVersion: 'v1',
-          draftPayload: {},
-          renderedQuote: null,
-          ownerFeedbackSummary: null,
-          approvedAt: null,
-          deliveredToCustomerAt: null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-      ],
-    });
+    prisma.commercialBrief.findUnique
+      .mockResolvedValueOnce({
+        id: 'brief_1',
+        conversationId: '573001112233',
+        status: 'quote_in_review',
+        customerName: 'Sergio',
+        projectType: 'CRM con IA',
+        businessProblem: 'Calificar leads',
+        desiredScope: 'MVP',
+        budget: '300 USD',
+        urgency: '1 mes',
+        constraints: null,
+        summary: 'CRM',
+        sourceTranscript: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        quoteDrafts: [
+          {
+            id: 'draft_1',
+            commercialBriefId: 'brief_1',
+            conversationId: '573001112233',
+            version: 1,
+            origin: 'initial',
+            reviewStatus: 'pending_owner_review',
+            templateVersion: 'v1',
+            draftPayload: {},
+            renderedQuote: null,
+            ownerFeedbackSummary: null,
+            approvedAt: null,
+            deliveredToCustomerAt: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        ],
+      })
+      .mockResolvedValue({
+        id: 'brief_1',
+        conversationId: '573001112233',
+        status: 'collecting',
+        customerName: 'Sergio',
+        projectType: null,
+        businessProblem: null,
+        desiredScope: null,
+        budget: null,
+        urgency: null,
+        constraints: null,
+        summary: null,
+        sourceTranscript: null,
+        conversationContext: { newProjectStartMessageId: 'msg_new' },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        quoteDrafts: [],
+      });
+    prisma.quoteDraft.findMany.mockResolvedValue([
+      {
+        id: 'draft_1',
+        reviewStatus: 'pending_owner_review',
+        draftPayload: {},
+      },
+    ]);
     conversationsService.listConversationMessages.mockResolvedValue([
       {
         id: 'msg_new',
@@ -772,8 +906,11 @@ describe('ConversationFlowService', () => {
       inboundBody: 'quiero cotizar otro proyecto, una app movil',
     });
 
-    expect(prisma.commercialBrief.delete).toHaveBeenCalledWith({
-      where: { conversationId: '573001112233' },
+    expect(prisma.quoteDraft.update).toHaveBeenCalledWith({
+      where: { id: 'draft_1' },
+      data: expect.objectContaining({
+        reviewStatus: 'changes_requested',
+      }),
     });
     expect(aiSalesService.extractCommercialBrief).toHaveBeenCalled();
     expect(result.source).toBe('commercial-discovery');
