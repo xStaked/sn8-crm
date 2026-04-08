@@ -29,6 +29,7 @@ describe('QuoteMetricsService', () => {
     prisma.$transaction.mockImplementation((callback: (tx: any) => any) => callback(prisma));
 
     service = new QuoteMetricsService(prisma as unknown as PrismaService);
+    jest.spyOn((service as any).logger, 'log').mockImplementation(() => undefined);
   });
 
   it('records a won outcome with a new snapshot when none is provided', async () => {
@@ -82,6 +83,14 @@ describe('QuoteMetricsService', () => {
       deltaAmount: 500000,
       deltaPct: 2.78,
     });
+    expect((service as any).logger.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: 'quote_metrics_outcome_recorded',
+        conversationId: '+573001112233',
+        quoteEstimateSnapshotId: 'snapshot_1',
+        outcomeStatus: 'won',
+      }),
+    );
   });
 
   it('requires estimated window when snapshot id is missing', async () => {
@@ -166,5 +175,89 @@ describe('QuoteMetricsService', () => {
       meanAbsoluteErrorPct: 16.67,
       avgDeltaAmount: -3.33,
     });
+    expect((service as any).logger.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: 'quote_metrics_summary_generated',
+        totalOutcomes: 3,
+        meanAbsoluteErrorPct: 16.67,
+      }),
+    );
+  });
+
+  it('recommends monthly recalibration when at least 5 outcomes and MAE is above threshold', async () => {
+    prisma.quoteOutcome.findMany.mockResolvedValue([
+      {
+        outcomeStatus: 'won',
+        finalAmount: 120,
+        quoteEstimateSnapshot: { estimatedTargetAmount: 100 },
+      },
+      {
+        outcomeStatus: 'won',
+        finalAmount: 70,
+        quoteEstimateSnapshot: { estimatedTargetAmount: 100 },
+      },
+      {
+        outcomeStatus: 'lost',
+        finalAmount: 80,
+        quoteEstimateSnapshot: { estimatedTargetAmount: 100 },
+      },
+      {
+        outcomeStatus: 'won',
+        finalAmount: 130,
+        quoteEstimateSnapshot: { estimatedTargetAmount: 100 },
+      },
+      {
+        outcomeStatus: 'pending',
+        finalAmount: 110,
+        quoteEstimateSnapshot: { estimatedTargetAmount: 100 },
+      },
+    ]);
+    prisma.quoteDraft.findMany.mockResolvedValue([]);
+    prisma.quoteReviewEvent.findMany.mockResolvedValue([]);
+
+    const summary = await service.getSummary({
+      from: new Date('2026-04-01T00:00:00.000Z'),
+      to: new Date('2026-04-30T00:00:00.000Z'),
+    });
+
+    expect(summary.totalOutcomes).toBe(5);
+    expect(summary.meanAbsoluteErrorPct).toBeGreaterThanOrEqual(5);
+    expect(summary.monthlyRecalibration.recommended).toBe(true);
+    expect(summary.monthlyRecalibration.steps.length).toBeGreaterThan(0);
+  });
+
+  it('does not recommend recalibration when there is insufficient monthly signal', async () => {
+    prisma.quoteOutcome.findMany.mockResolvedValue([
+      {
+        outcomeStatus: 'won',
+        finalAmount: 101,
+        quoteEstimateSnapshot: { estimatedTargetAmount: 100 },
+      },
+      {
+        outcomeStatus: 'lost',
+        finalAmount: 99,
+        quoteEstimateSnapshot: { estimatedTargetAmount: 100 },
+      },
+      {
+        outcomeStatus: 'pending',
+        finalAmount: 100,
+        quoteEstimateSnapshot: { estimatedTargetAmount: 100 },
+      },
+      {
+        outcomeStatus: 'won',
+        finalAmount: 102,
+        quoteEstimateSnapshot: { estimatedTargetAmount: 100 },
+      },
+    ]);
+    prisma.quoteDraft.findMany.mockResolvedValue([]);
+    prisma.quoteReviewEvent.findMany.mockResolvedValue([]);
+
+    const summary = await service.getSummary({
+      from: new Date('2026-04-01T00:00:00.000Z'),
+      to: new Date('2026-04-30T00:00:00.000Z'),
+    });
+
+    expect(summary.totalOutcomes).toBe(4);
+    expect(summary.monthlyRecalibration.recommended).toBe(false);
   });
 });

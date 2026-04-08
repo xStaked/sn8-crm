@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { ListQuoteMetricsDto } from './dto/list-quote-metrics.dto';
@@ -15,6 +20,7 @@ type TxClient = Prisma.TransactionClient;
 
 @Injectable()
 export class QuoteMetricsService {
+  private readonly logger = new Logger(QuoteMetricsService.name);
   private static readonly DEFAULT_WINDOW_DAYS = 30;
   private static readonly MONTHLY_RECALIBRATION_STEPS = [
     'Exportar cierres won/lost del ultimo mes por categoria/complejidad/integracion.',
@@ -86,7 +92,7 @@ export class QuoteMetricsService {
         ? Number(((deltaAmount / estimatedTargetAmount) * 100).toFixed(2))
         : 0;
 
-    return {
+    const result = {
       outcomeId: created.outcome.id,
       quoteEstimateSnapshotId: created.snapshot.id,
       outcomeStatus: created.outcome.outcomeStatus,
@@ -96,6 +102,24 @@ export class QuoteMetricsService {
       deltaPct,
       closedAt: created.outcome.closedAt.toISOString(),
     };
+
+    this.logger.log({
+      event: 'quote_metrics_outcome_recorded',
+      conversationId: normalizedConversationId,
+      quoteOutcomeId: result.outcomeId,
+      quoteEstimateSnapshotId: result.quoteEstimateSnapshotId,
+      quoteDraftId: created.outcome.quoteDraftId,
+      pricingRuleId: created.snapshot.pricingRuleId,
+      outcomeStatus: result.outcomeStatus,
+      currency: created.outcome.currency,
+      estimatedTargetAmount,
+      finalAmount: normalizedFinalAmount,
+      deltaAmount: result.deltaAmount,
+      deltaPct: result.deltaPct,
+      closedAt: result.closedAt,
+    });
+
+    return result;
   }
 
   async getSummary(filters: ListQuoteMetricsDto): Promise<QuoteMetricsSummaryDto> {
@@ -199,7 +223,7 @@ export class QuoteMetricsService {
     const monthlyRecalibrationRecommended =
       totalOutcomes >= 5 && (Math.abs(avgDeltaAmount) > 0 || maePct >= 5);
 
-    return {
+    const summary = {
       window: {
         from: from.toISOString(),
         to: to.toISOString(),
@@ -221,6 +245,24 @@ export class QuoteMetricsService {
         steps: [...QuoteMetricsService.MONTHLY_RECALIBRATION_STEPS],
       },
     };
+
+    this.logger.log({
+      event: 'quote_metrics_summary_generated',
+      from: summary.window.from,
+      to: summary.window.to,
+      totalOutcomes: summary.totalOutcomes,
+      wonOutcomes: summary.wonOutcomes,
+      lostOutcomes: summary.lostOutcomes,
+      pendingOutcomes: summary.pendingOutcomes,
+      approvalRatePct: summary.approvalRatePct,
+      reworkRatePct: summary.reworkRatePct,
+      avgQuoteTurnaroundHours: summary.avgQuoteTurnaroundHours,
+      meanAbsoluteErrorPct: summary.meanAbsoluteErrorPct,
+      avgDeltaAmount: summary.avgDeltaAmount,
+      monthlyRecalibrationRecommended: summary.monthlyRecalibration.recommended,
+    });
+
+    return summary;
   }
 
   private async resolveDraft(
