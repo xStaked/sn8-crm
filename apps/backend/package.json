@@ -8,6 +8,7 @@
     "build": "nest build",
     "start:prod": "node dist/main.js",
     "seed:user": "ts-node --project tsconfig.json ../../prisma/seed.ts",
+    "seed:pricing-rules-v2": "ts-node --project tsconfig.json prisma/seed-pricing-rules-v2.ts",
     "kb:validate": "ts-node --project tsconfig.json scripts/validate-commercial-kb.ts"
   },
   "prisma": {
