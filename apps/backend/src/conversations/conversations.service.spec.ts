@@ -1,4 +1,4 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { OwnerReviewService } from '../ai-sales/owner-review.service';
 import { BotConversationRepository } from '../bot-conversation/bot-conversation.repository';
@@ -9,6 +9,9 @@ import { ConversationsService } from './conversations.service';
 
 describe('ConversationsService', () => {
   let prisma: {
+    commercialBrief: {
+      findUnique: jest.Mock;
+    };
     message: {
       findMany: jest.Mock;
       findFirst: jest.Mock;
@@ -47,6 +50,9 @@ describe('ConversationsService', () => {
 
   beforeEach(() => {
     prisma = {
+      commercialBrief: {
+        findUnique: jest.fn(),
+      },
       message: {
         findMany: jest.fn(),
         findFirst: jest.fn(),
@@ -67,6 +73,14 @@ describe('ConversationsService', () => {
       },
       $transaction: jest.fn(async (callback) => callback(prisma)),
     };
+    prisma.quoteDraft.findMany.mockImplementation(async (...args: unknown[]) => {
+      const result = await prisma.quoteDraft.findFirst(...args);
+      if (Array.isArray(result)) {
+        return result;
+      }
+
+      return result ? [result] : [];
+    });
 
     messagingService = {
       sendText: jest.fn(),
@@ -447,6 +461,7 @@ describe('ConversationsService', () => {
         generatedAt: new Date('2026-04-01T18:58:00.000Z'),
       },
       commercialBrief: {
+        status: 'approved',
         customerName: 'ACME SAS',
         summary: 'Need a CRM',
         projectType: 'CRM',
@@ -481,6 +496,8 @@ describe('ConversationsService', () => {
       quoteDraftId: 'draft_3',
       version: 3,
       reviewStatus: 'approved',
+      lifecycleState: 'quote_draft_ready',
+      recovery: null,
       renderedQuote: 'Quote body',
       draftSummary: 'Executive summary',
       ownerFeedbackSummary: 'Update the milestones',
@@ -541,6 +558,7 @@ describe('ConversationsService', () => {
       deliveredToCustomerAt: null,
       document: null,
       commercialBrief: {
+        status: 'approved',
         customerName: 'ACME SAS',
         summary: 'Need a CRM',
         projectType: 'CRM',
@@ -613,7 +631,7 @@ describe('ConversationsService', () => {
       content: Buffer.from('pdf bytes'),
     });
 
-    expect(prisma.quoteDraft.findFirst).toHaveBeenCalledWith({
+    expect(prisma.quoteDraft.findMany).toHaveBeenCalledWith({
       where: {
         conversationId: '573001112233',
         reviewStatus: {
@@ -627,9 +645,11 @@ describe('ConversationsService', () => {
         },
       },
       orderBy: [{ version: 'desc' }, { updatedAt: 'desc' }],
+      take: 25,
       include: {
         commercialBrief: {
           select: {
+            status: true,
             customerName: true,
             summary: true,
             projectType: true,
@@ -657,18 +677,36 @@ describe('ConversationsService', () => {
     expect(quotePdfService.getOrCreateDraftPdf).toHaveBeenCalledWith('draft_5');
   });
 
-  it('throws when the conversation exists but has no review draft', async () => {
+  it('returns a recoverable quote-review payload when no active draft exists', async () => {
     prisma.message.findFirst.mockResolvedValue({
       id: 'msg_inbound',
       direction: 'inbound',
       fromPhone: '573001112233',
       toPhone: '573009998877',
     });
-    prisma.quoteDraft.findFirst.mockResolvedValue(null);
+    prisma.quoteDraft.findMany.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+    prisma.commercialBrief.findUnique.mockResolvedValue({
+      status: 'ready_for_quote',
+      customerName: 'ACME SAS',
+      summary: 'Need a CRM',
+      projectType: 'CRM',
+      budget: 'USD 10k',
+      urgency: 'High',
+    });
 
-    await expect(service.getConversationQuoteReview('573001112233')).rejects.toThrow(
-      new NotFoundException('Conversation 573001112233 has no quote review draft.'),
-    );
+    await expect(service.getConversationQuoteReview('573001112233')).resolves.toMatchObject({
+      conversationId: '573001112233',
+      quoteDraftId: null,
+      version: null,
+      reviewStatus: null,
+      lifecycleState: 'brief_complete',
+      recovery: {
+        action: 'create_draft',
+      },
+      commercialBrief: {
+        customerName: 'ACME SAS',
+      },
+    });
   });
 
   it('delegates CRM quote approvals through OwnerReviewService and returns refreshed detail', async () => {
@@ -691,6 +729,7 @@ describe('ConversationsService', () => {
       deliveredToCustomerAt: new Date('2026-04-01T19:05:00.000Z'),
       document: null,
       commercialBrief: {
+        status: 'approved',
         customerName: 'ACME SAS',
         summary: 'Need a CRM',
         projectType: 'CRM',
@@ -739,6 +778,7 @@ describe('ConversationsService', () => {
       deliveredToCustomerAt: null,
       document: null,
       commercialBrief: {
+        status: 'quote_in_review',
         customerName: 'ACME SAS',
         summary: 'Need a CRM',
         projectType: 'CRM',
@@ -790,6 +830,7 @@ describe('ConversationsService', () => {
         deliveredToCustomerAt: null,
         document: null,
         commercialBrief: {
+          status: 'quote_in_review',
           customerName: 'ACME SAS',
           summary: 'Need a CRM',
           projectType: 'CRM',
@@ -812,6 +853,7 @@ describe('ConversationsService', () => {
         deliveredToCustomerAt: null,
         document: null,
         commercialBrief: {
+          status: 'quote_in_review',
           customerName: 'ACME SAS',
           summary: 'Need a CRM',
           projectType: 'CRM',

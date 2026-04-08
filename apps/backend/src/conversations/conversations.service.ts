@@ -104,6 +104,14 @@ type OwnerAdjustmentAuditEntry = {
   reason: string | null;
 };
 
+type QuoteLifecycleState =
+  | 'idle'
+  | 'brief_collecting'
+  | 'brief_complete'
+  | 'quote_draft_ready'
+  | 'quote_sent'
+  | 'quote_archived';
+
 const messageProjection = {
   id: true,
   direction: true,
@@ -251,9 +259,30 @@ export class ConversationsService {
     const draft = await this.findLatestReviewRelevantDraft(normalizedConversationId);
 
     if (!draft) {
-      throw new NotFoundException(
-        `Conversation ${normalizedConversationId} has no quote review draft.`,
-      );
+      const brief = await this.prisma.commercialBrief.findUnique({
+        where: { conversationId: normalizedConversationId },
+        select: {
+          status: true,
+          customerName: true,
+          summary: true,
+          projectType: true,
+          budget: true,
+          urgency: true,
+        },
+      });
+      const hasArchivedDraft = await this.hasArchivedReviewDraft(normalizedConversationId);
+      const lifecycleState = this.resolveLifecycleState({
+        briefStatus: brief?.status ?? null,
+        hasActiveDraft: false,
+        activeDraftReviewStatus: null,
+        hasArchivedDraft,
+      });
+
+      return this.buildRecoverableQuoteReview({
+        conversationId: normalizedConversationId,
+        lifecycleState,
+        brief,
+      });
     }
 
     const estimateSnapshot = await this.prisma.quoteEstimateSnapshot.findFirst({
@@ -279,6 +308,13 @@ export class ConversationsService {
       quoteDraftId: draft.id,
       version: draft.version,
       reviewStatus: draft.reviewStatus,
+      lifecycleState: this.resolveLifecycleState({
+        briefStatus: draft.commercialBrief.status,
+        hasActiveDraft: true,
+        activeDraftReviewStatus: draft.reviewStatus,
+        hasArchivedDraft: false,
+      }),
+      recovery: null,
       renderedQuote: draft.renderedQuote,
       draftSummary: this.getDraftSummary(draft.draftPayload),
       ownerFeedbackSummary: draft.ownerFeedbackSummary,
@@ -832,6 +868,7 @@ export class ConversationsService {
         conversationId: true,
         version: true,
         reviewStatus: true,
+        draftPayload: true,
       },
     });
 
@@ -839,6 +876,10 @@ export class ConversationsService {
 
     for (const draft of drafts) {
       if (summaries.has(draft.conversationId)) {
+        continue;
+      }
+
+      if (this.isDraftArchived(draft.draftPayload)) {
         continue;
       }
 
@@ -903,15 +944,17 @@ export class ConversationsService {
   }
 
   private async findLatestReviewRelevantDraft(conversationId: string) {
-    return this.prisma.quoteDraft.findFirst({
+    const drafts = await this.prisma.quoteDraft.findMany({
       where: {
         conversationId,
         reviewStatus: { in: [...reviewRelevantStatuses] },
       },
       orderBy: [{ version: 'desc' }, { updatedAt: 'desc' }],
+      take: 25,
       include: {
         commercialBrief: {
           select: {
+            status: true,
             customerName: true,
             summary: true,
             projectType: true,
@@ -936,6 +979,159 @@ export class ConversationsService {
         },
       },
     });
+
+    return drafts.find((draft) => !this.isDraftArchived(draft.draftPayload)) ?? null;
+  }
+
+  private async hasArchivedReviewDraft(conversationId: string): Promise<boolean> {
+    const drafts = await this.prisma.quoteDraft.findMany({
+      where: {
+        conversationId,
+        reviewStatus: { in: [...reviewRelevantStatuses] },
+      },
+      orderBy: [{ version: 'desc' }, { updatedAt: 'desc' }],
+      take: 25,
+      select: {
+        id: true,
+        draftPayload: true,
+      },
+    });
+
+    return drafts.some((draft) => this.isDraftArchived(draft.draftPayload));
+  }
+
+  private isDraftArchived(payload: Prisma.JsonValue | null | undefined): boolean {
+    const payloadObj = this.safeJsonObject(payload);
+    const lifecycle = this.safeJsonObject(payloadObj.lifecycle);
+    return typeof lifecycle.archivedAt === 'string' && lifecycle.archivedAt.trim().length > 0;
+  }
+
+  private resolveLifecycleState(input: {
+    briefStatus: string | null;
+    hasActiveDraft: boolean;
+    activeDraftReviewStatus: QuoteReviewStatus | null;
+    hasArchivedDraft: boolean;
+  }): QuoteLifecycleState {
+    if (input.hasActiveDraft) {
+      if (input.activeDraftReviewStatus === 'delivered_to_customer') {
+        return 'quote_sent';
+      }
+      return 'quote_draft_ready';
+    }
+
+    if (input.briefStatus === 'collecting') {
+      return 'brief_collecting';
+    }
+
+    if (input.briefStatus === 'ready_for_quote') {
+      return 'brief_complete';
+    }
+
+    if (input.hasArchivedDraft) {
+      return 'quote_archived';
+    }
+
+    return 'idle';
+  }
+
+  private buildRecoverableQuoteReview(input: {
+    conversationId: string;
+    lifecycleState: QuoteLifecycleState;
+    brief: {
+      customerName: string | null;
+      summary: string | null;
+      projectType: string | null;
+      budget: string | null;
+      urgency: string | null;
+    } | null;
+  }): ConversationQuoteReviewDto {
+    const recoveryByState: Record<
+      QuoteLifecycleState,
+      { action: string; message: string } | null
+    > = {
+      idle: {
+        action: 'restart_brief',
+        message:
+          'No existe un brief comercial activo para esta conversación. Inicia la captura del brief desde el chat.',
+      },
+      brief_collecting: {
+        action: 'restart_brief',
+        message:
+          'El brief todavía está en recolección. Completa los campos clave antes de generar un draft.',
+      },
+      brief_complete: {
+        action: 'create_draft',
+        message:
+          'El brief está completo pero no hay draft activo. Genera una nueva cotización desde CRM.',
+      },
+      quote_draft_ready: {
+        action: 'create_draft',
+        message:
+          'No se encontró un draft activo para revisión aunque el flujo indica estado de draft. Regenera la cotización.',
+      },
+      quote_sent: {
+        action: 'wait_for_review',
+        message:
+          'La última cotización ya fue enviada al cliente y no hay un draft editable activo en este momento.',
+      },
+      quote_archived: {
+        action: 'create_draft',
+        message:
+          'Se archivó una cotización anterior por cambio de intención. Genera un nuevo draft para continuar.',
+      },
+    };
+
+    const brief = input.brief ?? {
+      customerName: null,
+      summary: null,
+      projectType: null,
+      budget: null,
+      urgency: null,
+    };
+    const recovery = recoveryByState[input.lifecycleState];
+
+    return {
+      conversationId: input.conversationId,
+      quoteDraftId: null,
+      version: null,
+      reviewStatus: null,
+      lifecycleState: input.lifecycleState,
+      recovery: recovery ? { ...recovery } : null,
+      renderedQuote: null,
+      draftSummary: recovery?.message ?? null,
+      ownerFeedbackSummary: null,
+      approvedAt: null,
+      deliveredToCustomerAt: null,
+      commercialBrief: {
+        customerName: brief.customerName,
+        summary: brief.summary,
+        projectType: brief.projectType,
+        budget: brief.budget,
+        urgency: brief.urgency,
+      },
+      pdf: {
+        available: false,
+        fileName: null,
+        generatedAt: null,
+        sizeBytes: null,
+        version: 0,
+      },
+      pricingRule: {
+        id: null,
+        version: null,
+        category: null,
+        complexity: null,
+        integrationType: null,
+      },
+      complexityScore: null,
+      confidence: null,
+      ruleVersionUsed: null,
+      estimatedMinAmount: null,
+      estimatedTargetAmount: null,
+      estimatedMaxAmount: null,
+      pricingBreakdown: null,
+      ownerAdjustments: [],
+    };
   }
 
   private getDraftSummary(draftPayload: unknown): string | null {

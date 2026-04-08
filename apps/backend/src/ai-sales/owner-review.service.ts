@@ -499,10 +499,13 @@ export class OwnerReviewService {
   }
 
   async assertLatestDraftApproved(conversationId: string): Promise<QuoteDraft> {
-    const latestDraft = await this.prisma.quoteDraft.findFirst({
+    const drafts = await this.prisma.quoteDraft.findMany({
       where: { conversationId: conversationId.trim() },
-      orderBy: { version: 'desc' },
+      orderBy: [{ version: 'desc' }, { updatedAt: 'desc' }],
+      take: 25,
     });
+    const latestDraft =
+      drafts.find((draft) => !this.isDraftArchived(draft.draftPayload)) ?? null;
 
     if (!latestDraft) {
       throw new NotFoundException(
@@ -603,9 +606,10 @@ export class OwnerReviewService {
   private async getLatestDraftForCommand(
     command: OwnerReviewCommandDto,
   ): Promise<ReviewContext> {
-    const latestDraft = await this.prisma.quoteDraft.findFirst({
+    const drafts = await this.prisma.quoteDraft.findMany({
       where: { conversationId: command.conversationId.trim() },
-      orderBy: { version: 'desc' },
+      orderBy: [{ version: 'desc' }, { updatedAt: 'desc' }],
+      take: 25,
       include: {
         commercialBrief: {
           select: {
@@ -625,6 +629,8 @@ export class OwnerReviewService {
         },
       },
     });
+    const latestDraft =
+      drafts.find((draft) => !this.isDraftArchived(draft.draftPayload)) ?? null;
 
     if (!latestDraft || latestDraft.version !== command.version) {
       throw new NotFoundException(
@@ -692,6 +698,20 @@ export class OwnerReviewService {
     }
 
     return draft.renderedQuote?.slice(0, 280) ?? 'Sin resumen del draft.';
+  }
+
+  private isDraftArchived(payload: Prisma.JsonValue | null | undefined): boolean {
+    const payloadObj = this.safeJsonObject(payload);
+    const lifecycle = this.safeJsonObject(payloadObj.lifecycle);
+    return typeof lifecycle.archivedAt === 'string' && lifecycle.archivedAt.trim().length > 0;
+  }
+
+  private safeJsonObject(value: unknown): Record<string, unknown> {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return {};
+    }
+
+    return value as Record<string, unknown>;
   }
 
   private async sendOwnerAck(

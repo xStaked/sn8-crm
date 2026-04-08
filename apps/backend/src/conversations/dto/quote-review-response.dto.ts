@@ -125,11 +125,11 @@ export class ConversationQuoteReviewDto {
   @ApiProperty({ example: '573001112233' })
   conversationId: string;
 
-  @ApiProperty({ example: 'cma_quote_draft_123' })
-  quoteDraftId: string;
+  @ApiProperty({ example: 'cma_quote_draft_123', nullable: true })
+  quoteDraftId: string | null;
 
-  @ApiProperty({ example: 3 })
-  version: number;
+  @ApiProperty({ example: 3, nullable: true })
+  version: number | null;
 
   @ApiProperty({
     example: 'ready_for_recheck',
@@ -140,8 +140,34 @@ export class ConversationQuoteReviewDto {
       'approved',
       'delivered_to_customer',
     ],
+    nullable: true,
   })
-  reviewStatus: string;
+  reviewStatus: string | null;
+
+  @ApiProperty({
+    example: 'quote_draft_ready',
+    enum: [
+      'idle',
+      'brief_collecting',
+      'brief_complete',
+      'quote_draft_ready',
+      'quote_sent',
+      'quote_archived',
+    ],
+  })
+  lifecycleState: string;
+
+  @ApiProperty({
+    nullable: true,
+    type: 'object',
+    additionalProperties: true,
+    example: {
+      action: 'create_draft',
+      message:
+        'No hay un borrador activo para revisar. Vuelve a generar la cotización desde CRM.',
+    },
+  })
+  recovery: Record<string, unknown> | null;
 
   @ApiProperty({
     example: 'Resumen ejecutivo\n\nAlcance...\n\nInversion...',

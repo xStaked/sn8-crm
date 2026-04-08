@@ -16,6 +16,7 @@ describe('OwnerReviewService', () => {
       quoteDraft: {
         findUnique: jest.fn(),
         findFirst: jest.fn(),
+        findMany: jest.fn(),
         update: jest.fn(),
         create: jest.fn(),
       },
@@ -35,6 +36,14 @@ describe('OwnerReviewService', () => {
         callback(prisma),
       ),
     };
+    prisma.quoteDraft.findMany.mockImplementation(async (...args: unknown[]) => {
+      const result = await prisma.quoteDraft.findFirst(...args);
+      if (Array.isArray(result)) {
+        return result;
+      }
+
+      return result ? [result] : [];
+    });
     messagingService = {
       sendText: jest.fn().mockResolvedValue('out_123'),
       sendDocument: jest.fn().mockResolvedValue('out_pdf_123'),
