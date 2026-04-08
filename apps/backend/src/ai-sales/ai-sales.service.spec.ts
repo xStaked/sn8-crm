@@ -68,9 +68,9 @@ describe('AiSalesService', () => {
     prisma.pricingRule.findFirst
       .mockResolvedValueOnce({
         id: 'rule_4',
-        category: 'crm',
-        complexity: 'medium',
-        integrationType: 'erp',
+        category: 'crm_sales',
+        complexity: 'high',
+        integrationType: 'advanced',
         version: 4,
         currency: 'COP',
         minMarginPct: 15,
@@ -83,8 +83,7 @@ describe('AiSalesService', () => {
           budgetClarity: 0.2,
           urgencyClarity: 0.15,
         },
-      })
-      .mockResolvedValueOnce(null);
+      });
 
     prisma.quoteDraft.create.mockResolvedValue({
       id: 'draft_3',
@@ -126,6 +125,68 @@ describe('AiSalesService', () => {
           estimatedTargetAmount: expect.any(Number),
           estimatedMaxAmount: expect.any(Number),
           confidencePct: expect.any(Number),
+        }),
+      }),
+    );
+    expect(prisma.pricingRule.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          category: 'crm_sales',
+          complexity: 'high',
+          integrationType: 'advanced',
+          isActive: true,
+          archivedAt: null,
+        }),
+      }),
+    );
+  });
+
+  it('falls back inside the matrix when an exact integration match does not exist', async () => {
+    prisma.pricingRule.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        id: 'rule_fallback',
+        category: 'crm_sales',
+        complexity: 'medium',
+        integrationType: 'standard',
+        version: 5,
+        currency: 'COP',
+        minMarginPct: 25,
+        targetMarginPct: 35,
+        maxMarginPct: 50,
+        scoreWeights: null,
+        confidenceWeights: null,
+      });
+
+    const resolved = await service.resolveApplicablePricingRule({
+      category: 'crm_sales',
+      complexity: 'medium',
+      integrationType: 'advanced',
+    });
+
+    expect(resolved).toMatchObject({
+      id: 'rule_fallback',
+      category: 'crm_sales',
+      complexity: 'medium',
+      integrationType: 'standard',
+    });
+    expect(prisma.pricingRule.findFirst).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        where: expect.objectContaining({
+          category: 'crm_sales',
+          complexity: 'medium',
+          integrationType: 'advanced',
+        }),
+      }),
+    );
+    expect(prisma.pricingRule.findFirst).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        where: expect.objectContaining({
+          category: 'crm_sales',
+          complexity: 'medium',
+          integrationType: 'standard',
         }),
       }),
     );

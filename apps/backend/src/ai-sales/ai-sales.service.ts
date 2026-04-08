@@ -29,6 +29,12 @@ type PricingRuleSnapshot = {
   integrationType: string;
 };
 
+type PricingMatrixContext = {
+  category: string;
+  complexity: string;
+  integrationType: string;
+};
+
 @Injectable()
 export class AiSalesService {
   constructor(
@@ -103,9 +109,15 @@ export class AiSalesService {
     });
 
     const nextVersion = (brief.quoteDrafts[0]?.version ?? 0) + 1;
-    const appliedPricingRule = await this.resolveApplicablePricingRule(
-      brief.projectType,
-    );
+    const pricingContext = this.inferPricingMatrixContext({
+      projectType: brief.projectType,
+      businessProblem: brief.businessProblem,
+      desiredScope: brief.desiredScope,
+      constraints: brief.constraints,
+      summary: brief.summary,
+      transcript: input.transcript,
+    });
+    const appliedPricingRule = await this.resolveApplicablePricingRule(pricingContext);
     const estimate = this.buildDeterministicEstimate({
       conversationId: input.conversationId,
       transcript: input.transcript,
@@ -138,6 +150,7 @@ export class AiSalesService {
             version: appliedPricingRule.version,
           }
         : null,
+      pricingRuleContext: pricingContext,
     };
 
     return this.prisma.$transaction(async (tx) => {
@@ -220,41 +233,201 @@ export class AiSalesService {
     });
   }
 
-  async resolveApplicablePricingRule(projectType: string | null) {
-    const requestedCategory = this.normalizePricingToken(projectType);
-    if (requestedCategory) {
-      const byCategory = await this.prisma.pricingRule.findFirst({
+  async resolveApplicablePricingRule(context: PricingMatrixContext) {
+    const candidates = this.buildPricingMatrixCandidates(context);
+
+    for (const candidate of candidates) {
+      const rule = await this.prisma.pricingRule.findFirst({
         where: {
-          category: requestedCategory,
+          category: candidate.category,
+          complexity: candidate.complexity,
+          integrationType: candidate.integrationType,
           isActive: true,
           archivedAt: null,
         },
         orderBy: [{ version: 'desc' }, { updatedAt: 'desc' }],
       });
 
-      if (byCategory) {
-        return this.mapPricingRule(byCategory);
+      if (rule) {
+        return this.mapPricingRule(rule);
       }
     }
 
-    const fallback = await this.prisma.pricingRule.findFirst({
-      where: {
-        category: 'general',
-        isActive: true,
-        archivedAt: null,
-      },
-      orderBy: [{ version: 'desc' }, { updatedAt: 'desc' }],
-    });
-    return fallback ? this.mapPricingRule(fallback) : null;
+    return null;
+  }
+
+  private inferPricingMatrixContext(input: {
+    projectType: string | null;
+    businessProblem: string | null;
+    desiredScope: string | null;
+    constraints: string | null;
+    summary: string | null;
+    transcript: string;
+  }): PricingMatrixContext {
+    const normalizedProjectType = this.normalizePricingToken(input.projectType);
+    const text = [
+      input.projectType,
+      input.businessProblem,
+      input.desiredScope,
+      input.constraints,
+      input.summary,
+      input.transcript,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+
+    return {
+      category: this.resolveCategory(normalizedProjectType, text),
+      complexity: this.resolveComplexity(text),
+      integrationType: this.resolveIntegrationType(text),
+    };
+  }
+
+  private buildPricingMatrixCandidates(context: PricingMatrixContext): PricingMatrixContext[] {
+    const complexityOrder = this.resolveComplexityFallbackOrder(context.complexity);
+    const integrationOrder = this.resolveIntegrationFallbackOrder(context.integrationType);
+    const candidates: PricingMatrixContext[] = [];
+
+    for (const complexity of complexityOrder) {
+      for (const integrationType of integrationOrder) {
+        const candidate = {
+          category: context.category,
+          complexity,
+          integrationType,
+        };
+        if (
+          !candidates.some(
+            (existing) =>
+              existing.category === candidate.category &&
+              existing.complexity === candidate.complexity &&
+              existing.integrationType === candidate.integrationType,
+          )
+        ) {
+          candidates.push(candidate);
+        }
+      }
+    }
+
+    return candidates;
+  }
+
+  private resolveComplexityFallbackOrder(
+    complexity: PricingMatrixContext['complexity'],
+  ): Array<PricingMatrixContext['complexity']> {
+    if (complexity === 'high') {
+      return ['high', 'medium', 'low'];
+    }
+    if (complexity === 'medium') {
+      return ['medium', 'low'];
+    }
+    return ['low'];
+  }
+
+  private resolveIntegrationFallbackOrder(
+    integrationType: PricingMatrixContext['integrationType'],
+  ): Array<PricingMatrixContext['integrationType']> {
+    if (integrationType === 'advanced') {
+      return ['advanced', 'standard', 'none'];
+    }
+    if (integrationType === 'standard') {
+      return ['standard', 'none'];
+    }
+    return ['none'];
+  }
+
+  private resolveCategory(
+    projectTypeToken: string | null,
+    text: string,
+  ): PricingMatrixContext['category'] {
+    if (
+      this.matchesAny(
+        projectTypeToken,
+        ['crm', 'crm_sales', 'sales', 'pipeline', 'cotizaciones'],
+      ) ||
+      /(crm|pipeline|funnel|cotiz|lead score|seguimiento comercial|ventas)/.test(text)
+    ) {
+      return 'crm_sales';
+    }
+
+    if (
+      this.matchesAny(projectTypeToken, ['landing', 'landing_marketing', 'marketing']) ||
+      /(landing|campa(?:n|ñ)a|ads|conversion|captaci[oó]n)/.test(text)
+    ) {
+      return 'landing_marketing';
+    }
+
+    if (
+      this.matchesAny(projectTypeToken, ['automation', 'automation_ia', 'ia', 'automatizacion']) ||
+      /(automatiz|ia|agent|asistente|bot|orquestaci[oó]n)/.test(text)
+    ) {
+      return 'automation_ia';
+    }
+
+    if (
+      this.matchesAny(projectTypeToken, ['vertical_saas', 'saas', 'plataforma']) ||
+      /(saas|multi-tenant|enterprise|vertical|multi-rol|arquitectura modular)/.test(text)
+    ) {
+      return 'vertical_saas';
+    }
+
+    if (
+      this.matchesAny(projectTypeToken, ['web_operativa', 'web', 'ecommerce', 'commerce']) ||
+      /(e-?commerce|tienda|pedidos|reservas|blog|sitio web|website)/.test(text)
+    ) {
+      return 'web_operativa';
+    }
+
+    return 'web_operativa';
+  }
+
+  private resolveComplexity(text: string): PricingMatrixContext['complexity'] {
+    if (
+      /(multi-rol|multi modulo|multi-m[oó]dulo|alta escala|legacy|erp|sap|arquitectura|critical|cr[ií]tic)/.test(
+        text,
+      )
+    ) {
+      return 'high';
+    }
+
+    if (/(dashboard|workflow|pipeline|integraci[oó]n|api|panel|m[oó]dulo|automatiz)/.test(text)) {
+      return 'medium';
+    }
+
+    return 'low';
+  }
+
+  private resolveIntegrationType(text: string): PricingMatrixContext['integrationType'] {
+    if (
+      /(erp|sap|salesforce|netsuite|oracle|legacy|integraci[oó]n avanzada|m[uú]ltiples? sistemas?)/.test(
+        text,
+      )
+    ) {
+      return 'advanced';
+    }
+
+    if (
+      /(integraci[oó]n|api|webhook|whatsapp|kapso|stripe|hubspot|shopify|wompi|mercadopago|twilio|pasarela)/.test(
+        text,
+      )
+    ) {
+      return 'standard';
+    }
+
+    return 'none';
+  }
+
+  private matchesAny(value: string | null, expectedTokens: string[]): boolean {
+    if (!value) {
+      return false;
+    }
+
+    return expectedTokens.includes(value);
   }
 
   private normalizePricingToken(value: string | null | undefined): string | null {
-    if (!value) {
-      return null;
-    }
-
-    const normalized = value.trim().toLowerCase();
-    return normalized.length > 0 ? normalized : null;
+    const normalized = value?.trim().toLowerCase();
+    return normalized && normalized.length > 0 ? normalized : null;
   }
 
   private mapPricingRule(row: {
