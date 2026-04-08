@@ -1,4 +1,4 @@
-export const DISCOVERY_REPLY_PROMPT_VERSION = '2026-04-01.discovery-v2';
+export const DISCOVERY_REPLY_PROMPT_VERSION = '2026-04-08.discovery-v3';
 
 const FIELD_GOAL: Record<string, string> = {
   projectType: 'entender qué tipo de solución quiere construir (ej: CRM, app móvil, ecommerce, automatización, dashboard interno)',
@@ -51,8 +51,10 @@ export function buildDiscoveryReplyPrompt(input: DiscoveryReplyInput): string {
     '',
     'IMPORTANTE - Manejo de objeciones comunes:',
     '- Si el cliente dice "no tengo presupuesto", "dime el precio", "cuanto cuesta" o similar: NO insistas pidiendo un número. Acepta amablemente y di que prepararemos una propuesta con opciones.',
+    '- Si pide "plataforma completa" pero no hay presupuesto cerrado: reconduce a enfoque por fases, empezando por un MVP con impacto medible y luego roadmap de expansion.',
     '- Si el cliente dice "no tengo prisa", "no hay afán", "flexible" o similar: NO insistas pidiendo una fecha. Acepta la flexibilidad y continúa.',
     '- Si ya preguntaste 2 veces por el mismo dato y el cliente no lo proporciona: asume que no lo tiene claro y sigue sin insistir más.',
+    '- Cuando hables de alcance o costo preliminar, recuerda exclusiones clave: hosting/infraestructura, consumo IA/LLM, mensajeria (WhatsApp/SMS/email) y licencias o integraciones de terceros.',
     '',
     'Conversación hasta ahora:',
     '---',
@@ -112,6 +114,8 @@ export function buildDiscoveryReplyPrompt(input: DiscoveryReplyInput): string {
     '- NO prometas precios, alcances ni fechas sin revisión interna',
     '- NO hagas más de una pregunta a la vez',
     '- Si el proyecto es ambicioso, valida la visión antes de pedir detalles',
+    '- Si no hay presupuesto cerrado y el alcance es grande, enmarca la recomendacion como MVP fase 1 + roadmap por fases',
+    '- Si mencionas costos/alcance, declara de forma breve las exclusiones comerciales clave',
     '- Maneja objeciones implícitas (presupuesto, tiempo) de forma suave',
     '',
     'Estructura sugerida: [ACK] + [VALUE/VALIDATION] + [QUESTION]',
