@@ -1010,6 +1010,15 @@ export class ConversationFlowService {
         },
       });
     });
+
+    this.logger.log({
+      event: 'quote_flow_restarted',
+      conversationId: input.conversationId,
+      triggerMessageId: input.triggerMessageId,
+      reason: input.reason,
+      archivedDraftCount: archivedDrafts.length,
+      source: 'conversation_flow_new_project',
+    });
   }
 
   private isDraftArchived(payload: unknown): boolean {

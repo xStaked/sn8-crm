@@ -17,6 +17,7 @@ describe('ConversationFlowService', () => {
   let aiSalesOrchestrator: { enqueueQualifiedConversation: jest.Mock };
   let messageVariantService: MessageVariantService;
   let service: ConversationFlowService;
+  let loggerLogSpy: jest.SpyInstance;
 
   beforeEach(() => {
     prisma = {
@@ -52,6 +53,9 @@ describe('ConversationFlowService', () => {
       aiSalesOrchestrator as any,
       messageVariantService,
     );
+    loggerLogSpy = jest
+      .spyOn(service['logger'] as any, 'log')
+      .mockImplementation(() => undefined);
   });
 
   it('asks for the next missing discovery field instead of repeating the generic greeting', async () => {
@@ -915,6 +919,13 @@ describe('ConversationFlowService', () => {
     expect(aiSalesService.extractCommercialBrief).toHaveBeenCalled();
     expect(result.source).toBe('commercial-discovery');
     expect(result.body).toContain('app móvil');
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: 'quote_flow_restarted',
+        conversationId: '573001112233',
+        reason: 'explicit_new_project_intent',
+      }),
+    );
   });
 
   it('provides clarification message when user is confused and there is an existing draft', async () => {

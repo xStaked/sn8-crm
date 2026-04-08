@@ -71,9 +71,20 @@ export type ConversationMessageState =
 
 export type ConversationQuoteReview = {
   conversationId: string;
-  quoteDraftId: string;
-  version: number;
-  reviewStatus: PendingQuoteReviewStatus;
+  quoteDraftId: string | null;
+  version: number | null;
+  reviewStatus: PendingQuoteReviewStatus | null;
+  lifecycleState:
+    | "idle"
+    | "brief_collecting"
+    | "brief_complete"
+    | "quote_draft_ready"
+    | "quote_sent"
+    | "quote_archived";
+  recovery: {
+    action: "create_draft" | "restart_brief" | "wait_for_review";
+    message: string;
+  } | null;
   renderedQuote: string | null;
   draftSummary: string | null;
   ownerFeedbackSummary: string | null;

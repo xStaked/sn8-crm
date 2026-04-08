@@ -277,6 +277,24 @@ export class ConversationsService {
         activeDraftReviewStatus: null,
         hasArchivedDraft,
       });
+      const stateLooksInconsistent =
+        brief?.status === 'quote_in_review' || brief?.status === 'approved';
+      if (stateLooksInconsistent) {
+        this.logger.warn({
+          event: 'quote_state_mismatch',
+          conversationId: normalizedConversationId,
+          briefStatus: brief?.status ?? null,
+          lifecycleState,
+          reason: 'brief_status_implies_quote_progress_without_active_draft',
+        });
+      }
+      this.logger.warn({
+        event: 'quote_draft_missing',
+        conversationId: normalizedConversationId,
+        briefStatus: brief?.status ?? null,
+        lifecycleState,
+        hasArchivedDraft,
+      });
 
       return this.buildRecoverableQuoteReview({
         conversationId: normalizedConversationId,
@@ -669,6 +687,116 @@ export class ConversationsService {
     if (result.processingStage !== 'draft_ready_for_review') {
       throw new Error(`Could not generate quote draft: ${result.processingStage}. Missing fields: ${result.missingFields?.join(', ') ?? 'none'}`);
     }
+
+    return this.getConversationQuoteReview(normalizedConversationId);
+  }
+
+  async restartConversationQuoteBrief(
+    conversationId: string,
+    actorIdentity: string,
+  ): Promise<ConversationQuoteReviewDto> {
+    const normalizedConversationId = this.normalizeParticipantPhone(conversationId);
+    await this.assertConversationExists(normalizedConversationId);
+
+    const archivedAtIso = new Date().toISOString();
+    const archivedAt = new Date(archivedAtIso);
+    const existingBrief = await this.prisma.commercialBrief.findUnique({
+      where: { conversationId: normalizedConversationId },
+      select: {
+        id: true,
+        conversationContext: true,
+      },
+    });
+    const drafts = await this.prisma.quoteDraft.findMany({
+      where: { conversationId: normalizedConversationId },
+      orderBy: [{ version: 'desc' }, { updatedAt: 'desc' }],
+      select: {
+        id: true,
+        reviewStatus: true,
+        draftPayload: true,
+      },
+    });
+    const archivedDrafts = drafts.filter((draft) => !this.isDraftArchived(draft.draftPayload));
+    const actor = actorIdentity.trim() || 'crm';
+    const existingContext = this.safeJsonObject(existingBrief?.conversationContext);
+    const existingLifecycle = this.safeJsonObject(existingContext.quoteLifecycle);
+    const nextContext: Prisma.InputJsonObject = {
+      ...existingContext,
+      quoteLifecycle: {
+        ...existingLifecycle,
+        state: 'brief_collecting',
+        updatedAt: archivedAtIso,
+        restartedBy: actor,
+        restartSource: 'crm_manual_restart',
+        archivedDraftCount: archivedDrafts.length,
+      },
+    };
+
+    await this.prisma.$transaction(async (tx) => {
+      for (const draft of archivedDrafts) {
+        const payload = this.safeJsonObject(draft.draftPayload);
+        const lifecycle = this.safeJsonObject(payload.lifecycle);
+
+        await tx.quoteDraft.update({
+          where: { id: draft.id },
+          data: {
+            reviewStatus:
+              draft.reviewStatus === 'pending_owner_review' ||
+              draft.reviewStatus === 'ready_for_recheck'
+                ? 'changes_requested'
+                : draft.reviewStatus,
+            draftPayload: {
+              ...payload,
+              lifecycle: {
+                ...lifecycle,
+                archivedAt: archivedAtIso,
+                archivedBy: actor,
+                archiveReason: 'crm_manual_restart',
+              },
+            },
+          },
+        });
+      }
+
+      await tx.commercialBrief.upsert({
+        where: { conversationId: normalizedConversationId },
+        create: {
+          conversationId: normalizedConversationId,
+          status: 'collecting',
+          customerName: null,
+          projectType: null,
+          businessProblem: null,
+          desiredScope: null,
+          budget: null,
+          urgency: null,
+          constraints: null,
+          summary: null,
+          sourceTranscript: null,
+          conversationContext: nextContext,
+        },
+        update: {
+          status: 'collecting',
+          projectType: null,
+          businessProblem: null,
+          desiredScope: null,
+          budget: null,
+          urgency: null,
+          constraints: null,
+          summary: null,
+          sourceTranscript: null,
+          conversationContext: nextContext,
+        },
+      });
+    });
+
+    this.logger.log({
+      event: 'quote_flow_restarted',
+      conversationId: normalizedConversationId,
+      actor,
+      trigger: 'crm_manual_restart',
+      archivedDraftCount: archivedDrafts.length,
+      restartedAt: archivedAt,
+    });
 
     return this.getConversationQuoteReview(normalizedConversationId);
   }

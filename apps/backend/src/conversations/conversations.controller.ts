@@ -252,6 +252,33 @@ export class ConversationsController {
     return this.conversationsService.forceGenerateQuoteDraft(conversationId);
   }
 
+  @ApiOperation({
+    summary: 'Reiniciar el brief comercial y archivar drafts activos para una conversacion',
+  })
+  @ApiParam({
+    name: 'conversationId',
+    example: '573001112233',
+    description: 'Telefono normalizado usado como id estable de la conversacion.',
+  })
+  @ApiOkResponse({
+    description: 'Estado recoverable del quote luego de reiniciar el brief.',
+    type: ConversationQuoteReviewDto,
+  })
+  @ApiNotFoundResponse({
+    description: 'La conversacion no existe.',
+  })
+  @Post('conversations/:conversationId/quote-review/restart-brief')
+  @UseGuards(JwtAuthGuard)
+  restartConversationQuoteBrief(
+    @Param('conversationId') conversationId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.conversationsService.restartConversationQuoteBrief(
+      conversationId,
+      req.user.email,
+    );
+  }
+
   @ApiOperation({ summary: 'Enviar mensaje manual a una conversacion' })
   @ApiParam({
     name: 'conversationId',

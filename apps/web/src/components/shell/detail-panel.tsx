@@ -29,6 +29,7 @@ import type {
   ConversationMessageDto,
   ConversationQuoteReview,
   ConversationQuoteReviewDto,
+  PendingQuoteReviewStatus,
 } from "@/types/conversation";
 
 function getInitials(name: string): string {
@@ -89,6 +90,9 @@ function parseNumericInput(value: string): number | null {
 }
 
 function getReviewStatusLabel(status: ConversationQuoteReview["reviewStatus"]) {
+  if (!status) {
+    return "Sin draft activo";
+  }
   switch (status) {
     case "pending_owner_review":
       return "Pendiente de aprobacion";
@@ -106,6 +110,9 @@ function getReviewStatusLabel(status: ConversationQuoteReview["reviewStatus"]) {
 }
 
 function getReviewStatusTone(status: ConversationQuoteReview["reviewStatus"]) {
+  if (!status) {
+    return "border-border bg-muted text-muted-foreground";
+  }
   switch (status) {
     case "pending_owner_review":
     case "ready_for_recheck":
@@ -123,6 +130,111 @@ function getReviewStatusTone(status: ConversationQuoteReview["reviewStatus"]) {
 
 function isQuoteReviewActionable(status: ConversationQuoteReview["reviewStatus"]) {
   return status === "pending_owner_review" || status === "ready_for_recheck";
+}
+
+type ActiveConversationQuoteReview = ConversationQuoteReview & {
+  quoteDraftId: string;
+  version: number;
+  reviewStatus: PendingQuoteReviewStatus;
+};
+
+function hasActiveQuoteDraft(
+  quoteReview: ConversationQuoteReview | null,
+): quoteReview is ActiveConversationQuoteReview {
+  return Boolean(
+    quoteReview &&
+      quoteReview.quoteDraftId &&
+      quoteReview.version !== null &&
+      quoteReview.reviewStatus,
+  );
+}
+
+function getLifecycleLabel(state: ConversationQuoteReview["lifecycleState"]) {
+  switch (state) {
+    case "brief_collecting":
+      return "Brief en captura";
+    case "brief_complete":
+      return "Brief completo";
+    case "quote_draft_ready":
+      return "Draft listo para revision";
+    case "quote_sent":
+      return "Cotizacion enviada";
+    case "quote_archived":
+      return "Cotizacion archivada";
+    case "idle":
+    default:
+      return "Sin contexto comercial";
+  }
+}
+
+function getRecoveryActionLabel(action: NonNullable<ConversationQuoteReview["recovery"]>["action"]) {
+  switch (action) {
+    case "create_draft":
+      return "Crear draft";
+    case "restart_brief":
+      return "Reiniciar brief";
+    case "wait_for_review":
+    default:
+      return "Volver al chat";
+  }
+}
+
+function QuoteRecoveryCard({
+  quoteReview,
+  isSubmitting,
+  error,
+  onCreateDraft,
+  onRestartBrief,
+  onBackToChat,
+}: {
+  quoteReview: ConversationQuoteReview;
+  isSubmitting: boolean;
+  error: string | null;
+  onCreateDraft: () => void;
+  onRestartBrief: () => void;
+  onBackToChat: () => void;
+}) {
+  const recovery = quoteReview.recovery;
+  const showCreate = recovery?.action === "create_draft";
+  const showRestart = recovery?.action === "restart_brief" || quoteReview.lifecycleState === "quote_archived";
+
+  return (
+    <div className="border-b border-border px-6 py-5">
+      <section className="rounded-2xl border border-border bg-card/80 p-5 shadow-sm">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="secondary" className="border text-xs font-medium tone-warning">
+            Sin draft activo
+          </Badge>
+          <span className="rounded-full border border-border px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+            {getLifecycleLabel(quoteReview.lifecycleState)}
+          </span>
+        </div>
+        <h3 className="mt-3 text-sm font-semibold text-foreground">
+          Recuperación de cotización desde CRM
+        </h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {recovery?.message ??
+            "No hay draft comercial activo en este momento. Usa una acción de recuperación para desbloquear el flujo."}
+        </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          {showCreate ? (
+            <Button type="button" onClick={onCreateDraft} disabled={isSubmitting}>
+              {isSubmitting ? "Creando draft..." : getRecoveryActionLabel("create_draft")}
+            </Button>
+          ) : null}
+          {showRestart ? (
+            <Button type="button" variant="outline" onClick={onRestartBrief} disabled={isSubmitting}>
+              {isSubmitting ? "Reiniciando..." : getRecoveryActionLabel("restart_brief")}
+            </Button>
+          ) : null}
+          <Button type="button" variant="ghost" onClick={onBackToChat} disabled={isSubmitting}>
+            Volver al chat
+          </Button>
+        </div>
+        {error ? <p className="mt-3 text-sm text-destructive">{error}</p> : null}
+      </section>
+    </div>
+  );
 }
 
 function getControlLabel(mode: ConversationControlMode): string {
@@ -347,6 +459,16 @@ function QuoteReviewCard({
               <p className="mt-1 text-sm text-muted-foreground">
                 Revisa el contexto y el borrador final antes de aprobar el envio al
                 cliente o pedir ajustes.
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Ultima transicion:{" "}
+                {quoteReview.deliveredToCustomerAt
+                  ? `entregada al cliente (${formatTimestamp(quoteReview.deliveredToCustomerAt)}) por sistema`
+                  : quoteReview.approvedAt
+                    ? `aprobada (${formatTimestamp(quoteReview.approvedAt)}) por owner`
+                    : latestOwnerAdjustment
+                      ? `ajuste manual (${formatTimestamp(latestOwnerAdjustment.adjustedAt)}) por ${latestOwnerAdjustment.adjustedBy}`
+                      : "sin transicion registrada en esta version"}
               </p>
             </div>
           </div>
@@ -738,15 +860,19 @@ export function DetailPanel() {
   const [adjustmentTargetAmount, setAdjustmentTargetAmount] = useState("");
   const [adjustmentMaxAmount, setAdjustmentMaxAmount] = useState("");
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [recoverySubmitting, setRecoverySubmitting] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [pdfOpening, setPdfOpening] = useState(false);
   const [controlSubmitting, setControlSubmitting] = useState(false);
   const [controlError, setControlError] = useState<string | null>(null);
   const [controlNotice, setControlNotice] = useState<string | null>(null);
+  const activeQuoteReview = hasActiveQuoteDraft(quoteReview) ? quoteReview : null;
   const quoteTotal =
-    (quoteReview?.estimatedTargetAmount ?? 0) > 0
-      ? quoteReview?.estimatedTargetAmount ?? null
-      : quoteReview?.estimatedMaxAmount ?? quoteReview?.estimatedMinAmount ?? null;
+    (activeQuoteReview?.estimatedTargetAmount ?? 0) > 0
+      ? activeQuoteReview?.estimatedTargetAmount ?? null
+      : activeQuoteReview?.estimatedMaxAmount ??
+        activeQuoteReview?.estimatedMinAmount ??
+        null;
 
   useEffect(() => {
     setRequestChangesMode(false);
@@ -758,30 +884,36 @@ export function DetailPanel() {
     setAdjustmentTargetAmount("");
     setAdjustmentMaxAmount("");
     setReviewError(null);
+    setRecoverySubmitting(false);
     setControlError(null);
     setControlNotice(null);
   }, [selectedId]);
 
   useEffect(() => {
-    if (!quoteReview) {
+    if (!activeQuoteReview) {
       return;
     }
 
     setAdjustmentMinAmount(
-      quoteReview.estimatedMinAmount !== null ? String(quoteReview.estimatedMinAmount) : "",
+      activeQuoteReview.estimatedMinAmount !== null
+        ? String(activeQuoteReview.estimatedMinAmount)
+        : "",
     );
     setAdjustmentTargetAmount(
-      quoteReview.estimatedTargetAmount !== null
-        ? String(quoteReview.estimatedTargetAmount)
+      activeQuoteReview.estimatedTargetAmount !== null
+        ? String(activeQuoteReview.estimatedTargetAmount)
         : "",
     );
     setAdjustmentMaxAmount(
-      quoteReview.estimatedMaxAmount !== null ? String(quoteReview.estimatedMaxAmount) : "",
+      activeQuoteReview.estimatedMaxAmount !== null
+        ? String(activeQuoteReview.estimatedMaxAmount)
+        : "",
     );
-    const latest = quoteReview.ownerAdjustments[quoteReview.ownerAdjustments.length - 1];
+    const latest =
+      activeQuoteReview.ownerAdjustments[activeQuoteReview.ownerAdjustments.length - 1];
     setAdjustmentAssumptions(latest?.assumptions?.join("\n") ?? "");
     setAdjustmentReason(latest?.reason ?? "");
-  }, [quoteReview]);
+  }, [activeQuoteReview]);
 
   async function handleSend() {
     if (!messageBody.trim() || !selectedId || sending) return;
@@ -812,7 +944,7 @@ export function DetailPanel() {
   }
 
   async function handleApproveQuote() {
-    if (!selectedId || !quoteReview || reviewSubmitting) {
+    if (!selectedId || !activeQuoteReview || reviewSubmitting) {
       return;
     }
 
@@ -824,7 +956,7 @@ export function DetailPanel() {
         `/conversations/${encodeURIComponent(selectedId)}/quote-review/approve`,
         {
           method: "POST",
-          body: JSON.stringify({ version: quoteReview.version }),
+          body: JSON.stringify({ version: activeQuoteReview.version }),
         },
       );
 
@@ -844,16 +976,16 @@ export function DetailPanel() {
   }
 
   async function handleOpenPdf() {
-    if (!selectedId || !quoteReview || pdfOpening) {
+    if (!selectedId || !activeQuoteReview || pdfOpening) {
       return;
     }
 
-    const pdf = quoteReview.pdf ?? {
+    const pdf = activeQuoteReview.pdf ?? {
       available: false,
       fileName: null,
       generatedAt: null,
       sizeBytes: null,
-      version: quoteReview.version,
+      version: activeQuoteReview.version,
     };
 
     const pdfUrl = `/conversations/${encodeURIComponent(selectedId)}/quote-review/pdf`;
@@ -902,7 +1034,7 @@ export function DetailPanel() {
   }
 
   async function handleRequestChanges() {
-    if (!selectedId || !quoteReview || reviewSubmitting) {
+    if (!selectedId || !activeQuoteReview || reviewSubmitting) {
       return;
     }
 
@@ -926,7 +1058,7 @@ export function DetailPanel() {
         {
           method: "POST",
           body: JSON.stringify({
-            version: quoteReview.version,
+            version: activeQuoteReview.version,
             feedback: requestChangesFeedback.trim(),
           }),
         },
@@ -950,7 +1082,7 @@ export function DetailPanel() {
   }
 
   async function handleApplyOwnerAdjustments() {
-    if (!selectedId || !quoteReview || reviewSubmitting) {
+    if (!selectedId || !activeQuoteReview || reviewSubmitting) {
       return;
     }
 
@@ -968,7 +1100,7 @@ export function DetailPanel() {
         {
           method: "POST",
           body: JSON.stringify({
-            version: quoteReview.version,
+            version: activeQuoteReview.version,
             estimatedMinAmount: parseNumericInput(adjustmentMinAmount),
             estimatedTargetAmount: parseNumericInput(adjustmentTargetAmount),
             estimatedMaxAmount: parseNumericInput(adjustmentMaxAmount),
@@ -989,6 +1121,56 @@ export function DetailPanel() {
       }
     } finally {
       setReviewSubmitting(false);
+    }
+  }
+
+  async function handleCreateDraftFromRecovery() {
+    if (!selectedId || recoverySubmitting) {
+      return;
+    }
+
+    setRecoverySubmitting(true);
+    setReviewError(null);
+    try {
+      const updatedReview = await apiFetchJson<ConversationQuoteReviewDto>(
+        `/conversations/${encodeURIComponent(selectedId)}/quote-review/generate`,
+        { method: "POST" },
+      );
+      await mutateQuoteReview(updatedReview, { revalidate: false });
+      await mutateConversations();
+    } catch (errorAttempt) {
+      if (isApiError(errorAttempt)) {
+        setReviewError(errorAttempt.message);
+      } else {
+        setReviewError("No se pudo generar un nuevo draft desde CRM.");
+      }
+    } finally {
+      setRecoverySubmitting(false);
+    }
+  }
+
+  async function handleRestartBriefFromRecovery() {
+    if (!selectedId || recoverySubmitting) {
+      return;
+    }
+
+    setRecoverySubmitting(true);
+    setReviewError(null);
+    try {
+      const updatedReview = await apiFetchJson<ConversationQuoteReviewDto>(
+        `/conversations/${encodeURIComponent(selectedId)}/quote-review/restart-brief`,
+        { method: "POST" },
+      );
+      await mutateQuoteReview(updatedReview, { revalidate: false });
+      await mutateConversations();
+    } catch (errorAttempt) {
+      if (isApiError(errorAttempt)) {
+        setReviewError(errorAttempt.message);
+      } else {
+        setReviewError("No se pudo reiniciar el brief comercial.");
+      }
+    } finally {
+      setRecoverySubmitting(false);
     }
   }
 
@@ -1146,9 +1328,9 @@ export function DetailPanel() {
 
       {quoteReviewState === "loading" && selectedConversation.pendingQuote ? (
         <QuoteReviewSkeleton />
-      ) : quoteReview ? (
+      ) : activeQuoteReview ? (
         <QuoteReviewCard
-          quoteReview={quoteReview}
+          quoteReview={activeQuoteReview}
           requestChangesMode={requestChangesMode}
           requestChangesFeedback={requestChangesFeedback}
           reviewError={reviewError}
@@ -1185,6 +1367,24 @@ export function DetailPanel() {
           }}
           onOpenPdf={() => {
             void handleOpenPdf();
+          }}
+        />
+      ) : quoteReview ? (
+        <QuoteRecoveryCard
+          quoteReview={quoteReview}
+          isSubmitting={recoverySubmitting}
+          error={reviewError}
+          onCreateDraft={() => {
+            void handleCreateDraftFromRecovery();
+          }}
+          onRestartBrief={() => {
+            void handleRestartBriefFromRecovery();
+          }}
+          onBackToChat={() => {
+            document.getElementById("conversation-chat-stream")?.scrollIntoView({
+              behavior: "smooth",
+              block: "end",
+            });
           }}
         />
       ) : quoteReviewState === "error" ? (
@@ -1226,7 +1426,10 @@ export function DetailPanel() {
           description="Cuando exista historial, aparecera aqui en orden cronologico."
         />
       ) : (
-        <div className="flex flex-1 flex-col gap-6 overflow-y-auto px-6 py-6">
+        <div
+          id="conversation-chat-stream"
+          className="flex flex-1 flex-col gap-6 overflow-y-auto px-6 py-6"
+        >
           <div className="flex justify-center">
             <span className="rounded-full border border-border/70 bg-card px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               Today
@@ -1270,7 +1473,7 @@ export function DetailPanel() {
               </div>
             );
           })}
-          {quoteReview ? (
+          {activeQuoteReview ? (
             <div className="flex justify-end">
               <div className="w-full max-w-xl space-y-3">
                 <div className="rounded-2xl rounded-tr-md bg-primary px-4 py-3 text-sm text-primary-foreground">
@@ -1285,20 +1488,20 @@ export function DetailPanel() {
                       </span>
                     </div>
                     <span className="text-[10px] font-semibold text-primary">
-                      v{quoteReview.version}
+                      v{activeQuoteReview.version}
                     </span>
                   </div>
                   <div className="space-y-3 p-4">
                     <div className="flex items-center justify-between text-xs">
                       <span className="text-muted-foreground">Min estimate</span>
                       <span className="font-semibold text-foreground">
-                        {formatCurrency(quoteReview.estimatedMinAmount)}
+                        {formatCurrency(activeQuoteReview.estimatedMinAmount)}
                       </span>
                     </div>
                     <div className="flex items-center justify-between text-xs">
                       <span className="text-muted-foreground">Target estimate</span>
                       <span className="font-semibold text-foreground">
-                        {formatCurrency(quoteReview.estimatedTargetAmount)}
+                        {formatCurrency(activeQuoteReview.estimatedTargetAmount)}
                       </span>
                     </div>
                     <div className="flex items-center justify-between border-t border-border pt-3">
@@ -1339,7 +1542,7 @@ export function DetailPanel() {
               </div>
             </div>
           ) : null}
-          {quoteReview ? (
+          {activeQuoteReview ? (
             <div className="flex justify-center">
               <div className="flex items-center gap-3 rounded-full border border-border bg-card px-4 py-2">
                 <span className="relative flex h-2 w-2">

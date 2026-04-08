@@ -11,6 +11,7 @@ describe('ConversationsService', () => {
   let prisma: {
     commercialBrief: {
       findUnique: jest.Mock;
+      upsert: jest.Mock;
     };
     message: {
       findMany: jest.Mock;
@@ -52,6 +53,7 @@ describe('ConversationsService', () => {
     prisma = {
       commercialBrief: {
         findUnique: jest.fn(),
+        upsert: jest.fn(),
       },
       message: {
         findMany: jest.fn(),
@@ -707,6 +709,90 @@ describe('ConversationsService', () => {
         customerName: 'ACME SAS',
       },
     });
+    expect(loggerWarnSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: 'quote_draft_missing',
+        conversationId: '573001112233',
+        lifecycleState: 'brief_complete',
+      }),
+    );
+  });
+
+  it('emits quote_state_mismatch when brief status suggests quote progress without active draft', async () => {
+    prisma.message.findFirst.mockResolvedValue({
+      id: 'msg_inbound',
+      direction: 'inbound',
+      fromPhone: '573001112233',
+      toPhone: '573009998877',
+    });
+    prisma.quoteDraft.findMany.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+    prisma.commercialBrief.findUnique.mockResolvedValue({
+      status: 'quote_in_review',
+      customerName: 'ACME SAS',
+      summary: 'Need a CRM',
+      projectType: 'CRM',
+      budget: 'USD 10k',
+      urgency: 'High',
+    });
+
+    await service.getConversationQuoteReview('573001112233');
+
+    expect(loggerWarnSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: 'quote_state_mismatch',
+        conversationId: '573001112233',
+        briefStatus: 'quote_in_review',
+      }),
+    );
+  });
+
+  it('restarts brief from CRM, archives active drafts and logs quote_flow_restarted', async () => {
+    prisma.message.findFirst.mockResolvedValue({
+      id: 'msg_inbound',
+      direction: 'inbound',
+      fromPhone: '573001112233',
+      toPhone: '573009998877',
+    });
+    prisma.commercialBrief.findUnique.mockResolvedValue({
+      id: 'brief_1',
+      conversationContext: {},
+    });
+    prisma.quoteDraft.findMany
+      .mockResolvedValueOnce([
+        {
+          id: 'draft_active',
+          reviewStatus: 'pending_owner_review',
+          draftPayload: {},
+        },
+      ])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+
+    await service.restartConversationQuoteBrief('573001112233', 'owner@example.com');
+
+    expect(prisma.quoteDraft.update).toHaveBeenCalledWith({
+      where: { id: 'draft_active' },
+      data: expect.objectContaining({
+        reviewStatus: 'changes_requested',
+      }),
+    });
+    expect(prisma.commercialBrief.upsert).toHaveBeenCalledWith({
+      where: { conversationId: '573001112233' },
+      create: expect.objectContaining({
+        status: 'collecting',
+      }),
+      update: expect.objectContaining({
+        status: 'collecting',
+      }),
+    });
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: 'quote_flow_restarted',
+        conversationId: '573001112233',
+        actor: 'owner@example.com',
+        trigger: 'crm_manual_restart',
+      }),
+    );
   });
 
   it('delegates CRM quote approvals through OwnerReviewService and returns refreshed detail', async () => {
