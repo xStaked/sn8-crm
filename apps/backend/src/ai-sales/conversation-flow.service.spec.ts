@@ -15,6 +15,9 @@ describe('ConversationFlowService', () => {
   let conversationsService: { listConversationMessages: jest.Mock };
   let aiSalesService: { extractCommercialBrief: jest.Mock; generateDiscoveryReply: jest.Mock };
   let aiSalesOrchestrator: { enqueueQualifiedConversation: jest.Mock };
+  let salesGraphRuntime: { resolveEntry: jest.Mock; decideActionNode: jest.Mock };
+  let salesGraphRolloutService: { evaluate: jest.Mock; emitTransition: jest.Mock };
+  let quotePdfAccessLinkService: { buildSignedPublicQuotePdfUrl: jest.Mock };
   let messageVariantService: MessageVariantService;
   let service: ConversationFlowService;
   let loggerLogSpy: jest.SpyInstance;
@@ -44,6 +47,43 @@ describe('ConversationFlowService', () => {
     aiSalesOrchestrator = {
       enqueueQualifiedConversation: jest.fn(),
     };
+    salesGraphRuntime = {
+      resolveEntry: jest.fn().mockResolvedValue({
+        replayed: false,
+        state: {
+          conversationId: '573001112233',
+          inboundMessageId: 'msg_1',
+          inboundBody: 'hola',
+          channel: 'whatsapp',
+          intent: 'unknown',
+          transcript: '',
+          missingFields: [],
+          shouldNotifyHuman: false,
+          retries: {},
+          traceId: 'trace_1',
+          startedAt: '2026-04-09T00:00:00.000Z',
+        },
+      }),
+      decideActionNode: jest.fn().mockReturnValue('ask_discovery_question'),
+    };
+    salesGraphRolloutService = {
+      evaluate: jest.fn().mockReturnValue({
+        enabled: false,
+        shadowMode: true,
+        rolloutPercent: 0,
+        bucket: 0,
+        reason: 'feature_flag_disabled',
+      }),
+      emitTransition: jest.fn(),
+    };
+    quotePdfAccessLinkService = {
+      buildSignedPublicQuotePdfUrl: jest.fn((conversationId: string) => ({
+        url: `https://crm.sn8labs.com/public/conversations/${encodeURIComponent(
+          conversationId,
+        )}/quote-review/pdf?exp=9999999999&sig=test-signature`,
+        expiresAtUnix: 9999999999,
+      })),
+    };
     messageVariantService = new MessageVariantService();
 
     service = new ConversationFlowService(
@@ -51,7 +91,10 @@ describe('ConversationFlowService', () => {
       conversationsService as any,
       aiSalesService as any,
       aiSalesOrchestrator as any,
+      salesGraphRuntime as any,
+      salesGraphRolloutService as any,
       messageVariantService,
+      quotePdfAccessLinkService as any,
     );
     loggerLogSpy = jest
       .spyOn(service['logger'] as any, 'log')

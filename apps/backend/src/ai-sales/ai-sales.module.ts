@@ -17,6 +17,7 @@ import { FollowUpService } from './follow-up.service';
 import { QuoteEstimatorService } from './quote-estimator.service';
 import { SalesGraphRuntime } from './langgraph/sales-graph.runtime';
 import { SalesGraphCheckpointService } from './langgraph/sales-graph.checkpoint.service';
+import { SalesGraphRolloutService } from './langgraph/sales-graph-rollout.service';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { SalesGraphCheckpointService } from './langgraph/sales-graph.checkpoint.
     MessageVariantService,
     SalesGraphRuntime,
     SalesGraphCheckpointService,
+    SalesGraphRolloutService,
     AiSalesProcessor,
     {
       provide: AI_PROVIDER,
@@ -51,6 +53,7 @@ import { SalesGraphCheckpointService } from './langgraph/sales-graph.checkpoint.
     OwnerReviewService,
     SalesGraphRuntime,
     SalesGraphCheckpointService,
+    SalesGraphRolloutService,
     AI_PROVIDER,
   ],
 })

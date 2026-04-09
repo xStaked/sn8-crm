@@ -9,6 +9,7 @@ describe('OwnerReviewService', () => {
   let queue: any;
   let aiSalesService: any;
   let quotePdfService: any;
+  let quotePdfAccessLinkService: any;
   let service: OwnerReviewService;
 
   beforeEach(() => {
@@ -53,6 +54,14 @@ describe('OwnerReviewService', () => {
         content: Buffer.from('fake-pdf'),
         fileName: 'cotizacion.pdf',
       }),
+    };
+    quotePdfAccessLinkService = {
+      buildSignedPublicQuotePdfUrl: jest.fn((conversationId: string) => ({
+        url: `https://crm.sn8labs.com/public/conversations/${encodeURIComponent(
+          conversationId,
+        )}/quote-review/pdf?exp=1767225600&sig=test-signature`,
+        expiresAtUnix: 1767225600,
+      })),
     };
     config = {
       get: jest.fn((key: string) => {
@@ -118,6 +127,7 @@ describe('OwnerReviewService', () => {
       config,
       aiSalesService,
       quotePdfService,
+      quotePdfAccessLinkService,
     );
   });
 
@@ -292,6 +302,14 @@ describe('OwnerReviewService', () => {
           direction: 'outbound',
         }),
       }),
+    );
+    expect(messagingService.sendText).toHaveBeenCalledWith(
+      '+573001234567',
+      expect.stringContaining('/public/conversations/%2B573001234567/quote-review/pdf?exp=1767225600&sig=test-signature'),
+      'kapso-phone-id',
+    );
+    expect(quotePdfAccessLinkService.buildSignedPublicQuotePdfUrl).toHaveBeenCalledWith(
+      '+573001234567',
     );
   });
 

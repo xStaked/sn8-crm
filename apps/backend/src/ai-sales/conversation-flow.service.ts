@@ -2,8 +2,13 @@ import { Injectable, Logger } from '@nestjs/common';
 import type { CommercialBrief, QuoteDraft } from '@prisma/client';
 import { ConversationsService } from '../conversations/conversations.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { QuotePdfAccessLinkService } from '../quote-documents/quote-pdf-access-link.service';
 import { AiSalesOrchestrator } from './ai-sales.orchestrator';
 import { AiSalesService } from './ai-sales.service';
+import { SALES_GRAPH_NODES } from './langgraph/sales-graph.contract';
+import { SalesGraphRolloutService } from './langgraph/sales-graph-rollout.service';
+import { SalesGraphRuntime } from './langgraph/sales-graph.runtime';
+import type { SalesChannel, SalesGraphQuoteReviewStatus } from './langgraph/sales-graph.types';
 import { MessageVariantService } from './message-variant.service';
 
 const DEFAULT_AUTO_REPLY =
@@ -80,13 +85,17 @@ export class ConversationFlowService {
     private readonly conversationsService: ConversationsService,
     private readonly aiSalesService: AiSalesService,
     private readonly aiSalesOrchestrator: AiSalesOrchestrator,
+    private readonly salesGraphRuntime: SalesGraphRuntime,
+    private readonly salesGraphRolloutService: SalesGraphRolloutService,
     private readonly messageVariantService: MessageVariantService,
+    private readonly quotePdfAccessLinkService: QuotePdfAccessLinkService,
   ) {}
 
   async planReply(input: {
     conversationId: string;
     inboundMessageId: string;
     inboundBody: string | null;
+    channel?: SalesChannel;
   }): Promise<ReplyPlan> {
     const normalizedConversationId = input.conversationId.trim();
     let currentBrief = await this.prisma.commercialBrief.findUnique({
@@ -124,6 +133,8 @@ export class ConversationFlowService {
     }
 
     const latestDraft = this.pickLatestActiveDraft(currentBrief?.quoteDrafts ?? []);
+    await this.runLangGraphShadowRollout(input, currentBrief, latestDraft);
+
     if (latestDraft) {
       // Check if user wants to start a new project even when there's an existing draft
       const userIntent = this.detectUserIntent(input.inboundBody);
@@ -471,8 +482,11 @@ export class ConversationFlowService {
     ];
 
     if (pdfPatterns.some((p) => p.test(lowerMessage))) {
+      const signedPdfLink = this.quotePdfAccessLinkService.buildSignedPublicQuotePdfUrl(
+        conversationId,
+      );
       return {
-        body: `Puedes descargar la propuesta en PDF aquí: https://crm.sn8labs.com/conversations/${conversationId}/quote-review/pdf\n\n¿Te quedó claro todo o tienes alguna duda específica?`,
+        body: `Puedes descargar la propuesta en PDF aquí: ${signedPdfLink.url}\n\n¿Te quedó claro todo o tienes alguna duda específica?`,
         source: 'commercial-delivered-pdf-request',
       };
     }
@@ -610,6 +624,117 @@ export class ConversationFlowService {
     }
 
     return normalized;
+  }
+
+  private async runLangGraphShadowRollout(
+    input: {
+      conversationId: string;
+      inboundMessageId: string;
+      inboundBody: string | null;
+      channel?: SalesChannel;
+    },
+    currentBrief: CommercialBriefWithLatestDraft | null,
+    latestDraft: QuoteDraft | undefined,
+  ): Promise<void> {
+    const channel = input.channel ?? 'whatsapp';
+    const rolloutDecision = this.salesGraphRolloutService.evaluate({
+      conversationId: input.conversationId,
+      channel,
+    });
+    if (!rolloutDecision.enabled) {
+      return;
+    }
+
+    const startedAtMs = Date.now();
+    const traceId = `shadow-${input.conversationId.trim()}-${input.inboundMessageId.trim()}`;
+
+    try {
+      const entry = await this.salesGraphRuntime.resolveEntry({
+        conversationId: input.conversationId,
+        inboundMessageId: input.inboundMessageId,
+        inboundBody: input.inboundBody,
+        channel,
+        traceId,
+        startedAt: new Date(startedAtMs).toISOString(),
+      });
+
+      const routedNode = this.salesGraphRuntime.decideActionNode({
+        ...entry.state,
+        briefStatus: this.mapBriefStatusForGraph(currentBrief?.status),
+        missingFields: this.estimateMissingFields(currentBrief),
+        quoteReviewStatus: this.mapQuoteReviewStatusForGraph(latestDraft?.reviewStatus),
+      });
+
+      this.salesGraphRolloutService.emitTransition({
+        conversationId: input.conversationId.trim(),
+        traceId,
+        fromNode: SALES_GRAPH_NODES.classifyIntent,
+        toNode: routedNode,
+        status: rolloutDecision.shadowMode ? 'fallback' : 'success',
+        latencyMs: Date.now() - startedAtMs,
+        mode: rolloutDecision.shadowMode ? 'shadow' : 'live',
+        replayed: entry.replayed,
+      });
+    } catch (error) {
+      this.salesGraphRolloutService.emitTransition({
+        conversationId: input.conversationId.trim(),
+        traceId,
+        fromNode: SALES_GRAPH_NODES.classifyIntent,
+        toNode: SALES_GRAPH_NODES.humanHandoff,
+        status: 'error',
+        latencyMs: Date.now() - startedAtMs,
+        mode: rolloutDecision.shadowMode ? 'shadow' : 'live',
+        errorCode: 'shadow_runtime_failure',
+      });
+
+      this.logger.warn({
+        event: 'sales_graph_shadow_rollout_failed',
+        conversationId: input.conversationId.trim(),
+        inboundMessageId: input.inboundMessageId.trim(),
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  private estimateMissingFields(
+    brief: CommercialBriefWithLatestDraft | null,
+  ): string[] {
+    if (!brief) {
+      return [...CORE_BRIEF_FIELDS];
+    }
+
+    return [...CORE_BRIEF_FIELDS, ...OPTIONAL_BRIEF_FIELDS].filter(
+      (field) => !this.hasMeaningfulBriefValue(brief[field]),
+    );
+  }
+
+  private mapBriefStatusForGraph(
+    status: CommercialBrief['status'] | undefined,
+  ): 'collecting' | 'ready_for_quote' | 'quote_in_review' | undefined {
+    if (
+      status === 'collecting' ||
+      status === 'ready_for_quote' ||
+      status === 'quote_in_review'
+    ) {
+      return status;
+    }
+
+    return undefined;
+  }
+
+  private mapQuoteReviewStatusForGraph(
+    status: QuoteDraft['reviewStatus'] | undefined,
+  ): SalesGraphQuoteReviewStatus | undefined {
+    if (
+      status === 'pending_owner_review' ||
+      status === 'changes_requested' ||
+      status === 'approved' ||
+      status === 'delivered_to_customer'
+    ) {
+      return status;
+    }
+
+    return undefined;
   }
 
   private hasMeaningfulBriefValue(value: string | null | undefined): boolean {

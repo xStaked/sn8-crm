@@ -49,3 +49,16 @@ Al escalar, incluir:
 - marca de tiempo del último intento
 - acción ejecutada
 - captura breve del estado visible en CRM
+
+## Soporte: enlace PDF vencido (cliente WhatsApp)
+
+El enlace de PDF enviado por WhatsApp ahora es público firmado con expiración (TTL).
+
+Pasos de soporte:
+
+1. Confirmar con el cliente que el error corresponde a enlace vencido/no válido.
+2. Desde CRM, abrir la conversación y usar `Reenviar PDF` (`POST /conversations/:conversationId/quote-review/resend-pdf` desde UI).
+3. Verificar en logs backend:
+- acceso denegado: `quote_pdf_public_access_denied` (reasons esperados: `expired`, `invalid_signature`)
+- acceso exitoso: `quote_pdf_public_access_granted`
+4. Confirmar que el cliente abre el nuevo enlace sin autenticarse en CRM.

@@ -174,6 +174,7 @@ export class BotConversationService {
         conversationId: normalized.fromPhone,
         inboundMessageId: normalized.externalMessageId,
         inboundBody: normalized.body,
+        channel: normalized.channel === 'webchat' ? 'webchat' : 'whatsapp',
       });
 
       await this.transition({
@@ -368,6 +369,7 @@ export class BotConversationService {
       conversationId: normalized.fromPhone,
       inboundMessageId: normalized.externalMessageId,
       inboundBody: normalized.body,
+      channel: normalized.channel === 'webchat' ? 'webchat' : 'whatsapp',
     });
 
     await this.transition({

@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
+  ChevronDown,
+  ChevronUp,
   CheckCircle2,
   ClipboardCheck,
   ExternalLink,
@@ -473,46 +475,48 @@ function QuoteReviewCard({
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onOpenPdf}
-              disabled={pdfOpening || reviewSubmitting}
-              className="min-h-11"
-            >
-              <ExternalLink className="mr-2 h-4 w-4" />
-              {pdfOpening ? "Abriendo PDF..." : "Abrir PDF"}
-            </Button>
-            <Button
-              type="button"
-              onClick={onApprove}
-              disabled={!actionable || reviewSubmitting}
-              className="min-h-11"
-            >
-              <CheckCircle2 className="mr-2 h-4 w-4" />
-              Aprobar y enviar
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onToggleAdjustmentsMode}
-              disabled={!actionable || reviewSubmitting}
-              className="min-h-11"
-            >
-              <SlidersHorizontal className="mr-2 h-4 w-4" />
-              {adjustmentsMode ? "Cerrar ajustes" : "Ajustar rango"}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onToggleRequestChanges}
-              disabled={!actionable || reviewSubmitting}
-              className="min-h-11"
-            >
-              <PencilLine className="mr-2 h-4 w-4" />
-              Solicitar revisión
-            </Button>
+          <div className="sticky top-0 z-10 -mx-2 rounded-xl bg-card/95 px-2 py-2 backdrop-blur-sm">
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onOpenPdf}
+                disabled={pdfOpening || reviewSubmitting}
+                className="min-h-11"
+              >
+                <ExternalLink className="mr-2 h-4 w-4" />
+                {pdfOpening ? "Abriendo PDF..." : "Abrir PDF"}
+              </Button>
+              <Button
+                type="button"
+                onClick={onApprove}
+                disabled={!actionable || reviewSubmitting}
+                className="min-h-11"
+              >
+                <CheckCircle2 className="mr-2 h-4 w-4" />
+                Aprobar y enviar
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onToggleAdjustmentsMode}
+                disabled={!actionable || reviewSubmitting}
+                className="min-h-11"
+              >
+                <SlidersHorizontal className="mr-2 h-4 w-4" />
+                {adjustmentsMode ? "Cerrar ajustes" : "Ajustar rango"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onToggleRequestChanges}
+                disabled={!actionable || reviewSubmitting}
+                className="min-h-11"
+              >
+                <PencilLine className="mr-2 h-4 w-4" />
+                Solicitar revisión
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -863,6 +867,7 @@ export function DetailPanel() {
   const [recoverySubmitting, setRecoverySubmitting] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [pdfOpening, setPdfOpening] = useState(false);
+  const [mobileQuoteExpanded, setMobileQuoteExpanded] = useState(false);
   const [controlSubmitting, setControlSubmitting] = useState(false);
   const [controlError, setControlError] = useState<string | null>(null);
   const [controlNotice, setControlNotice] = useState<string | null>(null);
@@ -885,6 +890,7 @@ export function DetailPanel() {
     setAdjustmentMaxAmount("");
     setReviewError(null);
     setRecoverySubmitting(false);
+    setMobileQuoteExpanded(false);
     setControlError(null);
     setControlNotice(null);
   }, [selectedId]);
@@ -1326,237 +1332,508 @@ export function DetailPanel() {
         </div>
       ) : null}
 
-      {quoteReviewState === "loading" && selectedConversation.pendingQuote ? (
-        <QuoteReviewSkeleton />
-      ) : activeQuoteReview ? (
-        <QuoteReviewCard
-          quoteReview={activeQuoteReview}
-          requestChangesMode={requestChangesMode}
-          requestChangesFeedback={requestChangesFeedback}
-          reviewError={reviewError}
-          reviewSubmitting={reviewSubmitting}
-          pdfOpening={pdfOpening}
-          onRequestChangesFeedbackChange={(value) => {
-            setRequestChangesFeedback(value);
-            if (reviewError) {
-              setReviewError(null);
-            }
-          }}
-          onToggleRequestChanges={() => {
-            void handleRequestChanges();
-          }}
-          adjustmentsMode={adjustmentsMode}
-          adjustmentReason={adjustmentReason}
-          adjustmentAssumptions={adjustmentAssumptions}
-          adjustmentMinAmount={adjustmentMinAmount}
-          adjustmentTargetAmount={adjustmentTargetAmount}
-          adjustmentMaxAmount={adjustmentMaxAmount}
-          onAdjustmentReasonChange={setAdjustmentReason}
-          onAdjustmentAssumptionsChange={setAdjustmentAssumptions}
-          onAdjustmentMinAmountChange={setAdjustmentMinAmount}
-          onAdjustmentTargetAmountChange={setAdjustmentTargetAmount}
-          onAdjustmentMaxAmountChange={setAdjustmentMaxAmount}
-          onToggleAdjustmentsMode={() => {
-            setAdjustmentsMode((current) => !current);
-          }}
-          onApplyAdjustments={() => {
-            void handleApplyOwnerAdjustments();
-          }}
-          onApprove={() => {
-            void handleApproveQuote();
-          }}
-          onOpenPdf={() => {
-            void handleOpenPdf();
-          }}
-        />
-      ) : quoteReview ? (
-        <QuoteRecoveryCard
-          quoteReview={quoteReview}
-          isSubmitting={recoverySubmitting}
-          error={reviewError}
-          onCreateDraft={() => {
-            void handleCreateDraftFromRecovery();
-          }}
-          onRestartBrief={() => {
-            void handleRestartBriefFromRecovery();
-          }}
-          onBackToChat={() => {
-            document.getElementById("conversation-chat-stream")?.scrollIntoView({
-              behavior: "smooth",
-              block: "end",
-            });
-          }}
-        />
-      ) : quoteReviewState === "error" ? (
-        <div className="border-b border-border px-6 py-4">
-          <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3">
-            <p className="text-sm font-medium text-foreground">
-              No se pudo cargar la revision comercial
-            </p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {isApiError(quoteReviewError)
-                ? `El backend respondio con estado ${quoteReviewError.status}.`
-                : "Intenta recargar la conversacion."}
-            </p>
-          </div>
-        </div>
-      ) : null}
-
-      {state === "loading" ? (
-        <div className="flex-1 px-6 py-6">
-          <MessageSkeleton />
-        </div>
-      ) : state === "unauthorized" ? (
-        <DetailStateCard
-          title="Tu sesion expiro"
-          description="Redirigiendo al acceso del CRM."
-        />
-      ) : state === "error" ? (
-        <DetailStateCard
-          title="No se pudo cargar el historial"
-          description={
-            isApiError(error)
-              ? `El backend respondio con estado ${error.status}.`
-              : "Intenta recargar la pagina."
-          }
-        />
-      ) : state === "empty" ? (
-        <DetailStateCard
-          title="Sin mensajes en esta conversacion"
-          description="Cuando exista historial, aparecera aqui en orden cronologico."
-        />
-      ) : (
-        <div
-          id="conversation-chat-stream"
-          className="flex flex-1 flex-col gap-6 overflow-y-auto px-6 py-6"
-        >
-          <div className="flex justify-center">
-            <span className="rounded-full border border-border/70 bg-card px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-              Today
-            </span>
-          </div>
-          {messages.map((message) => {
-            const isOutbound = message.direction === "outbound";
-
-            return (
-              <div
-                key={message.id}
-                className={
-                  isOutbound
-                    ? "flex justify-end"
-                    : "flex items-start gap-3 justify-start"
-                }
-              >
-                {!isOutbound ? (
-                  <span className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-card text-[11px] font-semibold text-foreground">
-                    {getInitials(selectedConversation.contactName)}
-                  </span>
-                ) : null}
-                <div
-                  className={
-                    isOutbound
-                      ? "max-w-xl rounded-2xl rounded-br-md bg-primary px-4 py-3 text-sm text-primary-foreground shadow-sm"
-                      : "max-w-xl rounded-2xl rounded-bl-md border border-border/70 bg-card px-4 py-3 text-sm text-foreground shadow-sm"
-                  }
-                >
-                  <p>{message.body?.trim() || "Sin contenido de texto."}</p>
-                  <p
-                    className={
-                      isOutbound
-                        ? "mt-2 text-xs text-primary-foreground/80"
-                        : "mt-2 text-xs text-muted-foreground"
-                    }
-                  >
-                    {formatTimeOnly(message.createdAt)}
-                  </p>
-                </div>
-              </div>
-            );
-          })}
-          {activeQuoteReview ? (
-            <div className="flex justify-end">
-              <div className="w-full max-w-xl space-y-3">
-                <div className="rounded-2xl rounded-tr-md bg-primary px-4 py-3 text-sm text-primary-foreground">
-                  AI prepared a commercial quote draft based on the current thread.
-                </div>
-                <div className="overflow-hidden rounded-xl border border-primary/30 bg-card shadow-sm">
-                  <div className="flex items-center justify-between border-b border-primary/20 bg-primary/10 px-4 py-3">
-                    <div className="flex items-center gap-2 text-primary">
-                      <FileText className="h-4 w-4" />
-                      <span className="text-xs font-semibold uppercase tracking-[0.12em]">
-                        AI Generated Quote
-                      </span>
-                    </div>
-                    <span className="text-[10px] font-semibold text-primary">
-                      v{activeQuoteReview.version}
-                    </span>
-                  </div>
-                  <div className="space-y-3 p-4">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-muted-foreground">Min estimate</span>
-                      <span className="font-semibold text-foreground">
-                        {formatCurrency(activeQuoteReview.estimatedMinAmount)}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-muted-foreground">Target estimate</span>
-                      <span className="font-semibold text-foreground">
-                        {formatCurrency(activeQuoteReview.estimatedTargetAmount)}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between border-t border-border pt-3">
-                      <span className="text-sm font-semibold text-foreground">
-                        Total estimate
-                      </span>
-                      <span className="text-base font-semibold text-primary">
-                        {formatCurrency(quoteTotal)}
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="h-8 text-[11px] uppercase tracking-[0.08em]"
-                        onClick={() => {
-                          setAdjustmentsMode(true);
-                        }}
-                      >
-                        Review & Edit
-                      </Button>
-                      <Button
-                        type="button"
-                        className="h-8 text-[11px] uppercase tracking-[0.08em]"
-                        onClick={() => {
-                          void handleApproveQuote();
-                        }}
-                        disabled={reviewSubmitting}
-                      >
-                        Approve & Send
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-                <p className="text-right text-[10px] text-muted-foreground">
-                  {formatTimeOnly(selectedConversation.lastMessageAt)} • AI Representative
+      {!activeQuoteReview ? (
+        <div className="lg:hidden">
+          {quoteReviewState === "loading" && selectedConversation.pendingQuote ? (
+            <QuoteReviewSkeleton />
+          ) : quoteReview ? (
+            <QuoteRecoveryCard
+              quoteReview={quoteReview}
+              isSubmitting={recoverySubmitting}
+              error={reviewError}
+              onCreateDraft={() => {
+                void handleCreateDraftFromRecovery();
+              }}
+              onRestartBrief={() => {
+                void handleRestartBriefFromRecovery();
+              }}
+              onBackToChat={() => {
+                document.getElementById("conversation-chat-stream")?.scrollIntoView({
+                  behavior: "smooth",
+                  block: "end",
+                });
+              }}
+            />
+          ) : quoteReviewState === "error" ? (
+            <div className="border-b border-border px-6 py-4">
+              <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3">
+                <p className="text-sm font-medium text-foreground">
+                  No se pudo cargar la revision comercial
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {isApiError(quoteReviewError)
+                    ? `El backend respondio con estado ${quoteReviewError.status}.`
+                    : "Intenta recargar la conversacion."}
                 </p>
               </div>
             </div>
           ) : null}
-          {activeQuoteReview ? (
-            <div className="flex justify-center">
-              <div className="flex items-center gap-3 rounded-full border border-border bg-card px-4 py-2">
-                <span className="relative flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-500 opacity-75" />
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500" />
-                </span>
-                <span className="text-[11px] font-medium text-muted-foreground">
-                  High lead heat: contact is reviewing the quote now.
-                </span>
+        </div>
+      ) : null}
+
+      <div className="flex min-h-0 flex-1 overflow-hidden">
+        {state === "loading" ? (
+          <>
+            <div className="flex-1 px-6 py-6">
+              <MessageSkeleton />
+            </div>
+            <aside className="hidden h-full w-[420px] shrink-0 overflow-y-auto border-l border-border/70 bg-muted/10 lg:block">
+              {quoteReviewState === "loading" && selectedConversation.pendingQuote ? (
+                <QuoteReviewSkeleton />
+              ) : activeQuoteReview ? (
+                <QuoteReviewCard
+                  quoteReview={activeQuoteReview}
+                  requestChangesMode={requestChangesMode}
+                  requestChangesFeedback={requestChangesFeedback}
+                  reviewError={reviewError}
+                  reviewSubmitting={reviewSubmitting}
+                  pdfOpening={pdfOpening}
+                  onRequestChangesFeedbackChange={(value) => {
+                    setRequestChangesFeedback(value);
+                    if (reviewError) {
+                      setReviewError(null);
+                    }
+                  }}
+                  onToggleRequestChanges={() => {
+                    void handleRequestChanges();
+                  }}
+                  adjustmentsMode={adjustmentsMode}
+                  adjustmentReason={adjustmentReason}
+                  adjustmentAssumptions={adjustmentAssumptions}
+                  adjustmentMinAmount={adjustmentMinAmount}
+                  adjustmentTargetAmount={adjustmentTargetAmount}
+                  adjustmentMaxAmount={adjustmentMaxAmount}
+                  onAdjustmentReasonChange={setAdjustmentReason}
+                  onAdjustmentAssumptionsChange={setAdjustmentAssumptions}
+                  onAdjustmentMinAmountChange={setAdjustmentMinAmount}
+                  onAdjustmentTargetAmountChange={setAdjustmentTargetAmount}
+                  onAdjustmentMaxAmountChange={setAdjustmentMaxAmount}
+                  onToggleAdjustmentsMode={() => {
+                    setAdjustmentsMode((current) => !current);
+                  }}
+                  onApplyAdjustments={() => {
+                    void handleApplyOwnerAdjustments();
+                  }}
+                  onApprove={() => {
+                    void handleApproveQuote();
+                  }}
+                  onOpenPdf={() => {
+                    void handleOpenPdf();
+                  }}
+                />
+              ) : quoteReview ? (
+                <QuoteRecoveryCard
+                  quoteReview={quoteReview}
+                  isSubmitting={recoverySubmitting}
+                  error={reviewError}
+                  onCreateDraft={() => {
+                    void handleCreateDraftFromRecovery();
+                  }}
+                  onRestartBrief={() => {
+                    void handleRestartBriefFromRecovery();
+                  }}
+                  onBackToChat={() => {
+                    document.getElementById("conversation-chat-stream")?.scrollIntoView({
+                      behavior: "smooth",
+                      block: "end",
+                    });
+                  }}
+                />
+              ) : quoteReviewState === "error" ? (
+                <div className="border-b border-border px-6 py-4">
+                  <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3">
+                    <p className="text-sm font-medium text-foreground">
+                      No se pudo cargar la revision comercial
+                    </p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {isApiError(quoteReviewError)
+                        ? `El backend respondio con estado ${quoteReviewError.status}.`
+                        : "Intenta recargar la conversacion."}
+                    </p>
+                  </div>
+                </div>
+              ) : null}
+            </aside>
+          </>
+        ) : state === "unauthorized" ? (
+          <DetailStateCard
+            title="Tu sesion expiro"
+            description="Redirigiendo al acceso del CRM."
+          />
+        ) : state === "error" ? (
+          <DetailStateCard
+            title="No se pudo cargar el historial"
+            description={
+              isApiError(error)
+                ? `El backend respondio con estado ${error.status}.`
+                : "Intenta recargar la pagina."
+            }
+          />
+        ) : state === "empty" ? (
+          <DetailStateCard
+            title="Sin mensajes en esta conversacion"
+            description="Cuando exista historial, aparecera aqui en orden cronologico."
+          />
+        ) : (
+          <>
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+              {activeQuoteReview ? (
+                <div className="sticky top-0 z-10 border-b border-border/70 bg-background/95 px-4 py-3 backdrop-blur-xl lg:hidden">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        void handleOpenPdf();
+                      }}
+                      disabled={pdfOpening || reviewSubmitting}
+                    >
+                      <ExternalLink className="mr-2 h-4 w-4" />
+                      PDF
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => {
+                        void handleApproveQuote();
+                      }}
+                      disabled={!isQuoteReviewActionable(activeQuoteReview.reviewStatus) || reviewSubmitting}
+                    >
+                      <CheckCircle2 className="mr-2 h-4 w-4" />
+                      Aprobar
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        void handleRequestChanges();
+                        setMobileQuoteExpanded(true);
+                      }}
+                      disabled={!isQuoteReviewActionable(activeQuoteReview.reviewStatus) || reviewSubmitting}
+                    >
+                      <PencilLine className="mr-2 h-4 w-4" />
+                      Revisar
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setMobileQuoteExpanded((current) => !current);
+                      }}
+                      className="ml-auto"
+                    >
+                      {mobileQuoteExpanded ? (
+                        <>
+                          Ocultar panel
+                          <ChevronUp className="ml-2 h-4 w-4" />
+                        </>
+                      ) : (
+                        <>
+                          Ver panel
+                          <ChevronDown className="ml-2 h-4 w-4" />
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
+
+              {mobileQuoteExpanded && activeQuoteReview ? (
+                <div className="max-h-[48vh] overflow-y-auto border-b border-border/70 lg:hidden">
+                  {quoteReviewState === "loading" && selectedConversation.pendingQuote ? (
+                    <QuoteReviewSkeleton />
+                  ) : activeQuoteReview ? (
+                    <QuoteReviewCard
+                      quoteReview={activeQuoteReview}
+                      requestChangesMode={requestChangesMode}
+                      requestChangesFeedback={requestChangesFeedback}
+                      reviewError={reviewError}
+                      reviewSubmitting={reviewSubmitting}
+                      pdfOpening={pdfOpening}
+                      onRequestChangesFeedbackChange={(value) => {
+                        setRequestChangesFeedback(value);
+                        if (reviewError) {
+                          setReviewError(null);
+                        }
+                      }}
+                      onToggleRequestChanges={() => {
+                        void handleRequestChanges();
+                      }}
+                      adjustmentsMode={adjustmentsMode}
+                      adjustmentReason={adjustmentReason}
+                      adjustmentAssumptions={adjustmentAssumptions}
+                      adjustmentMinAmount={adjustmentMinAmount}
+                      adjustmentTargetAmount={adjustmentTargetAmount}
+                      adjustmentMaxAmount={adjustmentMaxAmount}
+                      onAdjustmentReasonChange={setAdjustmentReason}
+                      onAdjustmentAssumptionsChange={setAdjustmentAssumptions}
+                      onAdjustmentMinAmountChange={setAdjustmentMinAmount}
+                      onAdjustmentTargetAmountChange={setAdjustmentTargetAmount}
+                      onAdjustmentMaxAmountChange={setAdjustmentMaxAmount}
+                      onToggleAdjustmentsMode={() => {
+                        setAdjustmentsMode((current) => !current);
+                      }}
+                      onApplyAdjustments={() => {
+                        void handleApplyOwnerAdjustments();
+                      }}
+                      onApprove={() => {
+                        void handleApproveQuote();
+                      }}
+                      onOpenPdf={() => {
+                        void handleOpenPdf();
+                      }}
+                    />
+                  ) : quoteReview ? (
+                    <QuoteRecoveryCard
+                      quoteReview={quoteReview}
+                      isSubmitting={recoverySubmitting}
+                      error={reviewError}
+                      onCreateDraft={() => {
+                        void handleCreateDraftFromRecovery();
+                      }}
+                      onRestartBrief={() => {
+                        void handleRestartBriefFromRecovery();
+                      }}
+                      onBackToChat={() => {
+                        document.getElementById("conversation-chat-stream")?.scrollIntoView({
+                          behavior: "smooth",
+                          block: "end",
+                        });
+                      }}
+                    />
+                  ) : (
+                    <div className="border-b border-border px-6 py-4">
+                      <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3">
+                        <p className="text-sm font-medium text-foreground">
+                          No se pudo cargar la revision comercial
+                        </p>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {isApiError(quoteReviewError)
+                            ? `El backend respondio con estado ${quoteReviewError.status}.`
+                            : "Intenta recargar la conversacion."}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : null}
+
+              <div
+                id="conversation-chat-stream"
+                className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-6 py-6"
+              >
+                <div className="flex justify-center">
+                  <span className="rounded-full border border-border/70 bg-card px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                    Today
+                  </span>
+                </div>
+                {messages.map((message) => {
+                  const isOutbound = message.direction === "outbound";
+
+                  return (
+                    <div
+                      key={message.id}
+                      className={
+                        isOutbound
+                          ? "flex justify-end"
+                          : "flex items-start gap-3 justify-start"
+                      }
+                    >
+                      {!isOutbound ? (
+                        <span className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-card text-[11px] font-semibold text-foreground">
+                          {getInitials(selectedConversation.contactName)}
+                        </span>
+                      ) : null}
+                      <div
+                        className={
+                          isOutbound
+                            ? "max-w-xl rounded-2xl rounded-br-md bg-primary px-4 py-3 text-sm text-primary-foreground shadow-sm"
+                            : "max-w-xl rounded-2xl rounded-bl-md border border-border/70 bg-card px-4 py-3 text-sm text-foreground shadow-sm"
+                        }
+                      >
+                        <p>{message.body?.trim() || "Sin contenido de texto."}</p>
+                        <p
+                          className={
+                            isOutbound
+                              ? "mt-2 text-xs text-primary-foreground/80"
+                              : "mt-2 text-xs text-muted-foreground"
+                          }
+                        >
+                          {formatTimeOnly(message.createdAt)}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+                {activeQuoteReview ? (
+                  <div className="flex justify-end">
+                    <div className="w-full max-w-xl space-y-3">
+                      <div className="rounded-2xl rounded-tr-md bg-primary px-4 py-3 text-sm text-primary-foreground">
+                        AI prepared a commercial quote draft based on the current thread.
+                      </div>
+                      <div className="overflow-hidden rounded-xl border border-primary/30 bg-card shadow-sm">
+                        <div className="flex items-center justify-between border-b border-primary/20 bg-primary/10 px-4 py-3">
+                          <div className="flex items-center gap-2 text-primary">
+                            <FileText className="h-4 w-4" />
+                            <span className="text-xs font-semibold uppercase tracking-[0.12em]">
+                              AI Generated Quote
+                            </span>
+                          </div>
+                          <span className="text-[10px] font-semibold text-primary">
+                            v{activeQuoteReview.version}
+                          </span>
+                        </div>
+                        <div className="space-y-3 p-4">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-muted-foreground">Min estimate</span>
+                            <span className="font-semibold text-foreground">
+                              {formatCurrency(activeQuoteReview.estimatedMinAmount)}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-muted-foreground">Target estimate</span>
+                            <span className="font-semibold text-foreground">
+                              {formatCurrency(activeQuoteReview.estimatedTargetAmount)}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between border-t border-border pt-3">
+                            <span className="text-sm font-semibold text-foreground">
+                              Total estimate
+                            </span>
+                            <span className="text-base font-semibold text-primary">
+                              {formatCurrency(quoteTotal)}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="h-8 text-[11px] uppercase tracking-[0.08em]"
+                              onClick={() => {
+                                setAdjustmentsMode(true);
+                                setMobileQuoteExpanded(true);
+                              }}
+                            >
+                              Review & Edit
+                            </Button>
+                            <Button
+                              type="button"
+                              className="h-8 text-[11px] uppercase tracking-[0.08em]"
+                              onClick={() => {
+                                void handleApproveQuote();
+                              }}
+                              disabled={reviewSubmitting}
+                            >
+                              Approve & Send
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                      <p className="text-right text-[10px] text-muted-foreground">
+                        {formatTimeOnly(selectedConversation.lastMessageAt)} • AI Representative
+                      </p>
+                    </div>
+                  </div>
+                ) : null}
+                {activeQuoteReview ? (
+                  <div className="flex justify-center">
+                    <div className="flex items-center gap-3 rounded-full border border-border bg-card px-4 py-2">
+                      <span className="relative flex h-2 w-2">
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-500 opacity-75" />
+                        <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500" />
+                      </span>
+                      <span className="text-[11px] font-medium text-muted-foreground">
+                        High lead heat: contact is reviewing the quote now.
+                      </span>
+                    </div>
+                  </div>
+                ) : null}
               </div>
             </div>
-          ) : null}
-        </div>
-      )}
+
+            <aside className="hidden h-full w-[420px] shrink-0 overflow-y-auto border-l border-border/70 bg-muted/10 lg:block">
+              {quoteReviewState === "loading" && selectedConversation.pendingQuote ? (
+                <QuoteReviewSkeleton />
+              ) : activeQuoteReview ? (
+                <QuoteReviewCard
+                  quoteReview={activeQuoteReview}
+                  requestChangesMode={requestChangesMode}
+                  requestChangesFeedback={requestChangesFeedback}
+                  reviewError={reviewError}
+                  reviewSubmitting={reviewSubmitting}
+                  pdfOpening={pdfOpening}
+                  onRequestChangesFeedbackChange={(value) => {
+                    setRequestChangesFeedback(value);
+                    if (reviewError) {
+                      setReviewError(null);
+                    }
+                  }}
+                  onToggleRequestChanges={() => {
+                    void handleRequestChanges();
+                  }}
+                  adjustmentsMode={adjustmentsMode}
+                  adjustmentReason={adjustmentReason}
+                  adjustmentAssumptions={adjustmentAssumptions}
+                  adjustmentMinAmount={adjustmentMinAmount}
+                  adjustmentTargetAmount={adjustmentTargetAmount}
+                  adjustmentMaxAmount={adjustmentMaxAmount}
+                  onAdjustmentReasonChange={setAdjustmentReason}
+                  onAdjustmentAssumptionsChange={setAdjustmentAssumptions}
+                  onAdjustmentMinAmountChange={setAdjustmentMinAmount}
+                  onAdjustmentTargetAmountChange={setAdjustmentTargetAmount}
+                  onAdjustmentMaxAmountChange={setAdjustmentMaxAmount}
+                  onToggleAdjustmentsMode={() => {
+                    setAdjustmentsMode((current) => !current);
+                  }}
+                  onApplyAdjustments={() => {
+                    void handleApplyOwnerAdjustments();
+                  }}
+                  onApprove={() => {
+                    void handleApproveQuote();
+                  }}
+                  onOpenPdf={() => {
+                    void handleOpenPdf();
+                  }}
+                />
+              ) : quoteReview ? (
+                <QuoteRecoveryCard
+                  quoteReview={quoteReview}
+                  isSubmitting={recoverySubmitting}
+                  error={reviewError}
+                  onCreateDraft={() => {
+                    void handleCreateDraftFromRecovery();
+                  }}
+                  onRestartBrief={() => {
+                    void handleRestartBriefFromRecovery();
+                  }}
+                  onBackToChat={() => {
+                    document.getElementById("conversation-chat-stream")?.scrollIntoView({
+                      behavior: "smooth",
+                      block: "end",
+                    });
+                  }}
+                />
+              ) : quoteReviewState === "error" ? (
+                <div className="border-b border-border px-6 py-4">
+                  <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3">
+                    <p className="text-sm font-medium text-foreground">
+                      No se pudo cargar la revision comercial
+                    </p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {isApiError(quoteReviewError)
+                        ? `El backend respondio con estado ${quoteReviewError.status}.`
+                        : "Intenta recargar la conversacion."}
+                    </p>
+                  </div>
+                </div>
+              ) : null}
+            </aside>
+          </>
+        )}
+      </div>
 
       {state !== "unauthorized" ? (
         <div className="border-t border-border bg-card/50 px-6 py-4">

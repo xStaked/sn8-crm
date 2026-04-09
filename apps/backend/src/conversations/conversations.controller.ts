@@ -1,4 +1,16 @@
-import { Body, Controller, Get, Param, Post, Req, Res, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Logger,
+  Param,
+  Post,
+  Query,
+  Req,
+  Res,
+  UnauthorizedException,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiBadRequestResponse,
@@ -9,11 +21,13 @@ import {
   ApiOperation,
   ApiParam,
   ApiProduces,
+  ApiQuery,
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { QuotePdfAccessLinkService } from '../quote-documents/quote-pdf-access-link.service';
 import { ApplyOwnerAdjustmentsDto } from './dto/apply-owner-adjustments.dto';
 import { ApproveQuoteDto } from './dto/approve-quote.dto';
 import {
@@ -39,7 +53,12 @@ type AuthenticatedRequest = Request & {
 @ApiUnauthorizedResponse({ description: 'La cookie de sesion es invalida o no existe.' })
 @Controller()
 export class ConversationsController {
-  constructor(private readonly conversationsService: ConversationsService) {}
+  private readonly logger = new Logger(ConversationsController.name);
+
+  constructor(
+    private readonly conversationsService: ConversationsService,
+    private readonly quotePdfAccessLinkService: QuotePdfAccessLinkService,
+  ) {}
 
   @ApiOperation({ summary: 'Listar conversaciones' })
   @ApiOkResponse({
@@ -117,6 +136,83 @@ export class ConversationsController {
     res.setHeader('Content-Length', pdf.sizeBytes.toString());
     res.setHeader('Content-Disposition', `inline; filename="${pdf.fileName}"`);
     res.send(pdf.content);
+  }
+
+  @ApiOperation({
+    summary:
+      'Descargar el PDF comercial del quote activo mediante enlace firmado de acceso publico',
+  })
+  @ApiParam({
+    name: 'conversationId',
+    example: '573001112233',
+    description: 'Telefono normalizado usado como id estable de la conversacion.',
+  })
+  @ApiQuery({
+    name: 'exp',
+    required: true,
+    description: 'Unix timestamp (segundos) de expiracion del enlace.',
+    example: '1767225600',
+  })
+  @ApiQuery({
+    name: 'sig',
+    required: true,
+    description: 'Firma HMAC del enlace firmado.',
+    example: 'dXJsLXNpZ25hdHVyZS1kZQ',
+  })
+  @ApiProduces('application/pdf')
+  @ApiOkResponse({
+    description: 'PDF comercial del draft mas reciente dentro del flujo de revision.',
+  })
+  @ApiUnauthorizedResponse({
+    description: 'La firma del enlace es invalida o el enlace expiro.',
+  })
+  @ApiNotFoundResponse({
+    description: 'La conversacion no existe o no tiene quote dentro del flujo de revision.',
+  })
+  @Get('public/conversations/:conversationId/quote-review/pdf')
+  async downloadConversationQuoteReviewPdfPublic(
+    @Param('conversationId') conversationId: string,
+    @Query('exp') expiresAtRaw: string | undefined,
+    @Query('sig') signature: string | undefined,
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
+    const validation = this.quotePdfAccessLinkService.validatePublicQuotePdfUrlSignature({
+      conversationId,
+      expiresAtRaw,
+      signature,
+    });
+
+    if (!validation.ok) {
+      const denialReason =
+        'reason' in validation ? validation.reason : 'invalid_signature';
+      this.logger.warn({
+        event: 'quote_pdf_public_access_denied',
+        conversationId,
+        reason: denialReason,
+        expiresAtRaw: expiresAtRaw ?? null,
+        remoteIp: req.ip ?? null,
+        userAgent: req.get('user-agent') ?? null,
+      });
+      throw new UnauthorizedException('The PDF link is invalid or expired.');
+    }
+
+    const pdf = await this.conversationsService.getConversationQuoteReviewPdf(
+      conversationId,
+    );
+    res.setHeader('Content-Type', pdf.mimeType);
+    res.setHeader('Content-Length', pdf.sizeBytes.toString());
+    res.setHeader('Content-Disposition', `inline; filename="${pdf.fileName}"`);
+    res.setHeader('Cache-Control', 'no-store');
+    res.send(pdf.content);
+
+    this.logger.log({
+      event: 'quote_pdf_public_access_granted',
+      conversationId,
+      expiresAtUnix: validation.expiresAtUnix,
+      remoteIp: req.ip ?? null,
+      userAgent: req.get('user-agent') ?? null,
+    });
   }
 
   @ApiOperation({ summary: 'Aprobar el quote activo de una conversacion desde CRM' })

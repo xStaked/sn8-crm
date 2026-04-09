@@ -11,6 +11,7 @@ import type { Queue } from 'bullmq';
 import { validateSync } from 'class-validator';
 import { PrismaService } from '../prisma/prisma.service';
 import { MessagingService } from '../messaging/messaging.service';
+import { QuotePdfAccessLinkService } from '../quote-documents/quote-pdf-access-link.service';
 import { QuotePdfService } from '../quote-documents/quote-pdf.service';
 import { AiSalesService } from './ai-sales.service';
 import {
@@ -62,6 +63,7 @@ export class OwnerReviewService {
     private readonly config: ConfigService,
     private readonly aiSalesService: AiSalesService,
     private readonly quotePdfService: QuotePdfService,
+    private readonly quotePdfAccessLinkService: QuotePdfAccessLinkService,
   ) {}
 
   async requestOwnerReview(quoteDraftId: string): Promise<void> {
@@ -547,21 +549,20 @@ export class OwnerReviewService {
     senderPhoneNumberId: string | undefined,
   ): Promise<void> {
     try {
-      // Ensure PDF exists (it will be available via the API endpoint)
+      // Ensure the PDF is generated before sending a signed retrieval link.
       const doc = await this.quotePdfService.getOrCreateDraftPdf(delivery.quoteDraftId);
-      
-      // Build the PDF link - this will be available at the CRM URL
-      const baseUrl = this.config.get<string>('CRM_BASE_URL')?.trim() || 'https://crm.sn8labs.com';
-      const pdfUrl = `${baseUrl}/conversations/${delivery.conversationId}/quote-review/pdf`;
-      
-      const linkMessage = `📄 También puedes descargar la propuesta en PDF aquí: ${pdfUrl}`;
-      
+      const signedLink = this.quotePdfAccessLinkService.buildSignedPublicQuotePdfUrl(
+        delivery.conversationId,
+      );
+
+      const linkMessage = `📄 También puedes descargar la propuesta en PDF aquí: ${signedLink.url}`;
+
       const externalMessageId = await this.messagingService.sendText(
         delivery.conversationId,
         linkMessage,
         senderPhoneNumberId,
       );
-      
+
       await this.prisma.message.create({
         data: {
           externalMessageId,
@@ -579,18 +580,20 @@ export class OwnerReviewService {
             quoteDraftId: delivery.quoteDraftId,
             version: delivery.version,
             fileName: doc.fileName,
-            pdfUrl,
+            pdfUrl: signedLink.url,
+            expiresAtUnix: signedLink.expiresAtUnix,
           },
         },
       });
-      
+
       this.logger.log({
         event: 'customer_delivery_pdf_link_sent',
         conversationId: delivery.conversationId,
         quoteDraftId: delivery.quoteDraftId,
         version: delivery.version,
         externalMessageId,
-        pdfUrl,
+        pdfUrl: signedLink.url,
+        expiresAtUnix: signedLink.expiresAtUnix,
       });
     } catch (error) {
       this.logger.warn({

@@ -67,7 +67,7 @@ test('quote recovery smoke: missing draft -> create draft -> continue chat', asy
     window.localStorage.setItem('sn8.access_token', accessToken);
   }, token);
 
-  await page.route('http://localhost:3001/**', async (route) => {
+  await page.route('**/conversations**', async (route) => {
     const request = route.request();
     const url = new URL(request.url());
     const path = url.pathname;
@@ -167,15 +167,30 @@ test('quote recovery smoke: missing draft -> create draft -> continue chat', asy
     });
   });
 
-  await page.goto('/dashboard?conversation=' + conversationId);
+  await page.goto('/dashboard/inbox?conversation=' + conversationId);
 
-  await expect(page.getByText('Sin draft activo')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Crear draft' })).toBeVisible();
+  const recoveryBadge = page.locator('span:visible', { hasText: 'Sin draft activo' }).first();
+  const createDraftButton = page
+    .locator('button:visible', { hasText: 'Crear draft' })
+    .first();
 
-  await page.getByRole('button', { name: 'Crear draft' }).click();
+  await expect(recoveryBadge).toBeVisible();
+  await expect(createDraftButton).toBeVisible();
 
-  await expect(page.getByText('Revision comercial lista dentro del CRM')).toBeVisible();
-  await expect(page.getByText('Draft v3')).toBeVisible();
+  await createDraftButton.click();
+
+  await expect(
+    page
+      .locator('h3:visible, p:visible, div:visible, span:visible', {
+        hasText: 'Revision comercial lista dentro del CRM',
+      })
+      .first(),
+  ).toBeVisible();
+  await expect(
+    page
+      .locator('span:visible, p:visible, div:visible', { hasText: 'Draft v3' })
+      .first(),
+  ).toBeVisible();
 
   await page
     .getByPlaceholder("Type a message or use '/' for AI commands...")

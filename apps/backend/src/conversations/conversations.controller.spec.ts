@@ -1,5 +1,6 @@
 import { ConversationsController } from './conversations.controller';
 import { ConversationsService } from './conversations.service';
+import { QuotePdfAccessLinkService } from '../quote-documents/quote-pdf-access-link.service';
 
 describe('ConversationsController', () => {
   let controller: ConversationsController;
@@ -14,6 +15,9 @@ describe('ConversationsController', () => {
     transferControlToHuman: jest.Mock;
     returnControlToAi: jest.Mock;
   };
+  let quotePdfAccessLinkService: {
+    validatePublicQuotePdfUrlSignature: jest.Mock;
+  };
 
   beforeEach(() => {
     service = {
@@ -27,9 +31,13 @@ describe('ConversationsController', () => {
       transferControlToHuman: jest.fn(),
       returnControlToAi: jest.fn(),
     };
+    quotePdfAccessLinkService = {
+      validatePublicQuotePdfUrlSignature: jest.fn(),
+    };
 
     controller = new ConversationsController(
       service as unknown as ConversationsService,
+      quotePdfAccessLinkService as unknown as QuotePdfAccessLinkService,
     );
   });
 
@@ -177,6 +185,84 @@ describe('ConversationsController', () => {
       'inline; filename="cotizacion-sn8-v2.pdf"',
     );
     expect(response.send).toHaveBeenCalledWith(Buffer.from('pdf bytes'));
+  });
+
+  it('serves quote review pdf over public signed links when signature is valid', async () => {
+    quotePdfAccessLinkService.validatePublicQuotePdfUrlSignature.mockReturnValue({
+      ok: true,
+      expiresAtUnix: 1767225600,
+    });
+    service.getConversationQuoteReviewPdf.mockResolvedValue({
+      conversationId: '573001112233',
+      quoteDraftId: 'draft_2',
+      version: 2,
+      fileName: 'cotizacion-sn8-v2.pdf',
+      mimeType: 'application/pdf',
+      sizeBytes: 182304,
+      generatedAt: '2026-04-01T19:00:00.000Z',
+      content: Buffer.from('pdf bytes'),
+    });
+    const response = {
+      setHeader: jest.fn(),
+      send: jest.fn(),
+    };
+    const request = {
+      ip: '127.0.0.1',
+      get: jest.fn().mockReturnValue('jest'),
+    };
+
+    await controller.downloadConversationQuoteReviewPdfPublic(
+      '573001112233',
+      '1767225600',
+      'test-signature',
+      request as any,
+      response as any,
+    );
+
+    expect(quotePdfAccessLinkService.validatePublicQuotePdfUrlSignature).toHaveBeenCalledWith({
+      conversationId: '573001112233',
+      expiresAtRaw: '1767225600',
+      signature: 'test-signature',
+    });
+    expect(service.getConversationQuoteReviewPdf).toHaveBeenCalledWith('573001112233');
+    expect(response.setHeader).toHaveBeenNthCalledWith(1, 'Content-Type', 'application/pdf');
+    expect(response.setHeader).toHaveBeenNthCalledWith(2, 'Content-Length', '182304');
+    expect(response.setHeader).toHaveBeenNthCalledWith(
+      3,
+      'Content-Disposition',
+      'inline; filename="cotizacion-sn8-v2.pdf"',
+    );
+    expect(response.setHeader).toHaveBeenNthCalledWith(4, 'Cache-Control', 'no-store');
+    expect(response.send).toHaveBeenCalledWith(Buffer.from('pdf bytes'));
+  });
+
+  it('rejects public quote review pdf downloads with invalid signatures', async () => {
+    quotePdfAccessLinkService.validatePublicQuotePdfUrlSignature.mockReturnValue({
+      ok: false,
+      reason: 'invalid_signature',
+    });
+    const response = {
+      setHeader: jest.fn(),
+      send: jest.fn(),
+    };
+    const request = {
+      ip: '127.0.0.1',
+      get: jest.fn().mockReturnValue('jest'),
+    };
+
+    await expect(
+      controller.downloadConversationQuoteReviewPdfPublic(
+        '573001112233',
+        '1767225600',
+        'invalid-signature',
+        request as any,
+        response as any,
+      ),
+    ).rejects.toMatchObject({
+      status: 401,
+    });
+
+    expect(service.getConversationQuoteReviewPdf).not.toHaveBeenCalled();
   });
 
   it('delegates quote approvals using the authenticated reviewer identity', async () => {

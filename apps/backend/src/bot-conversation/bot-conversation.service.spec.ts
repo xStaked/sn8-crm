@@ -250,6 +250,7 @@ describe('BotConversationService', () => {
       conversationId: normalizedMessage.fromPhone,
       inboundMessageId: normalizedMessage.externalMessageId,
       inboundBody: normalizedMessage.body,
+      channel: 'whatsapp',
     });
   });
 
@@ -297,6 +298,7 @@ describe('BotConversationService', () => {
       conversationId: normalizedMessage.fromPhone,
       inboundMessageId: normalizedMessage.externalMessageId,
       inboundBody: normalizedMessage.body,
+      channel: 'whatsapp',
     });
   });
 
@@ -378,6 +380,7 @@ describe('BotConversationService', () => {
       conversationId: normalizedMessage.fromPhone,
       inboundMessageId: normalizedMessage.externalMessageId,
       inboundBody: 'Hola, quiero saber si me pueden ayudar',
+      channel: 'whatsapp',
     });
   });
 
