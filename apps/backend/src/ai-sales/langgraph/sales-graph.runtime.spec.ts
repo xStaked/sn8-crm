@@ -1,4 +1,5 @@
 import { SALES_GRAPH_NODES } from './sales-graph.contract';
+import type { SalesGraphCheckpointService } from './sales-graph.checkpoint.service';
 import { SalesGraphRuntime } from './sales-graph.runtime';
 import type { SalesGraphState } from './sales-graph.types';
 
@@ -84,5 +85,50 @@ describe('SalesGraphRuntime', () => {
     expect(runtime.nextNode(SALES_GRAPH_NODES.finalizeReply)).toBe(
       SALES_GRAPH_NODES.persistCheckpoint,
     );
+  });
+
+  it('creates a fresh checkpointed entry when no prior checkpoint exists', async () => {
+    const checkpointService = {
+      shouldResumeInbound: jest.fn().mockResolvedValue(false),
+      initializeInbound: jest.fn().mockResolvedValue(undefined),
+    } as unknown as SalesGraphCheckpointService;
+    const checkpointedRuntime = new SalesGraphRuntime(checkpointService);
+
+    const result = await checkpointedRuntime.resolveEntry({
+      conversationId: '573001112233',
+      inboundMessageId: 'msg_1',
+      inboundBody: 'hola',
+      channel: 'whatsapp',
+      traceId: 'trace_1',
+      startedAt: '2026-04-09T00:00:00.000Z',
+    });
+
+    expect(result.replayed).toBe(false);
+    expect(checkpointService.initializeInbound).toHaveBeenCalledTimes(1);
+  });
+
+  it('replays state when duplicate inbound message has checkpoint', async () => {
+    const savedState: SalesGraphState = {
+      ...baseState(),
+      intent: 'discovery',
+      transcript: 'checkpoint',
+    };
+    const checkpointService = {
+      shouldResumeInbound: jest.fn().mockResolvedValue(true),
+      loadCheckpoint: jest.fn().mockResolvedValue({ stateSnapshot: savedState }),
+    } as unknown as SalesGraphCheckpointService;
+    const checkpointedRuntime = new SalesGraphRuntime(checkpointService);
+
+    const result = await checkpointedRuntime.resolveEntry({
+      conversationId: '573001112233',
+      inboundMessageId: 'msg_1',
+      inboundBody: 'hola',
+      channel: 'whatsapp',
+      traceId: 'trace_1',
+      startedAt: '2026-04-09T00:00:00.000Z',
+    });
+
+    expect(result.replayed).toBe(true);
+    expect(result.state).toEqual(savedState);
   });
 });

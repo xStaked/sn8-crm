@@ -1,9 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { SALES_GRAPH_NODES, type SalesGraphNode } from './sales-graph.contract';
+import { SalesGraphCheckpointService } from './sales-graph.checkpoint.service';
 import type { SalesGraphStartInput, SalesGraphState } from './sales-graph.types';
 
 @Injectable()
 export class SalesGraphRuntime {
+  constructor(
+    private readonly checkpointService?: SalesGraphCheckpointService,
+  ) {}
+
   createInitialState(input: SalesGraphStartInput): SalesGraphState {
     return {
       conversationId: input.conversationId.trim(),
@@ -18,6 +23,73 @@ export class SalesGraphRuntime {
       traceId: input.traceId,
       startedAt: input.startedAt,
     };
+  }
+
+  async resolveEntry(
+    input: SalesGraphStartInput,
+  ): Promise<{ state: SalesGraphState; replayed: boolean }> {
+    const initialState = this.createInitialState(input);
+    if (!this.checkpointService) {
+      return { state: initialState, replayed: false };
+    }
+
+    const shouldResume = await this.checkpointService.shouldResumeInbound(
+      initialState.conversationId,
+      initialState.inboundMessageId,
+    );
+    if (shouldResume) {
+      const checkpoint = await this.checkpointService.loadCheckpoint(
+        initialState.conversationId,
+      );
+      if (checkpoint) {
+        return { state: checkpoint.stateSnapshot, replayed: true };
+      }
+    }
+
+    await this.checkpointService.initializeInbound(initialState);
+    return { state: initialState, replayed: false };
+  }
+
+  async shouldSkipNode(
+    state: SalesGraphState,
+    node: SalesGraphNode,
+  ): Promise<boolean> {
+    if (!this.checkpointService) {
+      return false;
+    }
+    return this.checkpointService.wasNodeProcessed(
+      state.conversationId,
+      state.inboundMessageId,
+      node,
+    );
+  }
+
+  async persistNodeSuccess(
+    state: SalesGraphState,
+    node: SalesGraphNode,
+    nextState: SalesGraphState,
+  ): Promise<void> {
+    if (!this.checkpointService) {
+      return;
+    }
+    await this.checkpointService.markNodeSuccess(state, node, nextState);
+  }
+
+  async persistNodeFailure(
+    state: SalesGraphState,
+    node: SalesGraphNode,
+    errorMessage: string,
+    retryable: boolean,
+  ): Promise<void> {
+    if (!this.checkpointService) {
+      return;
+    }
+    await this.checkpointService.markNodeFailure(
+      state,
+      node,
+      errorMessage,
+      retryable,
+    );
   }
 
   /**
