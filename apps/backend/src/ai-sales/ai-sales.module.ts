@@ -15,8 +15,7 @@ import { OwnerReviewService } from './owner-review.service';
 import { MessageVariantService } from './message-variant.service';
 import { FollowUpService } from './follow-up.service';
 import { QuoteEstimatorService } from './quote-estimator.service';
-import { SalesGraphRuntime } from './langgraph/sales-graph.runtime';
-import { SalesGraphCheckpointService } from './langgraph/sales-graph.checkpoint.service';
+import { SalesGraphFactory } from './langgraph/sales-graph.factory';
 import { SalesGraphRolloutService } from './langgraph/sales-graph-rollout.service';
 
 @Module({
@@ -36,9 +35,7 @@ import { SalesGraphRolloutService } from './langgraph/sales-graph-rollout.servic
     OwnerReviewService,
     MessageVariantService,
     FollowUpService,
-    MessageVariantService,
-    SalesGraphRuntime,
-    SalesGraphCheckpointService,
+    SalesGraphFactory,
     SalesGraphRolloutService,
     AiSalesProcessor,
     {
@@ -51,8 +48,7 @@ import { SalesGraphRolloutService } from './langgraph/sales-graph-rollout.servic
     AiSalesOrchestrator,
     ConversationFlowService,
     OwnerReviewService,
-    SalesGraphRuntime,
-    SalesGraphCheckpointService,
+    SalesGraphFactory,
     SalesGraphRolloutService,
     AI_PROVIDER,
   ],

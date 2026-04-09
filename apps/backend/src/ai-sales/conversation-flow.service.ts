@@ -5,10 +5,9 @@ import { PrismaService } from '../prisma/prisma.service';
 import { QuotePdfAccessLinkService } from '../quote-documents/quote-pdf-access-link.service';
 import { AiSalesOrchestrator } from './ai-sales.orchestrator';
 import { AiSalesService } from './ai-sales.service';
-import { SALES_GRAPH_NODES } from './langgraph/sales-graph.contract';
+import { SalesGraphFactory } from './langgraph/sales-graph.factory';
 import { SalesGraphRolloutService } from './langgraph/sales-graph-rollout.service';
-import { SalesGraphRuntime } from './langgraph/sales-graph.runtime';
-import type { SalesChannel, SalesGraphQuoteReviewStatus } from './langgraph/sales-graph.types';
+import type { SalesChannel } from './langgraph/sales-graph.types';
 import { MessageVariantService } from './message-variant.service';
 
 const DEFAULT_AUTO_REPLY =
@@ -85,7 +84,7 @@ export class ConversationFlowService {
     private readonly conversationsService: ConversationsService,
     private readonly aiSalesService: AiSalesService,
     private readonly aiSalesOrchestrator: AiSalesOrchestrator,
-    private readonly salesGraphRuntime: SalesGraphRuntime,
+    private readonly salesGraphFactory: SalesGraphFactory,
     private readonly salesGraphRolloutService: SalesGraphRolloutService,
     private readonly messageVariantService: MessageVariantService,
     private readonly quotePdfAccessLinkService: QuotePdfAccessLinkService,
@@ -133,7 +132,19 @@ export class ConversationFlowService {
     }
 
     const latestDraft = this.pickLatestActiveDraft(currentBrief?.quoteDrafts ?? []);
-    await this.runLangGraphShadowRollout(input, currentBrief, latestDraft);
+
+    const channel = input.channel ?? 'whatsapp';
+    const rolloutDecision = this.salesGraphRolloutService.evaluate({
+      conversationId: normalizedConversationId,
+      channel,
+    });
+
+    if (rolloutDecision.enabled && !rolloutDecision.shadowMode) {
+      const graphResult = await this.runWithGraph(input, channel);
+      if (graphResult) return graphResult;
+    } else if (rolloutDecision.enabled && rolloutDecision.shadowMode) {
+      this.runGraphSilently(input, channel);
+    }
 
     if (latestDraft) {
       // Check if user wants to start a new project even when there's an existing draft
@@ -626,115 +637,132 @@ export class ConversationFlowService {
     return normalized;
   }
 
-  private async runLangGraphShadowRollout(
+  private async runWithGraph(
     input: {
       conversationId: string;
       inboundMessageId: string;
       inboundBody: string | null;
       channel?: SalesChannel;
     },
-    currentBrief: CommercialBriefWithLatestDraft | null,
-    latestDraft: QuoteDraft | undefined,
-  ): Promise<void> {
-    const channel = input.channel ?? 'whatsapp';
-    const rolloutDecision = this.salesGraphRolloutService.evaluate({
-      conversationId: input.conversationId,
-      channel,
-    });
-    if (!rolloutDecision.enabled) {
-      return;
-    }
-
+    channel: SalesChannel,
+  ): Promise<ReplyPlan | null> {
     const startedAtMs = Date.now();
-    const traceId = `shadow-${input.conversationId.trim()}-${input.inboundMessageId.trim()}`;
+    const conversationId = input.conversationId.trim();
+    const traceId = `graph-${conversationId}-${input.inboundMessageId.trim()}`;
 
     try {
-      const entry = await this.salesGraphRuntime.resolveEntry({
-        conversationId: input.conversationId,
-        inboundMessageId: input.inboundMessageId,
-        inboundBody: input.inboundBody,
-        channel,
-        traceId,
-        startedAt: new Date(startedAtMs).toISOString(),
-      });
+      const graph = this.salesGraphFactory.getGraph();
+      const finalState = await graph.invoke(
+        {
+          conversationId,
+          inboundMessageId: input.inboundMessageId.trim(),
+          inboundBody: input.inboundBody,
+          channel,
+          traceId,
+          startedAt: new Date(startedAtMs).toISOString(),
+        },
+        { configurable: { thread_id: conversationId } },
+      );
 
-      const routedNode = this.salesGraphRuntime.decideActionNode({
-        ...entry.state,
-        briefStatus: this.mapBriefStatusForGraph(currentBrief?.status),
-        missingFields: this.estimateMissingFields(currentBrief),
-        quoteReviewStatus: this.mapQuoteReviewStatusForGraph(latestDraft?.reviewStatus),
-      });
+      if (!finalState.responseBody) {
+        this.logger.warn({ event: 'sales_graph_no_response_body', conversationId, traceId });
+        return null;
+      }
 
       this.salesGraphRolloutService.emitTransition({
-        conversationId: input.conversationId.trim(),
+        conversationId,
         traceId,
-        fromNode: SALES_GRAPH_NODES.classifyIntent,
-        toNode: routedNode,
-        status: rolloutDecision.shadowMode ? 'fallback' : 'success',
+        fromNode: 'START',
+        toNode: 'finalize_reply',
+        status: 'success',
         latencyMs: Date.now() - startedAtMs,
-        mode: rolloutDecision.shadowMode ? 'shadow' : 'live',
-        replayed: entry.replayed,
+        mode: 'live',
       });
+
+      return { body: finalState.responseBody, source: (finalState.responseSource ?? 'default-auto-reply') as ReplyPlan['source'] };
     } catch (error) {
       this.salesGraphRolloutService.emitTransition({
-        conversationId: input.conversationId.trim(),
+        conversationId,
         traceId,
-        fromNode: SALES_GRAPH_NODES.classifyIntent,
-        toNode: SALES_GRAPH_NODES.humanHandoff,
+        fromNode: 'START',
+        toNode: 'human_handoff',
         status: 'error',
         latencyMs: Date.now() - startedAtMs,
-        mode: rolloutDecision.shadowMode ? 'shadow' : 'live',
-        errorCode: 'shadow_runtime_failure',
+        mode: 'live',
+        errorCode: 'graph_runtime_failure',
       });
 
-      this.logger.warn({
-        event: 'sales_graph_shadow_rollout_failed',
-        conversationId: input.conversationId.trim(),
-        inboundMessageId: input.inboundMessageId.trim(),
+      this.logger.error({
+        event: 'sales_graph_live_failed',
+        conversationId,
         error: error instanceof Error ? error.message : String(error),
       });
+
+      return null;
     }
   }
 
-  private estimateMissingFields(
-    brief: CommercialBriefWithLatestDraft | null,
-  ): string[] {
-    if (!brief) {
-      return [...CORE_BRIEF_FIELDS];
-    }
+  private runGraphSilently(
+    input: {
+      conversationId: string;
+      inboundMessageId: string;
+      inboundBody: string | null;
+      channel?: SalesChannel;
+    },
+    channel: SalesChannel,
+  ): void {
+    const conversationId = input.conversationId.trim();
+    const startedAtMs = Date.now();
+    const traceId = `shadow-${conversationId}-${input.inboundMessageId.trim()}`;
 
-    return [...CORE_BRIEF_FIELDS, ...OPTIONAL_BRIEF_FIELDS].filter(
-      (field) => !this.hasMeaningfulBriefValue(brief[field]),
-    );
-  }
-
-  private mapBriefStatusForGraph(
-    status: CommercialBrief['status'] | undefined,
-  ): 'collecting' | 'ready_for_quote' | 'quote_in_review' | undefined {
-    if (
-      status === 'collecting' ||
-      status === 'ready_for_quote' ||
-      status === 'quote_in_review'
-    ) {
-      return status;
-    }
-
-    return undefined;
-  }
-
-  private mapQuoteReviewStatusForGraph(
-    status: QuoteDraft['reviewStatus'] | undefined,
-  ): SalesGraphQuoteReviewStatus | undefined {
-    if (
-      status === 'pending_owner_review' ||
-      status === 'changes_requested' ||
-      status === 'approved' ||
-      status === 'delivered_to_customer'
-    ) {
-      return status;
-    }
-
-    return undefined;
+    const graph = this.salesGraphFactory.getGraph();
+    graph
+      .invoke(
+        {
+          conversationId,
+          inboundMessageId: input.inboundMessageId.trim(),
+          inboundBody: input.inboundBody,
+          channel,
+          traceId,
+          startedAt: new Date(startedAtMs).toISOString(),
+        },
+        { configurable: { thread_id: conversationId } },
+      )
+      .then((finalState) => {
+        this.salesGraphRolloutService.emitTransition({
+          conversationId,
+          traceId,
+          fromNode: 'START',
+          toNode: 'finalize_reply',
+          status: 'fallback',
+          latencyMs: Date.now() - startedAtMs,
+          mode: 'shadow',
+        });
+        this.logger.log({
+          event: 'sales_graph_shadow_result',
+          conversationId,
+          traceId,
+          responseSource: finalState.responseSource,
+          intent: finalState.intent,
+        });
+      })
+      .catch((error) => {
+        this.salesGraphRolloutService.emitTransition({
+          conversationId,
+          traceId,
+          fromNode: 'START',
+          toNode: 'human_handoff',
+          status: 'error',
+          latencyMs: Date.now() - startedAtMs,
+          mode: 'shadow',
+          errorCode: 'shadow_runtime_failure',
+        });
+        this.logger.warn({
+          event: 'sales_graph_shadow_failed',
+          conversationId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
   }
 
   private hasMeaningfulBriefValue(value: string | null | undefined): boolean {

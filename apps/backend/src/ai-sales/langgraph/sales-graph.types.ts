@@ -4,6 +4,7 @@ export type SalesGraphIntent =
   | 'new_project'
   | 'clarification'
   | 'quote_status'
+  | 'brief_complete'
   | 'discovery'
   | 'post_delivery'
   | 'human_handoff'
