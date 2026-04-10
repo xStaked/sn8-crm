@@ -108,9 +108,11 @@ export function mergeUrgencyValue(
 export function detectsNewProjectIntent(body: string | null): boolean {
   if (!body) return false;
   const newProjectPatterns = [
+    /cotizar\s+proyecto/i, /cotizar\s+propuesta/i,  // Button text: "Cotizar proyecto"
     /otro proyecto/i, /otra cosa/i, /otra aplicaci[oó]n/i, /otro sistema/i,
     /nueva? cotizaci[oó]n/i, /nuevo proyecto/i, /nueva? propuesta/i,
     /empezar de nuevo/i, /empezar de cero/i, /cotizar otro/i, /cotizar otra/i,
+    /quiero\s+cotizar/i,                             // "Quiero cotizar" without "otro"
     /diferente proyecto/i, /pidiendo otra/i, /quiero otra/i, /es otro/i,
     /es diferente/i, /cambiar de proyecto/i, /cambiar el proyecto/i,
     /no es ese proyecto/i, /no es ese/i, /no quiero eso/i, /no es lo que quiero/i,
@@ -130,7 +132,9 @@ export function detectUserIntent(body: string | null): UserIntent {
   const confusionPatterns = [
     /de qu[eé] proyecto/i, /informaci[óo]n de qu[eé]/i, /no entiendo/i,
     /qu[eé] es esto/i, /de qu[eé] hablamos/i, /no habl[eé] de/i,
-    /no ped[ií]/i, /qu[eé] cotizaci[óo]n/i, /qu[eé] propuesta/i,
+    /no ped[ií]/i, /qu[eé] cotizaci[óo]n/i,
+    /cu[aá]l\s+(propuesta|cotizaci[oó]n|proyecto)/i,  // "cual propuesta?"
+    /qu[eé] propuesta/i,
     /no es mio/i, /no es mi/i, /error/i, /equivocad/i,
     /cuentame/i, /explicate/i, /c[oó]mo as[ií]/i,
     /qu[eé] hablas/i, /de qu[eé] hablas/i, /no te entiendo/i,

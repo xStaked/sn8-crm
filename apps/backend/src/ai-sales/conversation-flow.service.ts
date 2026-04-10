@@ -830,6 +830,8 @@ export class ConversationFlowService {
     
     // Explicit new project patterns
     const newProjectPatterns = [
+      /cotizar\s+proyecto/i,        // Button text: "Cotizar proyecto"
+      /cotizar\s+propuesta/i,       // Button variation
       /otro proyecto/i,
       /otra cosa/i,
       /otra aplicaci[oó]n/i,
@@ -841,6 +843,7 @@ export class ConversationFlowService {
       /empezar de cero/i,
       /cotizar otro/i,
       /cotizar otra/i,
+      /quiero\s+cotizar/i,          // "Quiero cotizar" without "otro"
       /diferente proyecto/i,
       /pidiendo otra/i,
       /quiero otra/i,
@@ -877,6 +880,7 @@ export class ConversationFlowService {
       /no habl[eé] de/i,
       /no ped[ií]/i,
       /qu[eé] cotizaci[óo]n/i,
+      /cu[aá]l\s+(propuesta|cotizaci[oó]n|proyecto)/i,  // "cual propuesta?", "cuál cotización?"
       /qu[eé] propuesta/i,
       /no es mio/i,
       /no es mi/i,
