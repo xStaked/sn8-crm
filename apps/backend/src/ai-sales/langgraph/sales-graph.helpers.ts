@@ -109,10 +109,11 @@ export function detectsNewProjectIntent(body: string | null): boolean {
   if (!body) return false;
   const newProjectPatterns = [
     /cotizar\s+proyecto/i, /cotizar\s+propuesta/i,  // Button text: "Cotizar proyecto"
+    /\bcotizar\b/i,                                  // "cotizar" alone
+    /quiero\s+cotizar/i, /necesito\s+cotizar/i,     // Direct requests
     /otro proyecto/i, /otra cosa/i, /otra aplicaci[oó]n/i, /otro sistema/i,
     /nueva? cotizaci[oó]n/i, /nuevo proyecto/i, /nueva? propuesta/i,
     /empezar de nuevo/i, /empezar de cero/i, /cotizar otro/i, /cotizar otra/i,
-    /quiero\s+cotizar/i,                             // "Quiero cotizar" without "otro"
     /diferente proyecto/i, /pidiendo otra/i, /quiero otra/i, /es otro/i,
     /es diferente/i, /cambiar de proyecto/i, /cambiar el proyecto/i,
     /no es ese proyecto/i, /no es ese/i, /no quiero eso/i, /no es lo que quiero/i,

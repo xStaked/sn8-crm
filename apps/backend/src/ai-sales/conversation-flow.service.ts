@@ -456,27 +456,37 @@ export class ConversationFlowService {
   ): ReplyPlan {
     const lowerMessage = userMessage?.toLowerCase().trim() || '';
 
-    // Intent: user wants to proceed/accept
+    // Intent: user wants to proceed/accept (MUCH more flexible patterns)
     const proceedPatterns = [
       /avancemos/i,
       /adelante/i,
-      /ok$/i,
-      /^ok$/i,
-      /^dale$/i,
-      /^va$/i,
-      /^si$/i,
-      /^sí$/i,
+      /continuemos/i,
+      /continuar/i,
+      /procedamos/i,
+      /proceder/i,
+      /empecemos/i,
+      /empezar/i,
       /perfecto/i,
       /listo/i,
-      /procedamos/i,
-      /empecemos/i,
-      /^bueno$/i,
-      /^bien$/i,
+      /dale/i,
+      /va\b/i,
+      /bueno/i,
+      /bien/i,
+      /ok\b/i,
+      /s[ií]\b.*continu/i,      // "si continuemos", "sí continuar"
+      /s[ií]\b.*avanc/i,        // "si avancemos"
+      /s[ií]\b.*proced/i,       // "si procedemos"
+      /quiero\s+continuar/i,
+      /quiero\s+avanzar/i,
+      /quiero\s+proceder/i,
+      /me\s+gusta/i,
+      /me\s+interesa/i,
+      /estoy\s+de\s+acuerdo/i,
     ];
 
     if (proceedPatterns.some((p) => p.test(lowerMessage))) {
       return {
-        body: '¡Perfecto! Quedo atento para coordinar el siguiente paso. Un asesor te contactará pronto para formalizar todo. ¿Algo más en lo que pueda ayudarte mientras tanto?',
+        body: '¡Excelente! Me alegra que quieras avanzar con este proyecto. Voy a coordinar con nuestro equipo para dar el siguiente paso y formalizar todo. Un asesor te contactará pronto para cerrar los detalles. ¿Hay algo más en lo que pueda ayudarte mientras tanto?',
         source: 'commercial-delivered-acceptance',
       };
     }
@@ -556,9 +566,21 @@ export class ConversationFlowService {
       };
     }
 
-    // Default: generic helpful response instead of repeating status
+    // Default: conversational response that guides the conversation forward
+    // Instead of repeating the same static message, provide varied helpful responses
+    const defaultResponses = [
+      'Entendido. Para avanzar, puedes decirme "avancemos" si quieres proceder con esta propuesta, o si prefieres empezar un proyecto completamente diferente, solo dímelo y comenzamos de cero. ¿Qué prefieres hacer?',
+      'Perfecto, recibí tu mensaje. Si estás listo para avanzar con la propuesta de automatización de Google Sheets, dime "quiero avanzar" y coordinamos el siguiente paso. Si necesitas ajustar algo o tienes dudas, también puedo ayudarte con eso.',
+      'Gracias por responder. Para que puedas avanzar, necesito saber: ¿quieres proceder con esta propuesta tal como está, o necesitas hacerle algún ajuste antes? También podemos empezar un proyecto nuevo si lo prefieres.',
+    ];
+    
+    // Rotate responses based on conversationId hash to avoid repetition
+    const responseIndex = Math.abs(
+      conversationId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
+    ) % defaultResponses.length;
+    
     return {
-      body: 'Recibido. Si quieres avanzar con la propuesta o tienes alguna pregunta específica, dime y te ayudo. También puedo pasarte con un asesor humano si lo prefieres.',
+      body: defaultResponses[responseIndex],
       source: 'commercial-delivered-follow-up',
     };
   }
@@ -832,6 +854,9 @@ export class ConversationFlowService {
     const newProjectPatterns = [
       /cotizar\s+proyecto/i,        // Button text: "Cotizar proyecto"
       /cotizar\s+propuesta/i,       // Button variation
+      /\bcotizar\b/i,               // "cotizar" alone
+      /quiero\s+cotizar/i,          // "Quiero cotizar"
+      /necesito\s+cotizar/i,        // "Necesito cotizar"
       /otro proyecto/i,
       /otra cosa/i,
       /otra aplicaci[oó]n/i,
@@ -843,7 +868,6 @@ export class ConversationFlowService {
       /empezar de cero/i,
       /cotizar otro/i,
       /cotizar otra/i,
-      /quiero\s+cotizar/i,          // "Quiero cotizar" without "otro"
       /diferente proyecto/i,
       /pidiendo otra/i,
       /quiero otra/i,
