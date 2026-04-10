@@ -61,6 +61,14 @@ export type QuoteDraftResult = {
   model: string;
 };
 
+export type ChatCompletionInput = {
+  systemPrompt: string;
+  userMessage: string;
+  model?: string;
+  temperature?: number;
+  maxTokens?: number;
+};
+
 export interface AiProvider {
   extractCommercialBrief(
     input: ExtractCommercialBriefInput,
@@ -71,4 +79,8 @@ export interface AiProvider {
   generateQuoteDraft(input: GenerateQuoteDraftInput): Promise<QuoteDraftResult>;
 
   regenerateQuoteDraft(input: RegenerateQuoteDraftInput): Promise<QuoteDraftResult>;
+
+  chat: {
+    completion(input: ChatCompletionInput): Promise<string>;
+  };
 }

@@ -31,7 +31,7 @@ export class SalesGraphRolloutService {
 
   evaluate(input: { conversationId: string; channel: SalesChannel }): SalesGraphRolloutDecision {
     const conversationId = input.conversationId.trim();
-    if (!this.getBooleanConfig('AI_SALES_LANGGRAPH_ENABLED', false)) {
+    if (!this.getBooleanConfig('AI_SALES_LANGGRAPH_ENABLED', true)) {
       return {
         enabled: false,
         shadowMode: true,
@@ -70,7 +70,7 @@ export class SalesGraphRolloutService {
 
     return {
       enabled: true,
-      shadowMode: this.getBooleanConfig('AI_SALES_LANGGRAPH_SHADOW_MODE', true),
+      shadowMode: this.getBooleanConfig('AI_SALES_LANGGRAPH_SHADOW_MODE', false),
       rolloutPercent,
       bucket,
       reason: selectedByAllowlist ? 'conversation_allowlist' : 'rollout_percentage',

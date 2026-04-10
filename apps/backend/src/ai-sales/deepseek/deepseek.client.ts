@@ -112,6 +112,71 @@ export class DeepSeekClient implements AiProvider {
     };
   }
 
+  async chatCompletion(input: {
+    systemPrompt: string;
+    userMessage: string;
+    model?: string;
+    temperature?: number;
+    maxTokens?: number;
+  }): Promise<string> {
+    this.assertConfigured();
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
+
+    const messages: DeepSeekMessage[] = [
+      { role: 'system', content: input.systemPrompt },
+      { role: 'user', content: input.userMessage },
+    ];
+
+    try {
+      const response = await fetch(`${this.baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: input.model || this.model,
+          temperature: input.temperature ?? 0.2,
+          max_tokens: input.maxTokens,
+          messages,
+        }),
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        const body = await response.text();
+        this.logger.error({
+          event: 'deepseek_chat_completion_failed',
+          status: response.status,
+          body,
+        });
+        throw new Error(`DeepSeek request failed with status ${response.status}.`);
+      }
+
+      const payload = (await response.json()) as DeepSeekResponse;
+      const content = payload.choices?.[0]?.message?.content?.trim();
+
+      if (!content) {
+        throw new Error('DeepSeek response did not contain message content.');
+      }
+
+      return content;
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  chat = {
+    completion: (input: {
+      systemPrompt: string;
+      userMessage: string;
+      model?: string;
+      temperature?: number;
+      maxTokens?: number;
+    }) => this.chatCompletion(input),
+  };
+
   private async createCompletion(messages: DeepSeekMessage[]): Promise<string> {
     this.assertConfigured();
     const controller = new AbortController();

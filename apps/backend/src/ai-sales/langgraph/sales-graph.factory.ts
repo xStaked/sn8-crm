@@ -10,13 +10,15 @@ import { AiSalesOrchestrator } from '../ai-sales.orchestrator';
 import { AiSalesService } from '../ai-sales.service';
 import { MessageVariantService } from '../message-variant.service';
 import { QuotePdfAccessLinkService } from '../../quote-documents/quote-pdf-access-link.service';
+import { AiIntentClassifierService } from '../ai-intent-classifier.service';
+import { DynamicResponseGeneratorService } from '../dynamic-response-generator.service';
+import { ConversationQualityCheckerService } from '../conversation-quality-checker.service';
 import { SalesGraphAnnotation, type SalesGraphStateType } from './sales-graph.state';
 import {
   CORE_BRIEF_FIELDS,
   OPTIONAL_BRIEF_FIELDS,
   buildBriefSummary,
   buildStaticDiscoveryFallback,
-  detectUserIntent,
   detectsNewProjectIntent,
   estimateMissingFields,
   extractConversationContext,
@@ -50,6 +52,9 @@ export class SalesGraphFactory implements OnModuleInit {
     private readonly aiSalesOrchestrator: AiSalesOrchestrator,
     private readonly messageVariantService: MessageVariantService,
     private readonly quotePdfAccessLinkService: QuotePdfAccessLinkService,
+    private readonly aiIntentClassifierService: AiIntentClassifierService,
+    private readonly dynamicResponseGeneratorService: DynamicResponseGeneratorService,
+    private readonly conversationQualityCheckerService: ConversationQualityCheckerService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -181,18 +186,78 @@ export class SalesGraphFactory implements OnModuleInit {
     };
   }
 
-  private classifyIntent(state: SalesGraphStateType): Partial<SalesGraphStateType> {
-    const { inboundBody, briefId, briefStatus, quoteReviewStatus } = state;
+  private async classifyIntent(state: SalesGraphStateType): Promise<Partial<SalesGraphStateType>> {
+    const { inboundBody, briefId, briefStatus, quoteReviewStatus, transcript } = state;
 
-    // Frustration check → human handoff (highest priority)
+    // Frustration check → human handoff (highest priority, keep regex for immediate detection)
     const frustrationPatterns = [
       /hpta/i, /hp/i, /mierda/i, /carajo/i, /puta/i, /estupido/i, /est[uú]pido/i,
-      /pendejo/i, /imb[eé]cil/i, /idiota/i, /no funciona/i, /no sirve/i,
-      /pesimo/i, /p[eé]simo/i,
+      /pendejo/i, /imb[eé]cil/i, /idiota/i,
     ];
     if (inboundBody && frustrationPatterns.some((p) => p.test(inboundBody))) {
       return { intent: 'human_handoff', shouldNotifyHuman: true };
     }
+
+    // Use AI-powered intent classification with context
+    try {
+      const aiClassification = await this.aiIntentClassifierService.classifyIntent({
+        message: inboundBody,
+        context: {
+          hasBrief: !!briefId,
+          briefStatus: briefStatus || undefined,
+          hasDraft: !!quoteReviewStatus,
+          draftReviewStatus: quoteReviewStatus || undefined,
+          conversationHistory: transcript ? transcript.split('\n').slice(-5).join('\n') : undefined,
+        },
+      });
+
+      if (aiClassification.requiresHuman) {
+        return { 
+          intent: 'human_handoff', 
+          shouldNotifyHuman: true,
+          lastError: aiClassification.reasoning,
+        };
+      }
+
+      // Map AI classification to our intent system
+      const intentMapping: Record<string, string> = {
+        new_project: 'new_project',
+        clarification: 'clarification',
+        quote_status: 'quote_status',
+        discovery: 'discovery',
+        post_delivery: 'post_delivery',
+        human_handoff: 'human_handoff',
+        quote_acceptance: 'post_delivery',
+        quote_questions: 'clarification',
+        quote_pdf_request: 'post_delivery',
+        greeting: 'discovery',
+        off_topic: 'clarification',
+      };
+
+      const mappedIntent = intentMapping[aiClassification.intent] || 'discovery';
+
+      // Special handling for new project when brief already exists
+      if (briefId && (mappedIntent === 'new_project' || detectsNewProjectIntent(inboundBody))) {
+        return { intent: 'new_project' };
+      }
+
+      return { 
+        intent: mappedIntent as any,
+        lastError: aiClassification.reasoning,
+      };
+    } catch (error) {
+      this.logger.warn({
+        event: 'sales_graph_ai_intent_fallback',
+        error: error instanceof Error ? error.message : String(error),
+      });
+
+      // Fallback to rule-based classification
+      return this.classifyIntentFallback(state);
+    }
+  }
+
+  private classifyIntentFallback(state: SalesGraphStateType): Partial<SalesGraphStateType> {
+    const { inboundBody, briefId, quoteReviewStatus } = state;
 
     // When there's an existing context + new project intent → archive and restart
     if (briefId && detectsNewProjectIntent(inboundBody)) {
@@ -206,18 +271,7 @@ export class SalesGraphFactory implements OnModuleInit {
 
     // Active draft (not yet delivered)
     if (quoteReviewStatus) {
-      const userIntent = detectUserIntent(inboundBody);
-      if (userIntent === 'wants_new_project') return { intent: 'new_project' };
-      if (userIntent === 'confused_about_project') return { intent: 'clarification' };
       return { intent: 'quote_status' };
-    }
-
-    // Brief complete, not yet drafted
-    if (briefStatus === 'ready_for_quote') {
-      const userIntent = detectUserIntent(inboundBody);
-      if (userIntent === 'wants_new_project') return { intent: 'new_project' };
-      if (userIntent === 'confused_about_project') return { intent: 'clarification' };
-      return { intent: 'brief_complete' };
     }
 
     return { intent: 'discovery' };
@@ -319,78 +373,115 @@ export class SalesGraphFactory implements OnModuleInit {
   private async runDiscoveryExtraction(
     state: SalesGraphStateType,
   ): Promise<Partial<SalesGraphStateType>> {
-    const { conversationId, transcript, briefId, newProjectStartMessageId } = state;
+    const { conversationId, transcript, briefId, newProjectStartMessageId, retries } = state;
+    const nodeName = 'run_discovery_extraction';
 
-    const currentBrief = briefId
-      ? await this.prisma.commercialBrief.findUnique({ where: { conversationId } })
-      : null;
+    try {
+      const currentBrief = briefId
+        ? await this.prisma.commercialBrief.findUnique({ where: { conversationId } })
+        : null;
 
-    const extractedBrief = await this.aiSalesService.extractCommercialBrief(
-      conversationId,
-      transcript,
-      currentBrief ?? undefined,
-    );
-
-    const conversationContext = extractConversationContext(transcript);
-
-    const merged: MergedBrief = {
-      customerName: pickMeaningfulValue(extractedBrief.customerName, currentBrief?.customerName),
-      projectType: pickMeaningfulValue(extractedBrief.projectType, currentBrief?.projectType),
-      businessProblem: pickMeaningfulValue(
-        extractedBrief.businessProblem,
-        currentBrief?.businessProblem,
-      ),
-      desiredScope: pickMeaningfulValue(extractedBrief.desiredScope, currentBrief?.desiredScope),
-      budget: mergeBudgetValue(extractedBrief.budget, currentBrief?.budget),
-      urgency: mergeUrgencyValue(extractedBrief.urgency, currentBrief?.urgency),
-      constraints: pickMeaningfulValue(extractedBrief.constraints, currentBrief?.constraints),
-      summary: pickMeaningfulValue(extractedBrief.summary, currentBrief?.summary),
-    };
-
-    const extractedMissing = resolveExtractedMissingFields(extractedBrief.missingInformation);
-    const missingCoreFields = CORE_BRIEF_FIELDS.filter(
-      (f) =>
-        !hasMeaningfulBriefValue(merged[f]) ||
-        (extractedMissing.has(f) && !hasMeaningfulBriefValue(currentBrief?.[f])),
-    );
-    const missingOptionalFields = OPTIONAL_BRIEF_FIELDS.filter((f) => {
-      const hasValue = hasMeaningfulBriefValue(merged[f]);
-      const wasAskedBefore = hasMeaningfulBriefValue(currentBrief?.[f]);
-      const isFlexible =
-        (f === 'budget' && /a definir|presupuesto abierto/i.test(merged[f] || '')) ||
-        (f === 'urgency' && /flexible/i.test(merged[f] || ''));
-      if (isFlexible) return false;
-      return !hasValue && !wasAskedBefore && extractedMissing.has(f);
-    });
-    const missingFields = [...missingCoreFields, ...missingOptionalFields];
-
-    const ctxToStore = {
-      ...safeJsonObject((currentBrief as any)?.conversationContext),
-      ...(conversationContext ?? {}),
-      ...(newProjectStartMessageId ? { newProjectStartMessageId } : {}),
-    };
-
-    const upserted = await this.prisma.commercialBrief.upsert({
-      where: { conversationId },
-      create: {
+      const extractedBrief = await this.aiSalesService.extractCommercialBrief(
         conversationId,
-        status: missingFields.length > 0 ? 'collecting' : 'ready_for_quote',
-        ...merged,
-        conversationContext: ctxToStore,
-      } as any,
-      update: {
-        status: missingFields.length > 0 ? 'collecting' : 'ready_for_quote',
-        ...merged,
-        conversationContext: ctxToStore,
-      } as any,
-    });
+        transcript,
+        currentBrief ?? undefined,
+      );
 
-    return {
-      briefId: upserted.id,
-      briefStatus: mapBriefStatus(upserted.status),
-      briefSummary: buildBriefSummary(merged),
-      missingFields,
-    };
+      const conversationContext = extractConversationContext(transcript);
+
+      const merged: MergedBrief = {
+        customerName: pickMeaningfulValue(extractedBrief.customerName, currentBrief?.customerName),
+        projectType: pickMeaningfulValue(extractedBrief.projectType, currentBrief?.projectType),
+        businessProblem: pickMeaningfulValue(
+          extractedBrief.businessProblem,
+          currentBrief?.businessProblem,
+        ),
+        desiredScope: pickMeaningfulValue(extractedBrief.desiredScope, currentBrief?.desiredScope),
+        budget: mergeBudgetValue(extractedBrief.budget, currentBrief?.budget),
+        urgency: mergeUrgencyValue(extractedBrief.urgency, currentBrief?.urgency),
+        constraints: pickMeaningfulValue(extractedBrief.constraints, currentBrief?.constraints),
+        summary: pickMeaningfulValue(extractedBrief.summary, currentBrief?.summary),
+      };
+
+      const extractedMissing = resolveExtractedMissingFields(extractedBrief.missingInformation);
+      const missingCoreFields = CORE_BRIEF_FIELDS.filter(
+        (f) =>
+          !hasMeaningfulBriefValue(merged[f]) ||
+          (extractedMissing.has(f) && !hasMeaningfulBriefValue(currentBrief?.[f])),
+      );
+      const missingOptionalFields = OPTIONAL_BRIEF_FIELDS.filter((f) => {
+        const hasValue = hasMeaningfulBriefValue(merged[f]);
+        const wasAskedBefore = hasMeaningfulBriefValue(currentBrief?.[f]);
+        const isFlexible =
+          (f === 'budget' && /a definir|presupuesto abierto/i.test(merged[f] || '')) ||
+          (f === 'urgency' && /flexible/i.test(merged[f] || ''));
+        if (isFlexible) return false;
+        return !hasValue && !wasAskedBefore && extractedMissing.has(f);
+      });
+      const missingFields = [...missingCoreFields, ...missingOptionalFields];
+
+      const ctxToStore = {
+        ...safeJsonObject((currentBrief as any)?.conversationContext),
+        ...(conversationContext ?? {}),
+        ...(newProjectStartMessageId ? { newProjectStartMessageId } : {}),
+      };
+
+      const upserted = await this.prisma.commercialBrief.upsert({
+        where: { conversationId },
+        create: {
+          conversationId,
+          status: missingFields.length > 0 ? 'collecting' : 'ready_for_quote',
+          ...merged,
+          conversationContext: ctxToStore,
+        } as any,
+        update: {
+          status: missingFields.length > 0 ? 'collecting' : 'ready_for_quote',
+          ...merged,
+          conversationContext: ctxToStore,
+        } as any,
+      });
+
+      return {
+        briefId: upserted.id,
+        briefStatus: mapBriefStatus(upserted.status),
+        briefSummary: buildBriefSummary(merged),
+        missingFields,
+        retries: { ...retries, [nodeName]: 0 }, // Reset retry counter on success
+      };
+    } catch (error) {
+      const retryCount = (retries?.[nodeName] || 0) + 1;
+      const maxRetries = 2;
+
+      this.logger.error({
+        event: 'sales_graph_node_error',
+        node: nodeName,
+        conversationId,
+        retryCount,
+        maxRetries,
+        error: error instanceof Error ? error.message : String(error),
+      });
+
+      if (retryCount < maxRetries) {
+        // Retry by returning to this node
+        return {
+          retries: { ...retries, [nodeName]: retryCount },
+          lastError: `Retry ${retryCount}/${maxRetries} for ${nodeName}`,
+        };
+      }
+
+      // Max retries exceeded, continue with fallback
+      this.logger.error({
+        event: 'sales_graph_node_max_retries_exceeded',
+        node: nodeName,
+        conversationId,
+      });
+
+      // Continue graph execution with fallback behavior
+      return {
+        retries: { ...retries, [nodeName]: retryCount },
+        lastError: `Max retries exceeded for ${nodeName}, continuing with fallback`,
+      };
+    }
   }
 
   private evaluateBriefReadiness(
@@ -403,39 +494,77 @@ export class SalesGraphFactory implements OnModuleInit {
   private async askDiscoveryQuestion(
     state: SalesGraphStateType,
   ): Promise<Partial<SalesGraphStateType>> {
-    const { conversationId, transcript, missingFields, briefId } = state;
-
-    const currentBrief = briefId
-      ? await this.prisma.commercialBrief.findUnique({ where: { conversationId } })
-      : null;
-
-    const convCtx = extractConversationContext(transcript);
-    let responseBody: string;
+    const { conversationId, transcript, missingFields, briefId, retries } = state;
+    const nodeName = 'ask_discovery_question';
 
     try {
-      responseBody = await this.aiSalesService.generateDiscoveryReply({
-        transcript,
-        missingField: missingFields[0],
-        isFirstTouch: !currentBrief,
-        knownProjectType: currentBrief?.projectType,
-        customerName: currentBrief?.customerName,
-        conversationContext: convCtx ?? undefined,
-      });
-    } catch (err) {
-      this.logger.warn({
-        event: 'sales_graph_discovery_reply_fallback',
-        conversationId,
-        missingField: missingFields[0],
-        error: err instanceof Error ? err.message : String(err),
-      });
-      responseBody = buildStaticDiscoveryFallback(
-        missingFields[0],
-        !currentBrief,
-        currentBrief?.projectType ?? null,
-      );
-    }
+      const currentBrief = briefId
+        ? await this.prisma.commercialBrief.findUnique({ where: { conversationId } })
+        : null;
 
-    return { responseBody, responseSource: 'commercial-discovery' };
+      const convCtx = extractConversationContext(transcript);
+      let responseBody: string;
+
+      try {
+        responseBody = await this.aiSalesService.generateDiscoveryReply({
+          transcript,
+          missingField: missingFields[0],
+          isFirstTouch: !currentBrief,
+          knownProjectType: currentBrief?.projectType,
+          customerName: currentBrief?.customerName,
+          conversationContext: convCtx ?? undefined,
+        });
+      } catch (err) {
+        this.logger.warn({
+          event: 'sales_graph_discovery_reply_ai_failed',
+          conversationId,
+          missingField: missingFields[0],
+          error: err instanceof Error ? err.message : String(err),
+        });
+        responseBody = buildStaticDiscoveryFallback(
+          missingFields[0],
+          !currentBrief,
+          currentBrief?.projectType ?? null,
+        );
+      }
+
+      return { 
+        responseBody, 
+        responseSource: 'commercial-discovery',
+        retries: { ...retries, [nodeName]: 0 },
+      };
+    } catch (error) {
+      const retryCount = (retries?.[nodeName] || 0) + 1;
+      const maxRetries = 2;
+
+      this.logger.error({
+        event: 'sales_graph_node_error',
+        node: nodeName,
+        conversationId,
+        retryCount,
+        maxRetries,
+        error: error instanceof Error ? error.message : String(error),
+      });
+
+      if (retryCount < maxRetries) {
+        return {
+          retries: { ...retries, [nodeName]: retryCount },
+          lastError: `Retry ${retryCount}/${maxRetries} for ${nodeName}`,
+        };
+      }
+
+      // Fallback to static response
+      return {
+        responseBody: buildStaticDiscoveryFallback(
+          missingFields[0] || 'projectType',
+          !briefId,
+          null,
+        ),
+        responseSource: 'commercial-discovery',
+        retries: { ...retries, [nodeName]: retryCount },
+        lastError: `Max retries exceeded for ${nodeName}`,
+      };
+    }
   }
 
   private async enqueueQuoteGeneration(
@@ -492,10 +621,60 @@ export class SalesGraphFactory implements OnModuleInit {
     return { responseBody, responseSource: 'commercial-review-status' };
   }
 
-  private handleDeliveredQuote(state: SalesGraphStateType): Partial<SalesGraphStateType> {
-    const { inboundBody, conversationId } = state;
+  private async handleDeliveredQuote(state: SalesGraphStateType): Promise<Partial<SalesGraphStateType>> {
+    const { inboundBody, conversationId, transcript, briefSummary } = state;
     const lowerMessage = inboundBody?.toLowerCase().trim() || '';
 
+    try {
+      // Try dynamic response generation first
+      const dynamicResponse = await this.dynamicResponseGeneratorService.generateResponse({
+        userMessage: inboundBody || '',
+        intent: 'post_delivery',
+        context: {
+          hasBrief: !!state.briefId,
+          briefStatus: state.briefStatus || undefined,
+          briefSummary: briefSummary || undefined,
+          hasDraft: !!state.quoteDraftId,
+          draftReviewStatus: state.quoteReviewStatus || undefined,
+          conversationHistory: transcript ? transcript.split('\n').slice(-6).join('\n') : undefined,
+        },
+      });
+
+      // If dynamic response indicates human handoff, handle it
+      if (dynamicResponse.requiresHuman) {
+        return {
+          responseBody: dynamicResponse.responseBody,
+          responseSource: dynamicResponse.responseSource,
+          shouldNotifyHuman: true,
+        };
+      }
+
+      // If it's a PDF request, generate the link
+      if (dynamicResponse.responseSource === 'commercial-delivered-pdf-request') {
+        const signedPdfLink = this.quotePdfAccessLinkService.buildSignedPublicQuotePdfUrl(conversationId);
+        return {
+          responseBody: `Puedes descargar la propuesta en PDF aquí: ${signedPdfLink.url}\n\n¿Te quedó claro todo o tienes alguna duda específica?`,
+          responseSource: 'commercial-delivered-pdf-request',
+        };
+      }
+
+      return {
+        responseBody: dynamicResponse.responseBody,
+        responseSource: dynamicResponse.responseSource,
+      };
+    } catch (error) {
+      this.logger.warn({
+        event: 'sales_graph_dynamic_response_fallback_delivered',
+        conversationId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+
+      // Fallback to static pattern-based response
+      return this.handleDeliveredQuoteFallback(lowerMessage, conversationId);
+    }
+  }
+
+  private handleDeliveredQuoteFallback(lowerMessage: string, conversationId: string): Partial<SalesGraphStateType> {
     const proceedPatterns = [
       /avancemos/i, /adelante/i, /ok$/i, /^ok$/i, /^dale$/i, /^va$/i,
       /^si$/i, /^sí$/i, /perfecto/i, /listo/i, /procedamos/i, /empecemos/i,
@@ -550,22 +729,49 @@ export class SalesGraphFactory implements OnModuleInit {
     };
   }
 
-  private handleClarification(state: SalesGraphStateType): Partial<SalesGraphStateType> {
-    const { briefSummary, quoteReviewStatus } = state;
+  private async handleClarification(state: SalesGraphStateType): Promise<Partial<SalesGraphStateType>> {
+    const { briefSummary, quoteReviewStatus, transcript, inboundBody } = state;
 
-    const summary = briefSummary ?? 'proyecto en definición';
+    try {
+      // Use dynamic response generation for more natural clarification
+      const dynamicResponse = await this.dynamicResponseGeneratorService.generateResponse({
+        userMessage: inboundBody || '',
+        intent: 'clarification',
+        context: {
+          hasBrief: !!state.briefId,
+          briefStatus: state.briefStatus || undefined,
+          briefSummary: briefSummary || undefined,
+          hasDraft: !!state.quoteDraftId,
+          draftReviewStatus: quoteReviewStatus || undefined,
+          conversationHistory: transcript ? transcript.split('\n').slice(-6).join('\n') : undefined,
+        },
+      });
 
-    if (quoteReviewStatus) {
       return {
-        responseBody: `Entiendo la confusión. Tengo en mi sistema una propuesta en preparación para *${summary}*. Si este no es el proyecto que quieres, solo dímelo y empezamos de cero. ¿Quieres continuar con este proyecto o hablamos de algo diferente?`,
+        responseBody: dynamicResponse.responseBody,
+        responseSource: dynamicResponse.responseSource,
+      };
+    } catch (error) {
+      this.logger.warn({
+        event: 'sales_graph_clarification_dynamic_fallback',
+        error: error instanceof Error ? error.message : String(error),
+      });
+
+      // Fallback to static clarification
+      const summary = briefSummary ?? 'proyecto en definición';
+
+      if (quoteReviewStatus) {
+        return {
+          responseBody: `Entiendo la confusión. Tengo en mi sistema una propuesta en preparación para *${summary}*. Si este no es el proyecto que quieres, solo dímelo y empezamos de cero. ¿Quieres continuar con este proyecto o hablamos de algo diferente?`,
+          responseSource: 'commercial-clarification',
+        };
+      }
+
+      return {
+        responseBody: `Entiendo la confusión. Tengo en mi brief un proyecto de *${summary}*. ¿Es este el proyecto que quieres cotizar, o prefieres hablar de algo diferente?`,
         responseSource: 'commercial-clarification',
       };
     }
-
-    return {
-      responseBody: `Entiendo la confusión. Tengo en mi brief un proyecto de *${summary}*. ¿Es este el proyecto que quieres cotizar, o prefieres hablar de algo diferente?`,
-      responseSource: 'commercial-clarification',
-    };
   }
 
   private humanHandoff(_state: SalesGraphStateType): Partial<SalesGraphStateType> {
@@ -577,7 +783,48 @@ export class SalesGraphFactory implements OnModuleInit {
     };
   }
 
-  private finalizeReply(_state: SalesGraphStateType): Partial<SalesGraphStateType> {
+  private async finalizeReply(state: SalesGraphStateType): Promise<Partial<SalesGraphStateType>> {
+    const { responseBody, inboundBody, intent, briefId, quoteDraftId } = state;
+
+    // Run quality check on the conversation
+    const qualityResult = this.conversationQualityCheckerService.checkQuality({
+      userMessage: inboundBody || '',
+      botResponse: responseBody || '',
+      context: {
+        intent: intent || 'unknown',
+        confidence: 0.8, // Would be passed from intent classifier
+        messageCount: state.transcript ? state.transcript.split('\n').length : 0,
+        hasBrief: !!briefId,
+        hasDraft: !!quoteDraftId,
+        sameResponseCount: 0, // Would track from conversation history
+      },
+    });
+
+    // Log quality check result
+    this.logger.log({
+      event: 'sales_graph_quality_check',
+      conversationId: state.conversationId,
+      isHealthy: qualityResult.isHealthy,
+      issues: qualityResult.issues.length,
+      shouldEscalate: qualityResult.shouldEscalate,
+      recommendations: qualityResult.recommendations,
+    });
+
+    // If conversation is unhealthy and should escalate, notify human
+    if (qualityResult.shouldEscalate) {
+      this.logger.warn({
+        event: 'sales_graph_quality_escalation',
+        conversationId: state.conversationId,
+        issues: qualityResult.issues,
+        recommendations: qualityResult.recommendations,
+      });
+
+      return {
+        shouldNotifyHuman: true,
+        lastError: `Quality check escalation: ${qualityResult.issues.map((i) => i.description).join('; ')}`,
+      };
+    }
+
     return {};
   }
 

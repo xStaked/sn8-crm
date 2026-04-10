@@ -17,6 +17,9 @@ import { FollowUpService } from './follow-up.service';
 import { QuoteEstimatorService } from './quote-estimator.service';
 import { SalesGraphFactory } from './langgraph/sales-graph.factory';
 import { SalesGraphRolloutService } from './langgraph/sales-graph-rollout.service';
+import { AiIntentClassifierService } from './ai-intent-classifier.service';
+import { DynamicResponseGeneratorService } from './dynamic-response-generator.service';
+import { ConversationQualityCheckerService } from './conversation-quality-checker.service';
 
 @Module({
   imports: [
@@ -37,6 +40,9 @@ import { SalesGraphRolloutService } from './langgraph/sales-graph-rollout.servic
     FollowUpService,
     SalesGraphFactory,
     SalesGraphRolloutService,
+    AiIntentClassifierService,
+    DynamicResponseGeneratorService,
+    ConversationQualityCheckerService,
     AiSalesProcessor,
     {
       provide: AI_PROVIDER,
@@ -50,6 +56,9 @@ import { SalesGraphRolloutService } from './langgraph/sales-graph-rollout.servic
     OwnerReviewService,
     SalesGraphFactory,
     SalesGraphRolloutService,
+    AiIntentClassifierService,
+    DynamicResponseGeneratorService,
+    ConversationQualityCheckerService,
     AI_PROVIDER,
   ],
 })
