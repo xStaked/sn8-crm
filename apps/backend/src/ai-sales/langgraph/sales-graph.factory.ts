@@ -198,6 +198,19 @@ export class SalesGraphFactory implements OnModuleInit {
       return { intent: 'human_handoff', shouldNotifyHuman: true };
     }
 
+    // CRITICAL: Check for new project intent FIRST, even if there's a delivered quote
+    // This handles the case where user clicks "Cotizar proyecto" button or says "cotizar proyecto"
+    // when they already have a delivered quote - they want a NEW project, not responding to old one
+    if (briefId && detectsNewProjectIntent(inboundBody)) {
+      return { intent: 'new_project' };
+    }
+
+    // Also check for explicit "cotizar proyecto" without "otro/nuevo" when there's existing context
+    // This catches button clicks and simple requests
+    if (briefId && inboundBody && /cotizar\s+(proyecto|propuesta|landing|crm|app|automatizaci[oó]n)/i.test(inboundBody)) {
+      return { intent: 'new_project' };
+    }
+
     // Use AI-powered intent classification with context
     try {
       const aiClassification = await this.aiIntentClassifierService.classifyIntent({
@@ -235,11 +248,6 @@ export class SalesGraphFactory implements OnModuleInit {
       };
 
       const mappedIntent = intentMapping[aiClassification.intent] || 'discovery';
-
-      // Special handling for new project when brief already exists
-      if (briefId && (mappedIntent === 'new_project' || detectsNewProjectIntent(inboundBody))) {
-        return { intent: 'new_project' };
-      }
 
       return { 
         intent: mappedIntent as any,
