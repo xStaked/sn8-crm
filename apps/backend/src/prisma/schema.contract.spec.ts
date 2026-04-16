@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-describe('Prisma schema conversation state contract', () => {
+describe('Prisma schema contracts', () => {
   it('declares a durable ConversationState model for bot routing state', () => {
     const schema = readFileSync(join(__dirname, '../../prisma/schema.prisma'), 'utf8');
 
@@ -13,5 +13,22 @@ describe('Prisma schema conversation state contract', () => {
     expect(schema).toMatch(/lastTransitionAt\s+DateTime/);
     expect(schema).toMatch(/expiresAt\s+DateTime/);
     expect(schema).toContain('@@index([expiresAt])');
+  });
+
+  it('declares the multi-tenant SaaS foundation models', () => {
+    const schema = readFileSync(join(__dirname, '../../prisma/schema.prisma'), 'utf8');
+
+    expect(schema).toContain('model Workspace');
+    expect(schema).toContain('model WorkspaceMember');
+    expect(schema).toContain('model Bot');
+    expect(schema).toContain('model ChannelConnection');
+    expect(schema).toContain('model Conversation');
+    expect(schema).toContain('model Lead');
+    expect(schema).toContain('enum WorkspaceMemberRole');
+    expect(schema).toContain('enum BotStatus');
+    expect(schema).toContain('enum ChannelType');
+    expect(schema).toContain('enum ConversationStatus');
+    expect(schema).toMatch(/workspaceId\s+String\?/);
+    expect(schema).toMatch(/conversationId\s+String\?/);
   });
 });

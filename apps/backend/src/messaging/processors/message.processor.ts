@@ -6,6 +6,7 @@ import { ChannelAdapter } from '../../channels/channel.adapter';
 import { BotConversationService } from '../../bot-conversation/bot-conversation.service';
 import { MessagingService } from '../messaging.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { SaasService } from '../../saas/saas.service';
 
 @Processor('incoming-messages')
 export class MessageProcessor extends WorkerHost {
@@ -16,6 +17,7 @@ export class MessageProcessor extends WorkerHost {
     private readonly channel: ChannelAdapter,
     private readonly messagingService: MessagingService,
     private readonly config: ConfigService,
+    private readonly saasService: SaasService,
     @Inject(forwardRef(() => BotConversationService))
     private readonly botConversationService: BotConversationService,
   ) {
@@ -53,9 +55,38 @@ export class MessageProcessor extends WorkerHost {
       throw err;
     }
 
+    const defaultWorkspace = await this.saasService.ensureDefaultWorkspace();
+    const inboundConversation = await this.prisma.conversation.upsert({
+      where: {
+        workspaceId_customerPhone: {
+          workspaceId: defaultWorkspace.workspaceId,
+          customerPhone: this.saasService.buildConversationId(normalized.fromPhone),
+        },
+      },
+      update: {
+        botId: defaultWorkspace.botId,
+        channelConnectionId: defaultWorkspace.channelConnectionId,
+        lastMessageAt: new Date(),
+      },
+      create: {
+        workspaceId: defaultWorkspace.workspaceId,
+        botId: defaultWorkspace.botId,
+        channelConnectionId: defaultWorkspace.channelConnectionId,
+        customerPhone: this.saasService.buildConversationId(normalized.fromPhone),
+        customerName: undefined,
+        status: 'open',
+        lastMessageAt: new Date(),
+      },
+      select: { id: true },
+    });
+
     try {
       const created = await this.prisma.message.create({
         data: {
+          workspaceId: defaultWorkspace.workspaceId,
+          conversationId: inboundConversation.id,
+          botId: defaultWorkspace.botId,
+          channelConnectionId: defaultWorkspace.channelConnectionId,
           externalMessageId: normalized.externalMessageId,
           direction: normalized.direction,
           fromPhone: normalized.fromPhone,
@@ -115,6 +146,10 @@ export class MessageProcessor extends WorkerHost {
 
     await this.prisma.message.create({
       data: {
+        workspaceId: defaultWorkspace.workspaceId,
+        conversationId: inboundConversation.id,
+        botId: defaultWorkspace.botId,
+        channelConnectionId: defaultWorkspace.channelConnectionId,
         externalMessageId,
         direction: 'outbound',
         fromPhone: senderPhoneNumberId ?? 'bot',
@@ -137,6 +172,11 @@ export class MessageProcessor extends WorkerHost {
           replyToExternalMessageId: normalized.externalMessageId,
         },
       },
+    });
+
+    await this.prisma.conversation.update({
+      where: { id: inboundConversation.id },
+      data: { lastMessageAt: new Date() },
     });
 
     this.logger.log({

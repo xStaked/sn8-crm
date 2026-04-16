@@ -20,6 +20,7 @@ import {
 import { MessagingService } from '../messaging/messaging.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { QuotePdfService } from '../quote-documents/quote-pdf.service';
+import { SaasService } from '../saas/saas.service';
 import { ApproveQuoteDto } from './dto/approve-quote.dto';
 import {
   ConversationQuoteReviewDto,
@@ -163,6 +164,7 @@ export class ConversationsService {
     @Inject(forwardRef(() => AiSalesOrchestrator))
     private readonly aiSalesOrchestrator: AiSalesOrchestrator,
     private readonly botConversationRepository: BotConversationRepository,
+    private readonly saasService: SaasService,
   ) {}
 
   async transferControlToHuman(
@@ -180,31 +182,38 @@ export class ConversationsService {
   }
 
   async listConversations(): Promise<ConversationSummary[]> {
-    const messages = await this.prisma.message.findMany({
-      orderBy: { createdAt: 'desc' },
-      select: messageProjection,
+    const defaultWorkspace = await this.saasService.ensureDefaultWorkspace();
+    const conversations = await this.prisma.conversation.findMany({
+      where: { workspaceId: defaultWorkspace.workspaceId },
+      orderBy: [{ lastMessageAt: 'desc' }, { createdAt: 'desc' }],
+      include: {
+        messages: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: messageProjection,
+        },
+      },
     });
 
     const summaries = new Map<string, ConversationSummary>();
 
-    for (const message of messages) {
-      const conversationId = this.getStableConversationId(message);
-
-      if (summaries.has(conversationId)) {
-        continue;
-      }
+    for (const conversation of conversations) {
+      const latestMessage = conversation.messages[0];
+      const conversationId = conversation.customerPhone;
+      const latestTimestamp =
+        latestMessage?.createdAt ?? conversation.lastMessageAt ?? conversation.createdAt;
 
       summaries.set(conversationId, {
         id: conversationId,
-        contactName: conversationId,
-        lastMessage: message.body ?? '',
-        lastMessageAt: message.createdAt.toISOString(),
+        contactName: conversation.customerName ?? conversation.customerPhone,
+        lastMessage: latestMessage?.body ?? '',
+        lastMessageAt: latestTimestamp.toISOString(),
         unreadCount: 0,
         pendingQuote: null,
         conversationControl: {
           state: BotConversationState.QUALIFYING,
           control: 'ai_control',
-          updatedAt: message.createdAt.toISOString(),
+          updatedAt: latestTimestamp.toISOString(),
           updatedBy: 'system',
         },
       });
@@ -226,10 +235,27 @@ export class ConversationsService {
 
   async listConversationMessages(conversationId: string): Promise<ConversationMessage[]> {
     const normalizedConversationId = this.normalizeParticipantPhone(conversationId);
-    const messages = await this.prisma.message.findMany({
-      orderBy: { createdAt: 'asc' },
-      select: messageProjection,
+    const defaultWorkspace = await this.saasService.ensureDefaultWorkspace();
+    const conversation = await this.prisma.conversation.findUnique({
+      where: {
+        workspaceId_customerPhone: {
+          workspaceId: defaultWorkspace.workspaceId,
+          customerPhone: normalizedConversationId,
+        },
+      },
+      select: { id: true },
     });
+
+    const messages = conversation
+      ? await this.prisma.message.findMany({
+          where: { conversationId: conversation.id },
+          orderBy: { createdAt: 'asc' },
+          select: messageProjection,
+        })
+      : await this.prisma.message.findMany({
+          orderBy: { createdAt: 'asc' },
+          select: messageProjection,
+        });
 
     const history = messages
       .filter((message) => this.getStableConversationId(message) === normalizedConversationId)

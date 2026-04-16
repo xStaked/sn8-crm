@@ -12,6 +12,7 @@ import { QuoteMetricsModule } from './quote-metrics/quote-metrics.module';
 import { QuoteDocumentsModule } from './quote-documents/quote-documents.module';
 import { RedisModule } from './redis/redis.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
+import { SaasModule } from './saas/saas.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
     QuoteMetricsModule,
     ConversationsModule,
     WebhooksModule,
+    SaasModule,
   ],
 })
 export class AppModule {}

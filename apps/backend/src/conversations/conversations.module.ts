@@ -5,6 +5,7 @@ import { BotConversationModule } from '../bot-conversation/bot-conversation.modu
 import { MessagingModule } from '../messaging/messaging.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { QuoteDocumentsModule } from '../quote-documents/quote-documents.module';
+import { SaasModule } from '../saas/saas.module';
 import { ConversationsController } from './conversations.controller';
 import { ConversationsService } from './conversations.service';
 
@@ -13,6 +14,7 @@ import { ConversationsService } from './conversations.service';
     AuthModule,
     PrismaModule,
     QuoteDocumentsModule,
+    SaasModule,
     forwardRef(() => BotConversationModule),
     forwardRef(() => MessagingModule),
     forwardRef(() => AiSalesModule),

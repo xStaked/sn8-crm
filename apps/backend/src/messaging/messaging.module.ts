@@ -4,6 +4,7 @@ import { BotConversationModule } from '../bot-conversation/bot-conversation.modu
 import { BullModule } from '@nestjs/bullmq';
 import { ChannelsModule } from '../channels/channels.module';
 import { PrismaModule } from '../prisma/prisma.module';
+import { SaasModule } from '../saas/saas.module';
 import { MessagingService } from './messaging.service';
 import { MessageProcessor } from './processors/message.processor';
 
@@ -13,6 +14,7 @@ import { MessageProcessor } from './processors/message.processor';
     forwardRef(() => BotConversationModule),
     ChannelsModule,
     PrismaModule,
+    SaasModule,
     BullModule.registerQueue({ name: 'incoming-messages' }),
   ],
   providers: [MessagingService, MessageProcessor],

@@ -36,6 +36,48 @@ enum UserRole {
   user
 }
 
+enum WorkspaceMemberRole {
+  owner
+  admin
+  operator
+  reviewer
+}
+
+enum BotStatus {
+  draft
+  active
+  paused
+  archived
+}
+
+enum ChannelType {
+  whatsapp
+  instagram
+  webchat
+}
+
+enum ChannelConnectionStatus {
+  draft
+  active
+  error
+  disconnected
+}
+
+enum ConversationStatus {
+  open
+  waiting_customer
+  waiting_human
+  closed
+}
+
+enum LeadStatus {
+  new
+  qualified
+  unqualified
+  won
+  lost
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -43,19 +85,152 @@ model User {
   role         UserRole @default(user)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  memberships WorkspaceMember[]
+}
+
+model Workspace {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members            WorkspaceMember[]
+  bots               Bot[]
+  channelConnections ChannelConnection[]
+  conversations      Conversation[]
+  leads              Lead[]
+  messages           Message[]
+  commercialBriefs   CommercialBrief[]
+  quoteDrafts        QuoteDraft[]
+  quoteReviewEvents  QuoteReviewEvent[]
+}
+
+model WorkspaceMember {
+  id          String              @id @default(cuid())
+  workspaceId String
+  userId      String
+  role        WorkspaceMemberRole @default(operator)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([userId])
+}
+
+model Bot {
+  id          String    @id @default(cuid())
+  workspaceId String
+  name        String
+  slug        String
+  status      BotStatus @default(draft)
+  persona     Json?
+  settings    Json?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  workspace          Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  channelConnections ChannelConnection[]
+  conversations      Conversation[]
+  messages           Message[]
+
+  @@unique([workspaceId, slug])
+  @@index([workspaceId, status])
+}
+
+model ChannelConnection {
+  id          String                  @id @default(cuid())
+  workspaceId String
+  botId       String?
+  type        ChannelType
+  name        String
+  externalRef String?
+  status      ChannelConnectionStatus @default(draft)
+  credentials Json?
+  settings    Json?
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+
+  workspace     Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  bot           Bot?            @relation(fields: [botId], references: [id], onDelete: SetNull)
+  conversations Conversation[]
+  messages      Message[]
+
+  @@index([workspaceId, type, status])
+}
+
+model Conversation {
+  id                  String             @id @default(cuid())
+  workspaceId         String
+  botId               String?
+  channelConnectionId String?
+  externalThreadKey   String?
+  customerPhone       String
+  customerName        String?
+  status              ConversationStatus @default(open)
+  lastMessageAt       DateTime?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  workspace         Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  bot               Bot?               @relation(fields: [botId], references: [id], onDelete: SetNull)
+  channelConnection ChannelConnection? @relation(fields: [channelConnectionId], references: [id], onDelete: SetNull)
+  messages          Message[]
+  lead              Lead?
+  commercialBrief   CommercialBrief?
+
+  @@unique([workspaceId, customerPhone])
+  @@index([workspaceId, status, lastMessageAt])
+  @@index([channelConnectionId])
+}
+
+model Lead {
+  id             String     @id @default(cuid())
+  workspaceId    String
+  conversationId String?    @unique
+  status         LeadStatus @default(new)
+  fullName       String?
+  phone          String?
+  email          String?
+  source         String?
+  qualification  Json?
+  profile        Json?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  workspace    Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  conversation Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, status, createdAt])
 }
 
 model Message {
-  id                String    @id @default(cuid())
-  externalMessageId String    @unique
-  direction         String // "inbound" | "outbound"
-  fromPhone         String
-  toPhone           String
-  body              String?
-  channel           String    @default("whatsapp")
-  rawPayload        Json
-  processedAt       DateTime?
-  createdAt         DateTime  @default(now())
+  id                  String    @id @default(cuid())
+  workspaceId         String?
+  conversationId      String?
+  botId               String?
+  channelConnectionId String?
+  externalMessageId   String    @unique
+  direction           String // "inbound" | "outbound"
+  fromPhone           String
+  toPhone             String
+  body                String?
+  channel             String    @default("whatsapp")
+  rawPayload          Json
+  processedAt         DateTime?
+  createdAt           DateTime  @default(now())
+
+  workspace    Workspace?          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  conversation Conversation?       @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  bot          Bot?                @relation(fields: [botId], references: [id], onDelete: SetNull)
+  channelConn  ChannelConnection?  @relation(fields: [channelConnectionId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, createdAt])
+  @@index([conversationId, createdAt])
 }
 
 model ConversationState {
@@ -76,7 +251,9 @@ model ConversationState {
 
 model CommercialBrief {
   id                  String                @id @default(cuid())
+  workspaceId         String?
   conversationId      String                @unique
+  conversationRefId   String?
   status              CommercialBriefStatus @default(collecting)
   customerName        String?
   projectType         String?
@@ -90,13 +267,18 @@ model CommercialBrief {
   conversationContext Json? // Stores topics, tone, concerns, urgency level, technical level
   createdAt           DateTime              @default(now())
   updatedAt           DateTime              @updatedAt
+  workspace           Workspace?            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  conversation        Conversation?         @relation(fields: [conversationRefId], references: [id], onDelete: SetNull)
   quoteDrafts         QuoteDraft[]
 
   @@index([status])
+  @@index([workspaceId, status])
+  @@index([conversationRefId])
 }
 
 model QuoteDraft {
   id                    String                  @id @default(cuid())
+  workspaceId           String?
   commercialBriefId     String
   conversationId        String
   version               Int
@@ -112,6 +294,7 @@ model QuoteDraft {
   pricingRuleVersion    Int?
   createdAt             DateTime                @default(now())
   updatedAt             DateTime                @updatedAt
+  workspace             Workspace?              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   commercialBrief       CommercialBrief         @relation(fields: [commercialBriefId], references: [id], onDelete: Cascade)
   document              QuoteDraftDocument?
   pricingRule           PricingRule?            @relation(fields: [pricingRuleId], references: [id], onDelete: SetNull)
@@ -122,6 +305,7 @@ model QuoteDraft {
   @@unique([conversationId, version])
   @@index([commercialBriefId, version])
   @@index([conversationId, reviewStatus, createdAt])
+  @@index([workspaceId, reviewStatus, createdAt])
   @@index([pricingRuleId, pricingRuleVersion, createdAt])
 }
 
@@ -213,6 +397,7 @@ model QuoteDraftDocument {
 
 model QuoteReviewEvent {
   id             String            @id @default(cuid())
+  workspaceId    String?
   quoteDraftId   String
   conversationId String
   iteration      Int
@@ -220,8 +405,10 @@ model QuoteReviewEvent {
   feedback       String
   createdAt      DateTime          @default(now())
   resolvedAt     DateTime?
+  workspace      Workspace?        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   quoteDraft     QuoteDraft        @relation(fields: [quoteDraftId], references: [id], onDelete: Cascade)
 
   @@unique([quoteDraftId, iteration])
+  @@index([workspaceId, createdAt])
   @@index([conversationId, createdAt])
 }
